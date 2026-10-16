@@ -323,7 +323,7 @@ fun TemperatureDetailScreen(context: Context) {
                     TempBandRow(
                         label = stringResource(R.string.optimal),
                         range = "±0.5 °C",
-                        desc = "Eutermia normal de descanso",
+                        desc = stringResource(R.string.euthermia_desc),
                         color = TempOptimal,
                         isActive = offset in -0.5f..0.5f
                     )
@@ -331,7 +331,7 @@ fun TemperatureDetailScreen(context: Context) {
                     TempBandRow(
                         label = stringResource(R.string.elevated),
                         range = "> +0.5 °C",
-                        desc = "Metabolismo activo o respuesta inmune",
+                        desc = stringResource(R.string.elevated_temp_desc),
                         color = TempRuby,
                         isActive = offset > 0.5f
                     )
@@ -339,7 +339,7 @@ fun TemperatureDetailScreen(context: Context) {
                     TempBandRow(
                         label = stringResource(R.string.temp_cool),
                         range = "< -0.5 °C",
-                        desc = "Enfriamiento ambiental o recuperación profunda",
+                        desc = stringResource(R.string.cool_temp_desc),
                         color = TempCool,
                         isActive = offset < -0.5f
                     )
@@ -398,7 +398,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Sueño",
+                    text = stringResource(R.string.sleep_stat),
                     color = TempRoseSoft,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
@@ -523,17 +523,17 @@ private fun CircadianThermalCurveCard(offset: Float) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "-0.4 °C", color = TempCool, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Mínima", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.min_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "98%", color = TempOptimal, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "En Rango", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.in_range_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "0.0 °C", color = Color.White, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Base", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.baseline_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
             }
         }
