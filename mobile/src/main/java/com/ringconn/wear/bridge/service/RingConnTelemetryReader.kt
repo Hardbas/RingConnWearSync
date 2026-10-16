@@ -134,6 +134,7 @@ object RingConnTelemetryReader {
         // Existing saved values for fallback continuity
         val existing = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
+        var hasRingConnOrigin = false
         var lastBpm = 0
         var avgBpm = 0
         var restingBpm = 0
@@ -155,8 +156,16 @@ object RingConnTelemetryReader {
                     )
                 )
 
-                // Flatten all samples
-                val allSamples = hrResponse.records.flatMap { record ->
+                // Strictly prioritize RingConn smart ring origin over Samsung Health / Watch PPG
+                val ringConnHr = hrResponse.records.filter {
+                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
+                }
+                val effectiveHrRecords = ringConnHr.ifEmpty { hrResponse.records }
+                if (ringConnHr.isNotEmpty()) {
+                    hasRingConnOrigin = true
+                }
+
+                val allSamples = effectiveHrRecords.flatMap { record ->
                     record.samples.map { sample -> sample to record.metadata.dataOrigin.packageName }
                 }
 
@@ -188,7 +197,7 @@ object RingConnTelemetryReader {
             }
         }
 
-        // Resting Heart Rate
+        // Resting Heart Rate (Prioritize RingConn origin)
         if (granted.contains(HealthPermission.getReadPermission(RestingHeartRateRecord::class))) {
             try {
                 val rhrResponse = client.readRecords(
@@ -197,7 +206,11 @@ object RingConnTelemetryReader {
                         timeRangeFilter = TimeRangeFilter.between(queryStart, now)
                     )
                 )
-                val latestRhr = rhrResponse.records.maxByOrNull { it.time }
+                val ringConnRhr = rhrResponse.records.filter {
+                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
+                }
+                val effectiveRhr = ringConnRhr.ifEmpty { rhrResponse.records }
+                val latestRhr = effectiveRhr.maxByOrNull { it.time }
                 if (latestRhr != null) {
                     restingBpm = latestRhr.beatsPerMinute.toInt()
                     if (avgBpm == 0) avgBpm = restingBpm
@@ -207,7 +220,7 @@ object RingConnTelemetryReader {
             }
         }
 
-        // 2. Oxygen Saturation (SpO2)
+        // 2. Oxygen Saturation (SpO2 - Prioritize RingConn origin)
         var lastSpo2 = 0
         var avgSpo2 = 0
         if (granted.contains(HealthPermission.getReadPermission(OxygenSaturationRecord::class))) {
@@ -218,13 +231,17 @@ object RingConnTelemetryReader {
                         timeRangeFilter = TimeRangeFilter.between(queryStart, now)
                     )
                 )
-                val latestSpo2Record = spo2Response.records.maxByOrNull { it.time }
+                val ringConnSpo2 = spo2Response.records.filter {
+                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
+                }
+                val effectiveSpo2 = ringConnSpo2.ifEmpty { spo2Response.records }
+                val latestSpo2Record = effectiveSpo2.maxByOrNull { it.time }
                 if (latestSpo2Record != null) {
                     val rawVal = latestSpo2Record.percentage.value
                     lastSpo2 = if (rawVal <= 1.0) (rawVal * 100.0).roundToInt() else rawVal.roundToInt()
                 }
 
-                val todaySpo2 = spo2Response.records.filter { it.time >= todayStart }
+                val todaySpo2 = effectiveSpo2.filter { it.time >= todayStart }
                 if (todaySpo2.isNotEmpty()) {
                     avgSpo2 = todaySpo2.map {
                         val v = it.percentage.value
@@ -238,7 +255,7 @@ object RingConnTelemetryReader {
             }
         }
 
-        // 3. Heart Rate Variability (HRV RMSSD)
+        // 3. Heart Rate Variability (HRV RMSSD - Prioritize RingConn origin)
         var lastHrv = 0
         var avgHrv = 0
         if (granted.contains(HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class))) {
@@ -249,12 +266,16 @@ object RingConnTelemetryReader {
                         timeRangeFilter = TimeRangeFilter.between(queryStart, now)
                     )
                 )
-                val latestHrvRecord = hrvResponse.records.maxByOrNull { it.time }
+                val ringConnHrv = hrvResponse.records.filter {
+                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
+                }
+                val effectiveHrv = ringConnHrv.ifEmpty { hrvResponse.records }
+                val latestHrvRecord = effectiveHrv.maxByOrNull { it.time }
                 if (latestHrvRecord != null) {
                     lastHrv = latestHrvRecord.heartRateVariabilityMillis.roundToInt()
                 }
 
-                val todayHrv = hrvResponse.records.filter { it.time >= todayStart }
+                val todayHrv = effectiveHrv.filter { it.time >= todayStart }
                 if (todayHrv.isNotEmpty()) {
                     avgHrv = todayHrv.map { it.heartRateVariabilityMillis }.average().roundToInt()
                 } else {
@@ -268,7 +289,6 @@ object RingConnTelemetryReader {
         // 4. Steps Today (Prioritize RingConn data origin)
         var todaySteps = 0
         var activeMinutes = 0
-        var hasRingConnOrigin = false
         if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class))) {
             try {
                 val stepsResponse = client.readRecords(
@@ -600,10 +620,10 @@ object RingConnTelemetryReader {
         val finalZ5 = if (hasNewZones) z5 else existing.zone5Mins
 
         val hasNewStages = (deepMins + remMins + lightMins + awakeMins) > 0
-        val finalDeep = if (hasNewStages) deepMins.toInt() else 0
-        val finalRem = if (hasNewStages) remMins.toInt() else 0
-        val finalLight = if (hasNewStages) lightMins.toInt() else 0
-        val finalAwake = if (hasNewStages) awakeMins.toInt() else 0
+        val finalDeep = if (hasNewStages) deepMins.toInt() else existing.sleepDeepMins
+        val finalRem = if (hasNewStages) remMins.toInt() else existing.sleepRemMins
+        val finalLight = if (hasNewStages) lightMins.toInt() else existing.sleepLightMins
+        val finalAwake = if (hasNewStages) awakeMins.toInt() else existing.sleepAwakeMins
 
         val vitals = RingConnVitals(
             lastHeartRate = finalHr,
@@ -675,10 +695,10 @@ object RingConnTelemetryReader {
                 zone3Mins = z3,
                 zone4Mins = z4,
                 zone5Mins = z5,
-                sleepDeepMins = if (widgetVitals.sleepScore > 0) (hcVitals?.sleepDeepMins ?: 0) else 0,
-                sleepRemMins = if (widgetVitals.sleepScore > 0) (hcVitals?.sleepRemMins ?: 0) else 0,
-                sleepLightMins = if (widgetVitals.sleepScore > 0) (hcVitals?.sleepLightMins ?: 0) else 0,
-                sleepAwakeMins = if (widgetVitals.sleepScore > 0) (hcVitals?.sleepAwakeMins ?: 0) else 0,
+                sleepDeepMins = hcVitals?.sleepDeepMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepDeepMins > 0) widgetVitals.sleepDeepMins else cached.sleepDeepMins),
+                sleepRemMins = hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
+                sleepLightMins = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
+                sleepAwakeMins = hcVitals?.sleepAwakeMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
                 skinTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset,
                 skinTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
             )

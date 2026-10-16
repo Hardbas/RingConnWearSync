@@ -162,10 +162,39 @@ object RingConnTelemetryParser {
 
             // Heart Rate Header
             if (lower == "hr" || lower == "fc" || lower == "heart rate" || lower == "frecuencia cardíaca" || lower == "frecuencia cardiaca") {
-                val next = cleanTokens.getOrNull(i + 1)
-                if (next != null && next != "--" && !next.startsWith("/")) {
-                    val num = next.replace("bpm", "").replace("lpm", "").trim().toIntOrNull()
-                    if (num != null && num in 35..220) lastHr = num
+                val candidates = listOfNotNull(cleanTokens.getOrNull(i + 1), cleanTokens.getOrNull(i + 2), cleanTokens.getOrNull(i - 1))
+                for (cand in candidates) {
+                    if (cand != "--" && !cand.startsWith("/")) {
+                        val num = cand.replace("bpm", "").replace("lpm", "").trim().toIntOrNull()
+                        if (num != null && num in 35..220) {
+                            lastHr = num
+                            break
+                        }
+                    }
+                }
+            }
+
+            // Explicit Resting Heart Rate Header
+            if (lower == "resting" || lower == "reposo" || lower == "en reposo" || lower == "resting hr" || lower == "fc reposo") {
+                val candidates = listOfNotNull(cleanTokens.getOrNull(i + 1), cleanTokens.getOrNull(i + 2), cleanTokens.getOrNull(i - 1))
+                for (cand in candidates) {
+                    val num = cand.replace("bpm", "").replace("lpm", "").trim().toIntOrNull()
+                    if (num != null && num in 35..150) {
+                        avgHr = num
+                        break
+                    }
+                }
+            }
+
+            // Explicit Latest Heart Rate Header
+            if (lower.contains("última") || lower.contains("ultima") || lower.contains("latest") || lower.contains("actual") || lower.contains("current")) {
+                val candidates = listOfNotNull(cleanTokens.getOrNull(i + 1), cleanTokens.getOrNull(i + 2), cleanTokens.getOrNull(i - 1))
+                for (cand in candidates) {
+                    val num = cand.replace("bpm", "").replace("lpm", "").trim().toIntOrNull()
+                    if (num != null && num in 35..220) {
+                        lastHr = num
+                        break
+                    }
                 }
             }
 
@@ -335,10 +364,10 @@ object RingConnTelemetryParser {
             ringBattery = ringBattery,
             isConnected = true,
             refreshTimestamp = System.currentTimeMillis() / 1000L,
-            sleepDeepMins = if (sleepScore > 0) baseVitals.sleepDeepMins else 0,
-            sleepRemMins = if (sleepScore > 0) baseVitals.sleepRemMins else 0,
-            sleepLightMins = if (sleepScore > 0) baseVitals.sleepLightMins else 0,
-            sleepAwakeMins = if (sleepScore > 0) baseVitals.sleepAwakeMins else 0,
+            sleepDeepMins = baseVitals.sleepDeepMins,
+            sleepRemMins = baseVitals.sleepRemMins,
+            sleepLightMins = baseVitals.sleepLightMins,
+            sleepAwakeMins = baseVitals.sleepAwakeMins,
             skinTempOffset = skinTempOffset,
             skinTempBaseline = skinTempBaseline
         )
