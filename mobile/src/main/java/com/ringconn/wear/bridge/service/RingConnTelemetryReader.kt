@@ -397,12 +397,30 @@ object RingConnTelemetryReader {
                             }
                         }
 
+                        val firstAsleepMinute = minuteTimeline.indexOfFirst {
+                            it == SleepSessionRecord.STAGE_TYPE_DEEP ||
+                            it == SleepSessionRecord.STAGE_TYPE_REM ||
+                            it == SleepSessionRecord.STAGE_TYPE_LIGHT
+                        }
+                        val lastAsleepMinute = minuteTimeline.indexOfLast {
+                            it == SleepSessionRecord.STAGE_TYPE_DEEP ||
+                            it == SleepSessionRecord.STAGE_TYPE_REM ||
+                            it == SleepSessionRecord.STAGE_TYPE_LIGHT
+                        }
+
                         deepMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_DEEP }.toLong()
                         remMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_REM }.toLong()
                         lightMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_LIGHT }.toLong()
-                        awakeMins = minuteTimeline.count {
-                            it == SleepSessionRecord.STAGE_TYPE_AWAKE || it == SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
-                        }.toLong()
+
+                        // RingConn calculates Awake as WASO (Wake After Sleep Onset), excluding sleep latency before onset and lingering in bed after waking
+                        awakeMins = if (firstAsleepMinute in 0..lastAsleepMinute) {
+                            (firstAsleepMinute..lastAsleepMinute).count { m ->
+                                val st = minuteTimeline[m]
+                                st == SleepSessionRecord.STAGE_TYPE_AWAKE || st == SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
+                            }.toLong()
+                        } else {
+                            0L
+                        }
                     }
 
                     totalDurationMins = if (deepMins + remMins + lightMins > 0) {
