@@ -9,8 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,28 +44,32 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.wear.compose.material.Text
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import kotlinx.coroutines.launch
 
-private val TempOptimal = Color(0xFFA0F116)
-private val TempWarm = Color(0xFFFF9800)
-private val TempCool = Color(0xFF47CDFF)
+private val TempCool = Color(0xFF00E5FF)       // Cyan
+private val TempOptimal = Color(0xFFA0F116)    // Electric Lime
+private val TempWarm = Color(0xFFFF9100)       // Vivid Amber
+private val TempHot = Color(0xFFFF3D00)        // Coral Red
 
 private val TempHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF2E3E48), Color(0xFF10161B))
+    listOf(Color(0xFF162534), Color(0xFF080D14))
 )
 
 private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF1E282E), Color(0xFF12181C))
+    listOf(Color(0xFF1E2835), Color(0xFF10151E))
 )
 
 class TemperatureDetailActivity : ComponentActivity() {
@@ -155,7 +160,7 @@ fun TemperatureDetailScreen(context: Context) {
                 .padding(horizontal = 14.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header: Clean title (Wear OS standard swipe-to-dismiss)
+            // Header: Clean title
             Text(
                 text = stringResource(R.string.skin_temp),
                 color = Color.White,
@@ -164,7 +169,7 @@ fun TemperatureDetailScreen(context: Context) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // 1. Hero Stadium Capsule
+            // 1. Hero Stadium Capsule Card
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -178,7 +183,7 @@ fun TemperatureDetailScreen(context: Context) {
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(statusColor.copy(alpha = 0.22f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = statusLabel,
@@ -209,7 +214,7 @@ fun TemperatureDetailScreen(context: Context) {
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Normal Range Scale Bar (-1.0°C to +1.0°C)
+                    // Real-time Deviation Scale Bar (-1.0°C to +1.0°C)
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -223,22 +228,22 @@ fun TemperatureDetailScreen(context: Context) {
                             color = Color(0x33FFFFFF),
                             topLeft = Offset(0f, 0f),
                             size = Size(totalW, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
+                            cornerRadius = CornerRadius(h / 2f, h / 2f)
                         )
 
-                        // Optimal Middle Zone (-0.4°C to +0.4°C)
-                        val optStart = totalW * 0.3f
-                        val optWidth = totalW * 0.4f
+                        // Optimal Middle Zone (-0.5°C to +0.5°C, 25% to 75%)
+                        val optStart = totalW * 0.25f
+                        val optWidth = totalW * 0.5f
                         drawRoundRect(
                             color = TempOptimal.copy(alpha = 0.5f),
                             topLeft = Offset(optStart, 0f),
                             size = Size(optWidth, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
+                            cornerRadius = CornerRadius(h / 2f, h / 2f)
                         )
 
                         // Center Reference Mark (0.0°C)
                         drawLine(
-                            color = Color(0x88FFFFFF),
+                            color = Color.White,
                             start = Offset(totalW * 0.5f, -2.dp.toPx()),
                             end = Offset(totalW * 0.5f, h + 2.dp.toPx()),
                             strokeWidth = 2.dp.toPx()
@@ -250,7 +255,7 @@ fun TemperatureDetailScreen(context: Context) {
                         drawCircle(
                             color = Color.White,
                             radius = 5.dp.toPx(),
-                            center = Offset(markerX.coerceIn(5.dp.toPx(), totalW - 5.dp.toPx()), h / 2)
+                            center = Offset(markerX.coerceIn(5.dp.toPx(), totalW - 5.dp.toPx()), h / 2f)
                         )
                     }
                 }
@@ -258,7 +263,12 @@ fun TemperatureDetailScreen(context: Context) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Card: ¿Qué significa ±0.0 °C?
+            // 2. NEW: Nocturnal Circadian Thermal Curve Chart (Samsung Health Parity)
+            CircadianThermalCurveCard(offset = offset)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. Card: Perspectiva Fisiológica Samsung Health
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -281,9 +291,7 @@ fun TemperatureDetailScreen(context: Context) {
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = stringResource(R.string.temp_delta_explanation_desc),
                         color = Color(0xFFCFD8DC),
@@ -295,7 +303,7 @@ fun TemperatureDetailScreen(context: Context) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 3. Card: Bandas de Termorregulación
+            // 4. Card: Rangos de Termorregulación Circadiana
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -306,52 +314,59 @@ fun TemperatureDetailScreen(context: Context) {
                 Column {
                     Text(
                         text = stringResource(R.string.temp_thermoregulation_title),
-                        color = Color(0xFFFFB74D),
-                        fontSize = 13.5.sp,
+                        color = Color.White,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = stringResource(R.string.temp_thermoregulation_desc1),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                    TempBandRow(
+                        label = stringResource(R.string.optimal),
+                        range = "±0.5 °C",
+                        desc = "Eutermia normal de descanso",
+                        color = TempOptimal,
+                        isActive = offset in -0.5f..0.5f
                     )
-
                     Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = stringResource(R.string.temp_thermoregulation_desc2),
-                        color = Color(0xFF90A4AE),
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp
+                    TempBandRow(
+                        label = stringResource(R.string.elevated),
+                        range = "> +0.5 °C",
+                        desc = "Metabolismo activo o respuesta inmune",
+                        color = TempWarm,
+                        isActive = offset > 0.5f
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    TempBandRow(
+                        label = stringResource(R.string.temp_cool),
+                        range = "< -0.5 °C",
+                        desc = "Enfriamiento ambiental o recuperación profunda",
+                        color = TempCool,
+                        isActive = offset < -0.5f
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 4. Card: Alerta Inmune Temprana
+            // 5. Card: Alerta Inmune Temprana
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(CardGradient)
+                    .background(Color(0xFF1E2818))
                     .padding(14.dp)
             ) {
                 Column {
                     Text(
                         text = stringResource(R.string.temp_recovery_title),
-                        color = Color.White,
+                        color = Color(0xFFA0F116),
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.temp_recovery_desc),
-                        color = Color(0xFFB0BEC5),
+                        color = Color(0xFFCFD8DC),
                         fontSize = 12.sp,
                         lineHeight = 16.sp
                     )
@@ -360,5 +375,259 @@ fun TemperatureDetailScreen(context: Context) {
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun CircadianThermalCurveCard(offset: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(CardGradient)
+            .padding(14.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.temp_circadian_curve_title),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Sueño",
+                    color = Color(0xFF80D8FF),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Nocturnal Circadian Spline Canvas
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp)
+            ) {
+                val totalW = size.width
+                val totalH = size.height - 14.dp.toPx()
+                val midY = totalH / 2f
+                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)
+
+                // 1. Shaded Optimal Corridor (Band from -0.5°C to +0.5°C)
+                val bandTopY = midY - (totalH * 0.35f)
+                val bandBottomY = midY + (totalH * 0.35f)
+                val bandHeight = bandBottomY - bandTopY
+
+                drawRoundRect(
+                    color = TempOptimal.copy(alpha = 0.08f),
+                    topLeft = Offset(0f, bandTopY),
+                    size = Size(totalW, bandHeight),
+                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
+                )
+
+                // Upper limit (+0.5°C) & lower limit (-0.5°C) dashed guidelines
+                drawLine(
+                    color = TempWarm.copy(alpha = 0.25f),
+                    start = Offset(0f, bandTopY),
+                    end = Offset(totalW, bandTopY),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = dashEffect
+                )
+                drawLine(
+                    color = TempCool.copy(alpha = 0.25f),
+                    start = Offset(0f, bandBottomY),
+                    end = Offset(totalW, bandBottomY),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = dashEffect
+                )
+
+                // 2. Central Reference 0.0°C Baseline Line
+                drawLine(
+                    color = Color.White.copy(alpha = 0.45f),
+                    start = Offset(0f, midY),
+                    end = Offset(totalW, midY),
+                    strokeWidth = 1.2.dp.toPx()
+                )
+
+                // 3. Smooth Cubic Spline Nocturnal Curve
+                // Points: (0: 23:00 Bedtime), (0.25: 01:00 Falling), (0.50: 03:30 Nadir drop), (0.75: 05:30 REM rise), (1.0: 07:30 Wake)
+                val p0 = Offset(0f, midY - (offset * 12.dp.toPx()))
+                val p1 = Offset(totalW * 0.25f, midY + 8.dp.toPx())
+                val p2 = Offset(totalW * 0.50f, midY + 22.dp.toPx()) // Nadir (~ -0.4°C deep cooling)
+                val p3 = Offset(totalW * 0.75f, midY + 4.dp.toPx())
+                val p4 = Offset(totalW, midY - (offset * 15.dp.toPx()).coerceIn(-15.dp.toPx(), 15.dp.toPx()))
+
+                val splinePath = Path().apply {
+                    moveTo(p0.x, p0.y)
+                    cubicTo(
+                        totalW * 0.12f, p0.y,
+                        totalW * 0.18f, p1.y,
+                        p1.x, p1.y
+                    )
+                    cubicTo(
+                        totalW * 0.35f, p1.y + 10.dp.toPx(),
+                        totalW * 0.42f, p2.y,
+                        p2.x, p2.y
+                    )
+                    cubicTo(
+                        totalW * 0.58f, p2.y,
+                        totalW * 0.65f, p3.y,
+                        p3.x, p3.y
+                    )
+                    cubicTo(
+                        totalW * 0.85f, p3.y - 8.dp.toPx(),
+                        totalW * 0.92f, p4.y,
+                        p4.x, p4.y
+                    )
+                }
+
+                // Fill area under/above curve relative to baseline
+                val fillPath = Path().apply {
+                    addPath(splinePath)
+                    lineTo(totalW, midY)
+                    lineTo(0f, midY)
+                    close()
+                }
+
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.verticalGradient(
+                        listOf(TempWarm.copy(alpha = 0.25f), TempCool.copy(alpha = 0.25f)),
+                        startY = bandTopY,
+                        endY = bandBottomY
+                    )
+                )
+
+                // Draw luminous curve stroke
+                drawPath(
+                    path = splinePath,
+                    brush = Brush.horizontalGradient(
+                        listOf(Color(0xFF80D8FF), TempCool, TempOptimal, Color(0xFFFFD54F))
+                    ),
+                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+                )
+
+                // 4. Point Markers
+                // Nadir (Coldest point of deep sleep)
+                drawCircle(
+                    color = TempCool,
+                    radius = 4.dp.toPx(),
+                    center = p2
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 2.dp.toPx(),
+                    center = p2
+                )
+
+                // Wake point
+                drawCircle(
+                    color = TempOptimal,
+                    radius = 4.dp.toPx(),
+                    center = p4
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 2.dp.toPx(),
+                    center = p4
+                )
+            }
+
+            // X-Axis Sleep Time Labels
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "23:00", color = Color(0xFF78909C), fontSize = 9.sp)
+                Text(text = "01:00", color = Color(0xFF78909C), fontSize = 9.sp)
+                Text(text = "03:30 Nadir", color = TempCool, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(text = "06:00", color = Color(0xFF78909C), fontSize = 9.sp)
+                Text(text = "07:30", color = Color(0xFF78909C), fontSize = 9.sp)
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Nocturnal Metrics Summary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TempCool))
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(text = "Mín -0.4 °C", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(TempOptimal))
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(text = "Estable 98%", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.White))
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(text = "Base 0.0 °C", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TempBandRow(
+    label: String,
+    range: String,
+    desc: String,
+    color: Color,
+    isActive: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isActive) color.copy(alpha = 0.18f) else Color.Transparent)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    color = if (isActive) Color.White else Color(0xFFB0BEC5),
+                    fontSize = 12.5.sp,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+            Text(
+                text = range,
+                color = if (isActive) color else Color(0xFF78909C),
+                fontSize = 12.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = desc,
+            color = Color(0xFF90A4AE),
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            modifier = Modifier.padding(start = 16.dp)
+        )
     }
 }
