@@ -23,7 +23,6 @@ import androidx.health.connect.client.PermissionController
 import com.google.android.gms.wearable.Wearable
 import com.ringconn.wear.bridge.data.RingConnVitals
 import com.ringconn.wear.bridge.service.RingConnAccessibilityService
-import com.ringconn.wear.bridge.service.RingConnCloudClient
 import com.ringconn.wear.bridge.service.RingConnForegroundService
 import com.ringconn.wear.bridge.service.RingConnTelemetryReader
 import com.ringconn.wear.bridge.service.RingConnWidgetHostReader
@@ -41,10 +40,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     private lateinit var syncStatusText: TextView
     private lateinit var sourceBadgeText: TextView
     private lateinit var accessibilityStatusText: TextView
-    private lateinit var cloudStatusText: TextView
-    private lateinit var cloudEmailInput: EditText
-    private lateinit var cloudPassInput: EditText
-    private lateinit var cloudTokenInput: EditText
 
     // Bento Card Value & Subtitle TextViews
     private lateinit var hrValText: TextView
@@ -326,80 +321,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(directCard)
 
         // ==========================================
-        // 2C. RINGCONN CLOUD API CARD (gb.gdjztech.com)
-        // ==========================================
-        val cloudCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = createCardBackground(
-                bgColor = Color.parseColor("#141824"),
-                strokeColor = Color.parseColor("#222A3F"),
-                radiusDp = 20f
-            )
-            setPadding(dp(18), dp(18), dp(18), dp(18))
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                bottomMargin = dp(14)
-            }
-        }
-
-        val cloudTitle = TextView(this).apply {
-            text = "RingConn Cloud API (gb.gdjztech.com)"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.parseColor("#E0E6F0"))
-        }
-        cloudCard.addView(cloudTitle)
-
-        cloudStatusText = TextView(this).apply {
-            text = "Estado: No configurado (Opcional)"
-            textSize = 12f
-            setTextColor(Color.parseColor("#8E95A5"))
-            setPadding(0, dp(4), 0, dp(8))
-        }
-        cloudCard.addView(cloudStatusText)
-
-        val cloudInputs = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-
-        cloudEmailInput = createInputField("Email de Cuenta RingConn", "", cloudInputs)
-        cloudPassInput = createInputField("Contraseña", "", cloudInputs).apply {
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
-        cloudTokenInput = createInputField("O Token de Sesión Directo (Bearer)", "", cloudInputs)
-
-        cloudCard.addView(cloudInputs)
-
-        val cloudSyncBtn = Button(this).apply {
-            text = "☁️ Conectar y Sincronizar Nube"
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
-            background = createRipplePill(
-                bgColor = Color.parseColor("#4A148C"),
-                radiusDp = 24f
-            )
-            setPadding(dp(16), dp(10), dp(16), dp(10))
-            setOnClickListener {
-                syncFromRingConnCloud(
-                    email = cloudEmailInput.text.toString().trim(),
-                    pass = cloudPassInput.text.toString().trim(),
-                    token = cloudTokenInput.text.toString().trim().takeIf { it.isNotEmpty() }
-                )
-            }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp(8)
-            }
-        }
-        cloudCard.addView(cloudSyncBtn)
-        root.addView(cloudCard)
-
-        // ==========================================
         // 3. LIVE WATCH SYNC ACTION CARD
         // ==========================================
         val syncCard = LinearLayout(this).apply {
@@ -642,7 +563,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // Inicializar estado de permisos y sincronizar
         checkAndUpdateHealthConnectStatus()
         checkAndUpdateAccessibilityStatus()
-        checkAndUpdateCloudStatus()
         loadAndSyncVitals(forceHealthConnect = true)
     }
 
@@ -650,7 +570,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         super.onResume()
         checkAndUpdateHealthConnectStatus()
         checkAndUpdateAccessibilityStatus()
-        checkAndUpdateCloudStatus()
         loadAndSyncVitals(forceHealthConnect = false)
     }
 
@@ -717,17 +636,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
     }
 
-    private fun checkAndUpdateCloudStatus() {
-        val token = RingConnCloudClient.getSavedToken(this)
-        if (!token.isNullOrEmpty()) {
-            cloudStatusText.text = "Estado: Token configurado (${token.take(8)}...) ✅"
-            cloudStatusText.setTextColor(Color.parseColor("#00E676"))
-        } else {
-            cloudStatusText.text = "Estado: No configurado (Opcional)"
-            cloudStatusText.setTextColor(Color.parseColor("#8E95A5"))
-        }
-    }
-
     private fun directWidgetExtraction() {
         scope.launch {
             syncStatusText.text = "Leyendo widgets de RingConn (AppWidgetHost)..."
@@ -760,44 +668,6 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             } else {
                 openOfficialRingConnApp()
                 Toast.makeText(this@PhoneBridgeMainActivity, "Abriendo RingConn... El servicio extraerá los datos al instante", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun syncFromRingConnCloud(email: String, pass: String, token: String?) {
-        scope.launch {
-            syncStatusText.text = "Conectando con RingConn Cloud..."
-            val vitals = withContext(Dispatchers.IO) {
-                var activeToken = token
-                if (activeToken.isNullOrEmpty() && email.isNotEmpty() && pass.isNotEmpty()) {
-                    val auth = RingConnCloudClient.loginWithEmail(email, pass)
-                    if (auth.success && auth.token != null) {
-                        RingConnCloudClient.saveToken(this@PhoneBridgeMainActivity, auth.token, email)
-                        activeToken = auth.token
-                    }
-                }
-                if (!activeToken.isNullOrEmpty()) {
-                    val v = RingConnCloudClient.fetchDailySummary(activeToken)
-                    if (v != null) {
-                        RingConnTelemetryReader.saveToPreferences(this@PhoneBridgeMainActivity, v, source = "RingConn Cloud API")
-                        WearDataSyncService(this@PhoneBridgeMainActivity).syncVitalsToWatch(v)
-                        return@withContext v
-                    }
-                }
-                null
-            }
-
-            if (vitals != null) {
-                updateMetricCards(vitals)
-                checkAndUpdateCloudStatus()
-                sourceBadgeText.text = "Fuente: RingConn Cloud API"
-                syncStatusText.text = "✅ Sincronizado desde Cloud API"
-                syncStatusText.setTextColor(Color.parseColor("#30E565"))
-                Toast.makeText(this@PhoneBridgeMainActivity, "¡Datos sincronizados desde RingConn Cloud!", Toast.LENGTH_SHORT).show()
-            } else {
-                syncStatusText.text = "⚠️ Error de autenticación o lectura en Cloud"
-                syncStatusText.setTextColor(Color.parseColor("#FF5252"))
-                Toast.makeText(this@PhoneBridgeMainActivity, "No se pudo sincronizar con RingConn Cloud", Toast.LENGTH_SHORT).show()
             }
         }
     }

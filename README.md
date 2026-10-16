@@ -117,5 +117,40 @@ adb -s <WATCH_IP:PORT> install -r wear/build/outputs/apk/release/wear-release.ap
 
 ---
 
+## 🔒 Security & Device Integrity
+
+- **100% User-Space Sideloading**: Does **NOT** require unlocking the bootloader, rooting your phone, or rooting your watch.
+- **Knox Warranty Safe**: Samsung Knox warranty bit is **NOT** tripped (`0x0` remains intact). Samsung Pay / Google Wallet continue working normally.
+- **Temporary ADB Requirement**: ADB (Android Debug Bridge) is used strictly for initial sideloading. Once the APKs are installed and permissions granted, **ADB debugging can be disabled immediately** on both the phone and the watch.
+- **Zero Cloud Leaks**: Operates 100% locally on-device. No telemetry, credentials, or personal biometrics are transmitted to external servers.
+
+---
+
+## 📱 Hardware & OS Compatibility
+
+- **Watches**:
+  - **Samsung Galaxy Watch** (Watch 4, Watch 5, Watch 6, Watch 7, Watch Ultra, Watch 8 Classic) running Wear OS 4, Wear OS 5, or One UI Watch 5/6/8. *(Full support for custom One UI 8 stadium tiles and AndroidX complications)*.
+  - **Other Wear OS Devices** (Google Pixel Watch 1/2/3, OnePlus Watch 2, TicWatch): Compatible with AndroidX complications and detail screens.
+  - **Apple Watch / iOS**: **Not supported** (Apple watchOS does not support Android sideloading or Android Wearable Data Layer).
+- **Phones**:
+  - Android 12+ (Android 14/15/16 recommended) with Health Connect support.
+
+---
+
+## ⚖️ Legal Disclaimer & Interoperability Notice
+
+This project is an independent, non-commercial open-source research initiative created solely to enable **interoperability** between the RingConn Smart Ring and Wear OS smartwatches, specifically addressing the wrist tattoo optical PPG sensor barrier.
+
+- **Trademark Notice**: "RingConn" is a registered trademark of Guangdong JiuZhi Technology Co., Ltd. "Samsung", "Galaxy Watch", and "One UI" are registered trademarks of Samsung Electronics Co., Ltd. "Wear OS", "Google", and "Android" are trademarks of Google LLC. This project is not affiliated with, sponsored by, or endorsed by Guangdong JiuZhi Technology, Samsung, or Google.
+- **Interoperability Exceptions**: This software was developed in accordance with international legal exceptions permitting reverse engineering and interface analysis strictly for achieving software interoperability:
+  - **Colombia**: *Ley 1915 de 2018, Artículo 13, Literal (a)* (excepción de ingeniería inversa de buena fe para interoperabilidad de programas de ordenador).
+  - **United States**: *17 U.S.C. § 1201(f)* (DMCA Reverse Engineering Exception for Interoperability).
+  - **European Union**: *Directive 2009/24/EC, Article 6* (Decompilation strictly for interoperability).
+- **Clean Room & Original Codebase**: This repository contains **100% original code** written from scratch. It contains no proprietary source code, no decompiled bytecode, no leaked SDKs, no proprietary cryptographic keys, and no mechanisms to bypass encryption or digital rights management (DRM).
+
+---
+
 ## 📜 License
-Private & Proprietary. All rights reserved.
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Free for personal and educational use.
