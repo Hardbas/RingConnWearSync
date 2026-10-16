@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -61,6 +62,16 @@ object RingConnWidgetHostReader {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         Log.i(TAG, "Starting RingConn WidgetHost extraction...")
+
+        // Trigger RingConn Flutter background worker to write fresh vitals before reading RemoteViews
+        try {
+            val bgIntent = Intent("es.antonborri.home_widget.action.BACKGROUND").apply {
+                setPackage("com.gdjztech.ringconn")
+            }
+            context.sendBroadcast(bgIntent)
+        } catch (e: Exception) {
+            Log.d(TAG, "HomeWidget background broadcast error: ${e.message}")
+        }
 
         val activeBindings = mutableListOf<Pair<ComponentName, Int>>()
         var hadNewAllocation = false

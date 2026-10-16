@@ -19,6 +19,7 @@ class RingConnForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var syncJob: Job? = null
     private var lastMorningSyncDay: Int = -1
+    private var lastUserPresentSyncMs: Long = 0L
 
     private val userPresentReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -26,6 +27,8 @@ class RingConnForegroundService : Service() {
                 val cal = java.util.Calendar.getInstance()
                 val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
                 val day = cal.get(java.util.Calendar.DAY_OF_YEAR)
+
+                // 1. Morning Sleep Deep Sync
                 if (hour in 6..11 && lastMorningSyncDay != day) {
                     lastMorningSyncDay = day
                     Log.i(TAG, "Morning user-present detected: waking RingConn to sync sleep BLE data")
@@ -46,6 +49,17 @@ class RingConnForegroundService : Service() {
                         } catch (e: Exception) {
                             Log.e(TAG, "Error in morning auto-sync", e)
                         }
+                    }
+                    return
+                }
+
+                // 2. Opportunistic Unlocked Sync (Throttled to max 1 per 60s)
+                val nowMs = System.currentTimeMillis()
+                if (nowMs - lastUserPresentSyncMs > 60_000L) {
+                    lastUserPresentSyncMs = nowMs
+                    Log.i(TAG, "User present (unlock) detected: triggering opportunistic sync")
+                    scope.launch {
+                        triggerSync(force = false)
                     }
                 }
             }
@@ -86,13 +100,23 @@ class RingConnForegroundService : Service() {
         syncJob = scope.launch {
             while (isActive) {
                 triggerSync(force = false)
-                delay(60_000L) // Chequea cambios localmente cada 60s; solo despierta el reloj si cambiaron las métricas
+                delay(120_000L) // 2 minutes background poll; pushes to watch only on metric changes
             }
         }
     }
 
     private suspend fun triggerSync(force: Boolean = false) {
         try {
+            // Poke RingConn Flutter background worker
+            try {
+                val bgIntent = Intent("es.antonborri.home_widget.action.BACKGROUND").apply {
+                    setPackage("com.gdjztech.ringconn")
+                }
+                sendBroadcast(bgIntent)
+            } catch (e: Exception) {
+                Log.d(TAG, "HomeWidget background broadcast error: ${e.message}")
+            }
+
             val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@RingConnForegroundService)
             val success = WearDataSyncService(this@RingConnForegroundService).syncVitalsToWatch(vitals, force = force)
             val noteText = if (success) {
