@@ -60,11 +60,11 @@ private val TempWarm = Color(0xFFFFB74D)
 private val TempCool = Color(0xFF4FC3F7)
 
 private val TempHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF5A2E1A), Color(0xFF28140B))
+    listOf(Color(0xFF1E6B7B), Color(0xFF0A2025))
 )
 
 private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF241C18), Color(0xFF16110E))
+    listOf(Color(0xFF13282F), Color(0xFF0B171B))
 )
 
 class TemperatureDetailActivity : ComponentActivity() {
@@ -117,11 +117,14 @@ fun TemperatureDetailScreen(context: Context) {
 
     val offset = vitals.skinTempOffset
     val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
-    val signStr = if (offset > 0f) "+" else ""
-    val offsetFormatted = String.format(java.util.Locale.US, "%s%.1f °C", signStr, offset)
+    val offsetFormatted = when {
+        offset in -0.05f..0.05f -> "±0.0 °C"
+        offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f °C", offset)
+        else -> String.format(java.util.Locale.US, "%.1f °C", offset)
+    }
 
     val statusLabel = when {
-        offset in -0.5f..0.5f -> stringResource(R.string.temp_in_range)
+        offset in -0.5f..0.5f -> stringResource(R.string.temp_stable_optimal)
         offset > 0.5f -> stringResource(R.string.temp_warm)
         else -> stringResource(R.string.temp_cool)
     }
@@ -255,7 +258,7 @@ fun TemperatureDetailScreen(context: Context) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Card: Cómo interpreta el anillo la temperatura
+            // 2. Card: ¿Qué significa ±0.0 °C?
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -267,19 +270,48 @@ fun TemperatureDetailScreen(context: Context) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_comp_temp),
-                            contentDescription = stringResource(R.string.temp_thermoregulation_title),
+                            contentDescription = stringResource(R.string.temp_delta_explanation_title),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = stringResource(R.string.temp_thermoregulation_title),
-                            color = Color(0xFFFFB74D),
+                            text = stringResource(R.string.temp_delta_explanation_title),
+                            color = Color(0xFF00E5FF),
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = stringResource(R.string.temp_delta_explanation_desc),
+                        color = Color(0xFFCFD8DC),
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. Card: Bandas de Termorregulación
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardGradient)
+                    .padding(14.dp)
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.temp_thermoregulation_title),
+                        color = Color(0xFFFFB74D),
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = stringResource(R.string.temp_thermoregulation_desc1),
@@ -301,7 +333,7 @@ fun TemperatureDetailScreen(context: Context) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 3. Card: Recuperación Nocturna
+            // 4. Card: Alerta Inmune Temprana
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

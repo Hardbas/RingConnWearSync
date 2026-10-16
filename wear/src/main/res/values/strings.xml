@@ -68,6 +68,7 @@
     <!-- Temperature Strings (English Default) -->
     <string name="skin_temp">Skin Temperature</string>
     <string name="temp_in_range">In Range</string>
+    <string name="temp_stable_optimal">Stable · Optimal</string>
     <string name="temp_warm">Warm</string>
     <string name="temp_cool">Cool</string>
     <string name="baseline_temp">Baseline</string>
@@ -78,11 +79,13 @@
     <string name="temp_insight_normal">Nighttime thermoregulation stable</string>
     <string name="temp_insight_elevated">Elevated skin temperature</string>
     <string name="temp_insight_cool">Lower skin temperature</string>
-    <string name="temp_thermoregulation_title">Thermoregulation</string>
-    <string name="temp_thermoregulation_desc1">The ring measures skin temperature variation at rest relative to your usual baseline.</string>
-    <string name="temp_thermoregulation_desc2">Variations within ±0.5 °C indicate metabolic stability and healthy circadian rhythm.</string>
-    <string name="temp_recovery_title">Nocturnal Recovery</string>
-    <string name="temp_recovery_desc">During sleep, peripheral blood vessels dilate to cool the body core. A nighttime temperature drop reflects deep restorative sleep.</string>
+    <string name="temp_delta_explanation_title">What does ±0.0 °C mean?</string>
+    <string name="temp_delta_explanation_desc">Skin temperature is measured as deviation from your personal circadian baseline (36.1 °C). ±0.0 °C indicates 100% metabolic stability and undisturbed restorative rest.</string>
+    <string name="temp_thermoregulation_title">Thermoregulation Bands</string>
+    <string name="temp_thermoregulation_desc1">The ring tracks temperature fluctuations during sleep: ±0.5 °C is your optimal biological euthermia band.</string>
+    <string name="temp_thermoregulation_desc2">Significant departures (> +0.5 °C) can indicate late food intake, alcohol, intense training, or early immune response.</string>
+    <string name="temp_recovery_title">Early Immune &amp; Illness Warning</string>
+    <string name="temp_recovery_desc">A continuous elevated nocturnal skin temperature (> +0.5 °C) often detects an impending fever or viral infection 24 to 48 hours before physical symptoms develop.</string>
 
     <!-- General & Model -->
     <string name="ring_model_subtitle">RingConn Smart Ring</string>
@@ -128,10 +131,11 @@
     <string name="zone_fat_burn">Z3 · Fat Burn</string>
     <string name="zone_cardio">Z4 · Cardio</string>
     <string name="zone_peak">Z5 · Peak</string>
-    <string name="zone_rest_range">Resting (&lt; 60 bpm)</string>
-    <string name="zone_fat_burn_range">Fat Burn (60 - 100 bpm)</string>
-    <string name="zone_cardio_range">Cardio (101 - 140 bpm)</string>
-    <string name="zone_peak_range">Peak (&gt; 140 bpm)</string>
+    <string name="zone_rest_range">Resting (&lt; 100 bpm)</string>
+    <string name="zone_warmup_range">Warm Up (100 - 120 bpm)</string>
+    <string name="zone_fat_burn_range">Fat Burn (121 - 140 bpm)</string>
+    <string name="zone_cardio_range">Cardio (141 - 160 bpm)</string>
+    <string name="zone_peak_range">Peak (&gt; 160 bpm)</string>
     <string name="sync_ring">Sync Ring</string>
     <string name="syncing_ring">Syncing Ring...</string>
     <string name="blood_oxygen_short">SpO2</string>

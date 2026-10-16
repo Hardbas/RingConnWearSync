@@ -40,7 +40,7 @@ class TemperatureTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-temp-v4"
+        const val RESOURCES_VERSION = "oneui8-temp-v5"
         private const val RES_BG_TEMP_CAPSULE = "oneui_bg_temp_capsule"
         private const val RES_IC_TEMP = "ic_comp_temp"
 
@@ -75,11 +75,14 @@ class TemperatureTileService : TileService() {
         ): TileBuilders.Tile {
             val offset = vitals.skinTempOffset
             val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
-            val signStr = if (offset > 0f) "+" else ""
-            val offsetStr = String.format(java.util.Locale.US, "%s%.1f", signStr, offset)
+            val offsetStr = when {
+                offset in -0.05f..0.05f -> "±0.0"
+                offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f", offset)
+                else -> String.format(java.util.Locale.US, "%.1f", offset)
+            }
 
             val statusText = when {
-                offset in -0.5f..0.5f -> context.getString(R.string.temp_in_range)
+                offset in -0.5f..0.5f -> context.getString(R.string.temp_stable_optimal)
                 offset > 0.5f -> context.getString(R.string.temp_warm)
                 else -> context.getString(R.string.temp_cool)
             }
@@ -206,9 +209,9 @@ class TemperatureTileService : TileService() {
                 )
                 .build()
 
-            // Optimal middle indicator range (30% to 70% width)
+            // Optimal middle indicator range (-0.5°C to +0.5°C, 25% to 75% width)
             val optZoneBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp * 0.4f))
+                .setWidth(dp(barWidthDp * 0.5f))
                 .setHeight(dp(barHeightDp))
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
@@ -225,8 +228,31 @@ class TemperatureTileService : TileService() {
                 .setWidth(dp(barWidthDp))
                 .setHeight(dp(barHeightDp))
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(barWidthDp * 0.3f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(barWidthDp * 0.25f)).setHeight(dp(1f)).build())
                 .addContent(optZoneBar)
+                .build()
+
+            // Center Reference Tick at 0.0°C baseline
+            val centerTick = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(1.5f))
+                .setHeight(dp(barHeightDp))
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(argb(0x66FFFFFF.toInt()))
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(0.75f)).build())
+                                .build()
+                        ).build()
+                )
+                .build()
+
+            val centerTickRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(dp(barWidthDp))
+                .setHeight(dp(barHeightDp))
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp((barWidthDp * 0.5f) - 0.75f)).setHeight(dp(1f)).build())
+                .addContent(centerTick)
                 .build()
 
             val dotIndicator = LayoutElementBuilders.Box.Builder()
@@ -263,6 +289,7 @@ class TemperatureTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(barTrackBox)
                 .addContent(optZoneRow)
+                .addContent(centerTickRow)
                 .addContent(dotIndicatorRow)
                 .build()
 
