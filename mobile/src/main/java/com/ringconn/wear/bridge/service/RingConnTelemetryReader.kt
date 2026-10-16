@@ -820,19 +820,6 @@ object RingConnTelemetryReader {
             return parseFromPreferences(localPrefs)
         }
 
-        // 4. Cloud API fallback if token configured
-        val cloudVitals = try {
-            RingConnCloudClient.getSavedToken(context)?.let { token ->
-                RingConnCloudClient.fetchDailySummary(token)
-            }
-        } catch (e: Exception) {
-            null
-        }
-        if (cloudVitals != null) {
-            saveToPreferences(context, cloudVitals, source = "RingConn Cloud API")
-            return cloudVitals
-        }
-
         // Initial default if cache is completely fresh/empty
         return RingConnVitals(
             lastHeartRate = 0,
