@@ -103,7 +103,7 @@ fun WearApp(context: Context) {
                         nodeList.forEach { node ->
                             Wearable.getMessageClient(context).sendMessage(
                                 node.id,
-                                "/action/measure_now",
+                                "/action/sync_ringconn",
                                 ByteArray(0)
                             )
                         }
@@ -111,7 +111,7 @@ fun WearApp(context: Context) {
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                delay(4000L)
+                delay(5500L)
                 isMeasuring = false
             }
         }

@@ -18,9 +18,9 @@
     <string name="sleep_score">Sleep Score</string>
     <string name="steps">Daily Steps</string>
     <string name="stress">Stress Index</string>
-    <string name="measure_now">Measure</string>
-    <string name="measuring">Measuring...</string>
-    <string name="measure">Measure</string>
+    <string name="measure_now">Sync</string>
+    <string name="measuring">Syncing...</string>
+    <string name="measure">Sync</string>
     <string name="ring_battery">Ring Battery: %1$d%%</string>
     <string name="ring_short">Ring</string>
     <string name="sleep_short">Sleep</string>

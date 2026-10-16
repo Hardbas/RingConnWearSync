@@ -337,8 +337,8 @@ class HeartRateTileService : TileService() {
                 .build()
 
             val measurePillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(86f))
-                .setHeight(dp(25f))
+                .setWidth(dp(92.3f))
+                .setHeight(dp(26.7f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
