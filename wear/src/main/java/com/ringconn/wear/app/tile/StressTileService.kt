@@ -229,11 +229,11 @@ class StressTileService : TileService() {
                 .build()
 
             val topHeaderRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(152f))
+                .setWidth(dp(132f))
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(14f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(10f)).setHeight(dp(1f)).build())
                 .addContent(statusChipBox)
                 .build()
 

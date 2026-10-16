@@ -150,14 +150,14 @@ fun StressDetailScreen(context: Context) {
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 14.dp, vertical = 20.dp),
+                .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 44.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header: Clean title
+            // Header: Clean title with circular clearance
             Text(
                 text = stringResource(R.string.stress_title),
                 color = Color.White,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -166,9 +166,9 @@ fun StressDetailScreen(context: Context) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(26.dp))
                     .background(StressHeroGradient)
-                    .padding(horizontal = 14.dp, vertical = 16.dp)
+                    .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     // Badge status pill
@@ -176,17 +176,17 @@ fun StressDetailScreen(context: Context) {
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(statusColor.copy(alpha = 0.22f))
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 3.5.dp)
                     ) {
                         Text(
                             text = statusLabel,
                             color = statusColor,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     val gaugeResId = when {
                         score < 30 -> R.drawable.oneui_ic_gauge_relaxed
@@ -200,28 +200,31 @@ fun StressDetailScreen(context: Context) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(horizontalAlignment = Alignment.Start) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.Start
+                        ) {
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = if (score > 0) "$score" else "--",
                                     color = Color.White,
-                                    fontSize = 40.sp,
+                                    fontSize = 36.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "/ 100",
-                                    color = Color(0xFFA5AEDE),
-                                    fontSize = 13.sp,
+                                    color = Color(0xFFD8B4FE),
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 6.dp)
+                                    modifier = Modifier.padding(bottom = 5.dp)
                                 )
                             }
                             val hrvVal = if (vitals.lastHrv > 0) "VFC ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
                             Text(
                                 text = hrvVal,
-                                color = Color(0xFF47CDFF),
-                                fontSize = 11.5.sp,
+                                color = Color(0xFF5EEAD4),
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -229,29 +232,29 @@ fun StressDetailScreen(context: Context) {
                         Image(
                             painter = painterResource(id = gaugeResId),
                             contentDescription = statusLabel,
-                            modifier = Modifier.size(76.dp, 57.dp)
+                            modifier = Modifier.size(64.dp, 48.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. NEW: 24h Stress Timeline Chart (Samsung Health Parity)
+            // 2. 24h Stress Timeline Chart with centered stats grid
             StressTimelineCard(score = score)
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. NEW: Autonomic Balance Card (HRV Sympathetic vs Parasympathetic)
+            // 3. Autonomic Balance Card (HRV Sympathetic vs Parasympathetic)
             AutonomicBalanceCard(hrv = vitals.lastHrv, score = score)
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 4. Card: Zonas Fisiológicas de Estrés
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(22.dp))
                     .background(CardGradient)
                     .padding(14.dp)
             ) {
@@ -259,49 +262,47 @@ fun StressDetailScreen(context: Context) {
                     Text(
                         text = stringResource(R.string.stress_zones_title),
                         color = Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     StressZoneRow(stringResource(R.string.stress_relaxed), stringResource(R.string.stress_zone_relaxed_desc), StressRelaxed, score < 30)
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     StressZoneRow(stringResource(R.string.stress_balanced), stringResource(R.string.stress_zone_balanced_desc), StressBalanced, score in 30..59)
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     StressZoneRow(stringResource(R.string.stress_moderate), stringResource(R.string.stress_zone_moderate_desc), StressModerate, score in 60..79)
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     StressZoneRow(stringResource(R.string.stress_high), stringResource(R.string.stress_zone_high_desc), StressHigh, score >= 80)
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 5. Card: Respiración Guiada 4x4
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF142330))
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xFF181528))
                     .padding(14.dp)
             ) {
                 Column {
                     Text(
                         text = stringResource(R.string.stress_breathing_title),
                         color = Color(0xFF00E676),
-                        fontSize = 13.5.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.stress_breathing_guide),
                         color = Color(0xFFCFD8DC),
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -310,7 +311,6 @@ fun StressDetailScreen(context: Context) {
 private fun StressTimelineCard(score: Int) {
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
 
-    // Synthesize realistic circadian 24h stress profile anchored by user's actual score
     val epochValues = remember(score, currentHour) {
         val baseScore = if (score > 0) score else 25
         List(24) { hour ->
@@ -328,7 +328,7 @@ private fun StressTimelineCard(score: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(CardGradient)
             .padding(14.dp)
     ) {
@@ -341,33 +341,33 @@ private fun StressTimelineCard(score: Int) {
                 Text(
                     text = stringResource(R.string.stress_timeline_title),
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "24h",
-                    color = Color(0xFFA5AEDE),
-                    fontSize = 11.5.sp,
+                    color = Color(0xFFD8B4FE),
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // 24-Hour Timeline Bar Chart with Threshold Lines
+            // 24-Hour Timeline Bar Chart
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(82.dp)
+                    .height(72.dp)
             ) {
                 val totalW = size.width
-                val totalH = size.height - 14.dp.toPx()
+                val totalH = size.height - 12.dp.toPx()
                 val barCount = 24
                 val barSlotWidth = totalW / barCount
                 val barWidth = barSlotWidth * 0.65f
                 val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
 
-                // 1. Subtle horizontal threshold guides (30 = Calm, 60 = Moderate, 80 = High)
+                // Horizontal threshold guides (30, 60, 80)
                 val y30 = totalH * (1f - 30f / 100f)
                 val y60 = totalH * (1f - 60f / 100f)
                 val y80 = totalH * (1f - 80f / 100f)
@@ -394,7 +394,7 @@ private fun StressTimelineCard(score: Int) {
                     pathEffect = dashEffect
                 )
 
-                // 2. Render each hourly epoch bar
+                // Epoch bars
                 for (i in 0 until barCount) {
                     val valScore = epochValues[i]
                     val barH = (valScore / 100f) * totalH
@@ -408,58 +408,56 @@ private fun StressTimelineCard(score: Int) {
                         else -> StressHigh
                     }
 
-                    // Bar fill
                     drawRoundRect(
                         color = barColor.copy(alpha = if (i <= currentHour) 0.95f else 0.35f),
                         topLeft = Offset(x, y),
-                        size = Size(barWidth, barH.coerceAtLeast(4.dp.toPx())),
+                        size = Size(barWidth, barH.coerceAtLeast(3.dp.toPx())),
                         cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
                     )
 
-                    // Current hour indicator dot
                     if (i == currentHour) {
                         drawCircle(
                             color = Color.White,
-                            radius = 2.5.dp.toPx(),
-                            center = Offset(x + (barWidth / 2f), y - 4.dp.toPx())
+                            radius = 2.dp.toPx(),
+                            center = Offset(x + (barWidth / 2f), y - 3.dp.toPx())
                         )
                     }
                 }
             }
 
-            // X-Axis Time Labels
+            // X-Axis Time Labels (Clean short format)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "00:00", color = Color(0xFF78909C), fontSize = 9.sp)
-                Text(text = "06:00", color = Color(0xFF78909C), fontSize = 9.sp)
-                Text(text = "12:00", color = Color(0xFF78909C), fontSize = 9.sp)
-                Text(text = "18:00", color = Color(0xFF78909C), fontSize = 9.sp)
-                Text(text = "23:00", color = Color(0xFF78909C), fontSize = 9.sp)
+                Text(text = "0h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "6h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "12h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "18h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "24h", color = Color(0xFF94A3B8), fontSize = 9.sp)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Summary metrics pills
+            // Centered 3-Column Metrics Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(StressRelaxed))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(text = "74% Calma", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "74%", color = StressRelaxed, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Calma", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(StressModerate))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(text = "26% Tensión", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "26%", color = StressModerate, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Tensión", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(StressHigh))
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(text = "Pico 64", color = Color(0xFFCFD8DC), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "64", color = StressHigh, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Pico", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
             }
         }
@@ -471,7 +469,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(CardGradient)
             .padding(14.dp)
     ) {
@@ -480,29 +478,28 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                 Image(
                     painter = painterResource(id = R.drawable.ic_comp_stress),
                     contentDescription = stringResource(R.string.stress_autonomic_balance_title),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(7.dp))
                 Text(
                     text = stringResource(R.string.stress_autonomic_balance_title),
                     color = Color(0xFF00E5FF),
-                    fontSize = 13.5.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Bi-directional Autonomic Tone Slider
+            // Autonomic Tone Slider
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(10.dp)
+                    .height(9.dp)
             ) {
                 val totalW = size.width
                 val h = size.height
 
-                // Background track with gradient from Parasympathetic (Cyan) to Sympathetic (Coral)
                 val trackBrush = Brush.horizontalGradient(
                     listOf(StressRelaxed, StressBalanced, StressModerate, StressHigh)
                 )
@@ -514,37 +511,36 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                     alpha = 0.5f
                 )
 
-                // Current position dot based on stress score (0 = full recovery, 100 = full arousal)
                 val normPos = (score / 100f).coerceIn(0.05f, 0.95f)
                 val markerX = normPos * totalW
                 drawCircle(
                     color = Color.White,
-                    radius = 6.dp.toPx(),
+                    radius = 5.5.dp.toPx(),
                     center = Offset(markerX, h / 2f)
                 )
                 drawCircle(
                     color = Color(0xFF141624),
-                    radius = 2.5.dp.toPx(),
+                    radius = 2.dp.toPx(),
                     center = Offset(markerX, h / 2f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = stringResource(R.string.stress_parasympathetic),
+                    text = "Calma (Vagal)",
                     color = StressRelaxed,
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.stress_sympathetic),
+                    text = "Alerta (Carga)",
                     color = StressHigh,
-                    fontSize = 10.sp,
+                    fontSize = 9.5.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -555,11 +551,11 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
             Text(
                 text = stringResource(R.string.stress_hrv_label, hrvVal),
                 color = Color.White,
-                fontSize = 12.5.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             val explanation = when {
                 score < 30 -> stringResource(R.string.stress_desc_relaxed)
@@ -571,7 +567,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
             Text(
                 text = explanation,
                 color = Color(0xFFB0BEC5),
-                fontSize = 11.5.sp,
+                fontSize = 11.sp,
                 lineHeight = 15.sp
             )
         }
@@ -592,22 +588,22 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(7.dp)
                     .clip(CircleShape)
                     .background(color)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(7.dp))
             Text(
                 text = label,
                 color = if (isActive) Color.White else Color(0xFFB0BEC5),
-                fontSize = 12.5.sp,
+                fontSize = 12.sp,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
         }
         Text(
             text = range,
             color = if (isActive) color else Color(0xFF78909C),
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }
