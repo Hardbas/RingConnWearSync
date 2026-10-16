@@ -40,7 +40,7 @@ class TemperatureTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-temp-v6"
+        const val RESOURCES_VERSION = "oneui8-temp-v7"
         private const val RES_BG_TEMP_CAPSULE = "oneui_bg_temp_capsule"
         private const val RES_IC_TEMP = "ic_comp_temp"
 
@@ -87,21 +87,20 @@ class TemperatureTileService : TileService() {
                 else -> context.getString(R.string.temp_cool)
             }
 
-            val rubyAccentColor = 0xFFFF4D6D.toInt()       // Gentle AI Electric Ruby Crimson
-            val rubySoftColor = 0xFFFF758F.toInt()         // Gentle AI Soft Rose
-            val labelRoseColor = 0xFFFFE4E6.toInt()        // Pastel Rose White
+            val emeraldAccentColor = 0xFF34D399.toInt()    // Luminous Mint Emerald
+            val labelMintColor = 0xFFD1FAE5.toInt()        // Soft Mint White
 
             val statusColorInt = when {
                 offset in -0.5f..0.5f -> 0xFF00E676.toInt() // Vibrant clinical mint optimal
-                offset > 0.5f -> rubyAccentColor            // Gentle AI warm ruby alert
+                offset > 0.5f -> 0xFFFF7043.toInt()         // Warm amber alert
                 else -> 0xFF38BDF8.toInt()                  // Sky cyan cooling
             }
 
             val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
 
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val silverColor = argb(labelRoseColor)
-            val rubyUnitColor = argb(rubyAccentColor)
+            val silverColor = argb(labelMintColor)
+            val unitColor = argb(emeraldAccentColor)
             val statusColor = argb(statusColorInt)
             val translucentGlassBlack = argb(0x66000000.toInt())
 
@@ -178,7 +177,7 @@ class TemperatureTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(13f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(rubyUnitColor)
+                        .setColor(unitColor)
                         .build()
                 )
                 .build()
