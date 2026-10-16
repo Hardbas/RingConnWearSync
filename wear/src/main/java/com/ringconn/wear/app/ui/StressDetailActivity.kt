@@ -220,7 +220,7 @@ fun StressDetailScreen(context: Context) {
                                     modifier = Modifier.padding(bottom = 5.dp)
                                 )
                             }
-                            val hrvVal = if (vitals.lastHrv > 0) "VFC ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
+                            val hrvVal = if (vitals.lastHrv > 0) "HRV ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
                             Text(
                                 text = hrvVal,
                                 color = Color(0xFF5EEAD4),
@@ -447,17 +447,17 @@ private fun StressTimelineCard(score: Int) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "74%", color = StressRelaxed, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Calma", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.calm), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "26%", color = StressModerate, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Tensión", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.tension), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "64", color = StressHigh, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Pico", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = stringResource(R.string.peak), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
                 }
             }
         }
@@ -532,13 +532,13 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Calma (Vagal)",
+                    text = stringResource(R.string.calm_vagal),
                     color = StressRelaxed,
                     fontSize = 9.5.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Alerta (Carga)",
+                    text = stringResource(R.string.alert_load),
                     color = StressHigh,
                     fontSize = 9.5.sp,
                     fontWeight = FontWeight.Bold

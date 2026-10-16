@@ -158,4 +158,16 @@
     <string name="temp_min_label">Night Min</string>
     <string name="temp_max_label">Night Max</string>
     <string name="temp_stability_label">Stability</string>
+    <string name="calm">Calm</string>
+    <string name="tension">Tension</string>
+    <string name="peak">Peak</string>
+    <string name="min_stat">Min</string>
+    <string name="in_range_stat">In Range</string>
+    <string name="sleep_stat">Sleep</string>
+    <string name="baseline_stat">Baseline</string>
+    <string name="calm_vagal">Calm (Vagal)</string>
+    <string name="alert_load">Alert (Load)</string>
+    <string name="euthermia_desc">Normal resting euthermia</string>
+    <string name="elevated_temp_desc">Active metabolism or immune response</string>
+    <string name="cool_temp_desc">Environmental cooling or deep recovery</string>
 </resources>
