@@ -40,7 +40,7 @@ class StressTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-stress-v4"
+        const val RESOURCES_VERSION = "oneui8-stress-v5"
         private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
         private const val RES_IC_STRESS = "ic_comp_stress"
 
@@ -190,12 +190,35 @@ class StressTileService : TileService() {
                 .addContent(scoreUnitText)
                 .build()
 
-            // 5. One UI 8 Static Deterministic Stress Bar (136dp x 10dp) - ZERO DynamicFloat crash risk
+            // 5. One UI Watch 8 4-Segment Spectrum Gauge (136dp x 10dp)
             val barWidthDp = 136f
             val barHeightDp = 10f
-            val scale = barWidthDp / 100f
-            val progressWidthDp = (score * scale).coerceIn(4f, barWidthDp)
-            val dotPosDp = ((score * scale) - 3.5f).coerceIn(0f, barWidthDp - 7f)
+            val segWidthDp = 32f
+            val segGapDp = 2.66f
+
+            val isZone1 = score < 30
+            val isZone2 = score in 30..59
+            val isZone3 = score in 60..79
+            val isZone4 = score >= 80
+
+            val colorZone1 = argb(if (isZone1) 0xFF00E676.toInt() else 0x3300E676.toInt())
+            val colorZone2 = argb(if (isZone2) 0xFF00E5FF.toInt() else 0x3300E5FF.toInt())
+            val colorZone3 = argb(if (isZone3) 0xFFFFD600.toInt() else 0x33FFD600.toInt())
+            val colorZone4 = argb(if (isZone4) 0xFFFF5252.toInt() else 0x33FF5252.toInt())
+
+            fun buildSegment(color: androidx.wear.protolayout.ColorBuilders.ColorProp) = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(segWidthDp))
+                .setHeight(dp(barHeightDp))
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(color)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(4f)).build())
+                                .build()
+                        ).build()
+                )
+                .build()
 
             val barTrackBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(dp(barWidthDp))
@@ -211,25 +234,24 @@ class StressTileService : TileService() {
                 )
                 .build()
 
-            val activeProgressBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(progressWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(statusColor)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(5f)).build())
-                                .build()
-                        ).build()
-                )
-                .build()
-
-            val activeProgressRow = LayoutElementBuilders.Row.Builder()
+            val segmentsRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(dp(barWidthDp))
                 .setHeight(dp(barHeightDp))
-                .addContent(activeProgressBar)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(buildSegment(colorZone1))
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(segGapDp)).setHeight(dp(1f)).build())
+                .addContent(buildSegment(colorZone2))
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(segGapDp)).setHeight(dp(1f)).build())
+                .addContent(buildSegment(colorZone3))
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(segGapDp)).setHeight(dp(1f)).build())
+                .addContent(buildSegment(colorZone4))
                 .build()
+
+            val dotPosDp = if (score > 0) {
+                ((score.toFloat() / 100f) * (barWidthDp - 7f)).coerceIn(0f, barWidthDp - 7f)
+            } else {
+                0f
+            }
 
             val dotIndicator = LayoutElementBuilders.Box.Builder()
                 .setWidth(dp(7f))
@@ -264,7 +286,7 @@ class StressTileService : TileService() {
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(barTrackBox)
-                .addContent(activeProgressRow)
+                .addContent(segmentsRow)
                 .addContent(dotIndicatorRow)
                 .build()
 

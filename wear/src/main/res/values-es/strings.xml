@@ -68,6 +68,7 @@
     <!-- Temperature Strings (Spanish) -->
     <string name="skin_temp">Temperatura Cutánea</string>
     <string name="temp_in_range">En rango</string>
+    <string name="temp_stable_optimal">Estable · Óptimo</string>
     <string name="temp_warm">Cálido</string>
     <string name="temp_cool">Fresco</string>
     <string name="baseline_temp">Línea base</string>
@@ -78,11 +79,13 @@
     <string name="temp_insight_normal">Termorregulación nocturna estable</string>
     <string name="temp_insight_elevated">Temperatura cutánea elevada</string>
     <string name="temp_insight_cool">Temperatura cutánea baja</string>
-    <string name="temp_thermoregulation_title">Termorregulación</string>
-    <string name="temp_thermoregulation_desc1">El anillo mide la variación térmica de la piel en reposo respecto a tu temperatura media habitual.</string>
-    <string name="temp_thermoregulation_desc2">Variaciones dentro de ±0.5 °C indican estabilidad metabólica y un ciclo circadiano saludable.</string>
-    <string name="temp_recovery_title">Recuperación Nocturna</string>
-    <string name="temp_recovery_desc">Al dormir, los vasos sanguíneos periféricos se dilatan para enfriar el núcleo corporal. Un descenso térmico nocturno refleja profundidad de descanso.</string>
+    <string name="temp_delta_explanation_title">¿Qué significa ±0.0 °C?</string>
+    <string name="temp_delta_explanation_desc">La temperatura cutánea se mide como variación respecto a tu línea base circadiana (36.1 °C). ±0.0 °C indica 100% de estabilidad metabólica y un descanso reparador sin perturbaciones térmicas.</string>
+    <string name="temp_thermoregulation_title">Bandas de Termorregulación</string>
+    <string name="temp_thermoregulation_desc1">El anillo registra variaciones térmicas al dormir: ±0.5 °C es tu banda biológica óptima de eutermia.</string>
+    <string name="temp_thermoregulation_desc2">Desviaciones significativas (> +0.5 °C) pueden asociarse a cenas tardías, alcohol, fatiga neuromuscular o fase lútea.</string>
+    <string name="temp_recovery_title">Alerta Inmune Temprana</string>
+    <string name="temp_recovery_desc">Una elevación térmica nocturna sostenida (> +0.5 °C) suele anticipar respuestas inmunes o estados febriles entre 24 y 48 horas antes de manifestar síntomas perceptibles.</string>
 
     <!-- General & Model -->
     <string name="ring_model_subtitle">Anillo RingConn</string>
@@ -128,10 +131,11 @@
     <string name="zone_fat_burn">Z3 · Quema Grasa</string>
     <string name="zone_cardio">Z4 · Cardio</string>
     <string name="zone_peak">Z5 · Pico</string>
-    <string name="zone_rest_range">Reposo (&lt; 60 ppm)</string>
-    <string name="zone_fat_burn_range">Quema de grasa (60 - 100 ppm)</string>
-    <string name="zone_cardio_range">Cardio (101 - 140 ppm)</string>
-    <string name="zone_peak_range">Pico (&gt; 140 ppm)</string>
+    <string name="zone_rest_range">Reposo (&lt; 100 ppm)</string>
+    <string name="zone_warmup_range">Calentamiento (100 - 120 ppm)</string>
+    <string name="zone_fat_burn_range">Quema de grasa (121 - 140 ppm)</string>
+    <string name="zone_cardio_range">Cardio (141 - 160 ppm)</string>
+    <string name="zone_peak_range">Pico (&gt; 160 ppm)</string>
     <string name="sync_ring">Sincronizar Anillo</string>
     <string name="syncing_ring">Sincronizando Anillo...</string>
     <string name="blood_oxygen_short">SpO2</string>
