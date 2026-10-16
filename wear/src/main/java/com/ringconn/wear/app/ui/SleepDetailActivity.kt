@@ -1,0 +1,590 @@
+package com.ringconn.wear.app.ui
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.wear.compose.material.*
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.wearable.Wearable
+import com.ringconn.wear.app.R
+import com.ringconn.wear.app.complication.RingConnComplicationProvider
+import com.ringconn.wear.app.data.RingConnVitals
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
+// One UI Watch 8 Sleep Stage Colors (decompiled from shealth_watch_base.apk)
+private val StageAwake = Color(0xFFFF6B6B)     // Despierto
+private val StageRem = Color(0xFF47CDFF)       // REM
+private val StageLight = Color(0xFFA5AEDE)     // Ligero
+private val StageDeep = Color(0xFF5E72E4)      // Profundo
+private val SleepTrackBg = Color(0x33000000)
+
+private val StadiumShape32 = RoundedCornerShape(32.dp)
+private val StadiumShape30 = RoundedCornerShape(30.dp)
+private val StadiumShape12 = RoundedCornerShape(12.dp)
+private val SleepStagesShape = RoundedCornerShape(4.dp)
+private val SleepHeroBrush = Brush.verticalGradient(listOf(SleepGradientStart, SleepGradientEnd))
+private val NocturnalGradientBrush = Brush.verticalGradient(listOf(Color(0xFF252B42), Color(0xFF141724)))
+private val SleepBarBrush = Brush.horizontalGradient(listOf(StageDeep, SleepPeriwinkle))
+
+class SleepDetailActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        setContent {
+            SleepDetailScreen(this)
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+    }
+}
+
+@Composable
+fun SleepDetailScreen(context: Context) {
+    var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
+
+    DisposableEffect(context) {
+        val prefs = context.getSharedPreferences("RingConnWearCache", Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            vitals = RingConnComplicationProvider.getLatestVitals(context)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    val hasSleepData = vitals.sleepScore > 0
+    val sleepScore = vitals.sleepScore
+    val sleepScoreText = if (hasSleepData) "$sleepScore" else "--"
+    val qualityBadge = when {
+        !hasSleepData -> "Sin datos de hoy"
+        sleepScore >= 85 -> "Excelente"
+        sleepScore >= 70 -> "Bueno"
+        else -> "Regular"
+    }
+
+    val totalStagesMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins + vitals.sleepAwakeMins
+    val hasStages = totalStagesMins > 0
+    val effectiveSleepMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
+
+    val durationText = if (hasStages) {
+        val h = effectiveSleepMins / 60
+        val m = effectiveSleepMins % 60
+        if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
+    } else if (hasSleepData) {
+        "--"
+    } else {
+        "Sin registros"
+    }
+
+    val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
+    val hrvVal = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "--"
+    val minHr = if (vitals.minHeartRate > 0) "${vitals.minHeartRate} ppm" else if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate} ppm" else "--"
+    val stressVal = if (vitals.stressScore > 0) "${vitals.stressScore}" else "--"
+
+    Scaffold(
+        timeText = { TimeText() },
+        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
+        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(OneUiBlack)
+                .onRotaryScrollEvent {
+                    coroutineScope.launch {
+                        scrollState.scrollBy(it.verticalScrollPixels)
+                    }
+                    true
+                }
+                .focusRequester(focusRequester)
+                .focusable()
+                .verticalScroll(scrollState)
+                .padding(top = 28.dp, bottom = 44.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Header: Análisis de Sueño
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = "Análisis de Sueño",
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Anillo RingConn Gen 2",
+                    fontSize = 11.sp,
+                    color = SleepPeriwinkle
+                )
+            }
+
+            // Hero Sleep Score Capsule
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape32)
+                    .background(SleepHeroBrush)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x33000000)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.oneui_sleep_icon),
+                                contentDescription = "Sleep Icon",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = sleepScoreText,
+                                    fontSize = 32.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (hasSleepData) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "pts",
+                                        fontSize = 13.sp,
+                                        color = SleepPeriwinkle,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(bottom = 3.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = qualityBadge,
+                                fontSize = 12.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Animated Canvas score progress bar (Draw-phase only)
+                    AnimatedSleepScoreBar(
+                        scorePct = sleepScore / 100f,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tiempo total",
+                            fontSize = 11.5.sp,
+                            color = SleepPeriwinkle
+                        )
+                        Text(
+                            text = durationText,
+                            fontSize = 11.5.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // Capsule 2: Fases del Sueño (Sleep Stages)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape30)
+                    .background(SleepHeroBrush)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Fases del Sueño",
+                            fontSize = 13.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!hasStages) {
+                            Text(
+                                text = "Sin datos",
+                                fontSize = 10.sp,
+                                color = LabelSilver
+                            )
+                        }
+                    }
+
+                    if (hasStages) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val awakePct = vitals.sleepAwakeMins.toFloat() / totalStagesMins.toFloat()
+                        val remPct = vitals.sleepRemMins.toFloat() / totalStagesMins.toFloat()
+                        val lightPct = vitals.sleepLightMins.toFloat() / totalStagesMins.toFloat()
+                        val deepPct = vitals.sleepDeepMins.toFloat() / totalStagesMins.toFloat()
+
+                        // Stacked multi-color stage bar (Canvas draw animation, zero relayout)
+                        SleepStagesBar(
+                            awakePct = awakePct,
+                            remPct = remPct,
+                            lightPct = lightPct,
+                            deepPct = deepPct,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(SleepStagesShape)
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Detailed stage breakdowns with real duration and percentages
+                        SleepStageRow("Despierto", formatMins(vitals.sleepAwakeMins), "${(awakePct * 100).roundToInt()}%", StageAwake)
+                        SleepStageRow("REM", formatMins(vitals.sleepRemMins), "${(remPct * 100).roundToInt()}%", StageRem)
+                        SleepStageRow("Ligero", formatMins(vitals.sleepLightMins), "${(lightPct * 100).roundToInt()}%", StageLight)
+                        SleepStageRow("Profundo", formatMins(vitals.sleepDeepMins), "${(deepPct * 100).roundToInt()}%", StageDeep)
+                    } else {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "No se detectaron etapas de sueño en el anillo hoy.",
+                            fontSize = 11.sp,
+                            color = LabelSilver,
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
+
+            // Capsule 3: Biometría Nocturna (Recuperación)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape30)
+                    .background(NocturnalGradientBrush)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Biometría Nocturna",
+                        fontSize = 13.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        NocturnalMetricBox("SpO2 Nocturno", spo2Val, StageRem)
+                        NocturnalMetricBox("VFC / HRV", hrvVal, StageLight)
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        NocturnalMetricBox("FC en Reposo", minHr, Color(0xFFFF85A1))
+                        NocturnalMetricBox("Estrés", stressVal, Color(0xFF70E000))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Capsule 4: Sincronizar Anillo via Mobile RPC
+            var isSyncing by remember { mutableStateOf(false) }
+            val syncScope = rememberCoroutineScope()
+            val context = LocalContext.current
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape30)
+                    .background(Color(0xFF1E2638))
+                    .clickable {
+                        if (!isSyncing) {
+                            isSyncing = true
+                            syncScope.launch {
+                                try {
+                                    val nodes = Wearable.getNodeClient(context).connectedNodes
+                                    nodes.addOnSuccessListener { nodeList ->
+                                        nodeList.forEach { node ->
+                                            Wearable.getMessageClient(context).sendMessage(
+                                                node.id,
+                                                "/action/sync_ringconn",
+                                                ByteArray(0)
+                                            )
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                                delay(4000L)
+                                isSyncing = false
+                            }
+                        }
+                    }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isSyncing) "Sincronizando Anillo..." else "Sincronizar Anillo",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSyncing) Color(0xFF70E000) else Color(0xFF8E99F3)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+/**
+ * Animated sleep score bar executed solely in the Canvas draw phase.
+ */
+@Composable
+private fun AnimatedSleepScoreBar(scorePct: Float, modifier: Modifier = Modifier) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(scorePct) {
+        anim.animateTo(
+            targetValue = scorePct.coerceIn(0f, 1f),
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = SleepTrackBg, size = size, cornerRadius = corner)
+        val w = size.width * anim.value
+        if (w > 0f) {
+            drawRoundRect(
+                brush = SleepBarBrush,
+                size = Size(w, size.height),
+                cornerRadius = corner
+            )
+        }
+    }
+}
+
+/**
+ * Multi-stage sleep bar drawn in Canvas with zero weight layout recomputations.
+ */
+@Composable
+private fun SleepStagesBar(
+    awakePct: Float,
+    remPct: Float,
+    lightPct: Float,
+    deepPct: Float,
+    modifier: Modifier = Modifier
+) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        anim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = SleepTrackBg, size = size, cornerRadius = corner)
+
+        val totalAnimW = size.width * anim.value
+        var curX = 0f
+
+        val wAwake = totalAnimW * awakePct
+        if (wAwake > 0f) {
+            drawRect(color = StageAwake, topLeft = Offset(curX, 0f), size = Size(wAwake, size.height))
+            curX += wAwake
+        }
+        val wRem = totalAnimW * remPct
+        if (wRem > 0f) {
+            drawRect(color = StageRem, topLeft = Offset(curX, 0f), size = Size(wRem, size.height))
+            curX += wRem
+        }
+        val wLight = totalAnimW * lightPct
+        if (wLight > 0f) {
+            drawRect(color = StageLight, topLeft = Offset(curX, 0f), size = Size(wLight, size.height))
+            curX += wLight
+        }
+        val wDeep = totalAnimW * deepPct
+        if (wDeep > 0f) {
+            drawRect(color = StageDeep, topLeft = Offset(curX, 0f), size = Size(wDeep, size.height))
+        }
+    }
+}
+
+@Composable
+private fun SleepStageRow(
+    name: String,
+    duration: String,
+    percentage: String,
+    dotColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(dotColor)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = name,
+                fontSize = 11.5.sp,
+                color = Color.White
+            )
+        }
+        Row {
+            Text(
+                text = duration,
+                fontSize = 11.5.sp,
+                color = SleepPeriwinkle
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = percentage,
+                fontSize = 11.5.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun NocturnalMetricBox(
+    label: String,
+    value: String,
+    valueColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .width(76.dp)
+            .clip(StadiumShape12)
+            .background(GlassBlack50)
+            .padding(horizontal = 6.dp, vertical = 6.dp)
+    ) {
+        Column {
+            Text(
+                text = label,
+                fontSize = 9.5.sp,
+                color = SleepPeriwinkle,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = value,
+                fontSize = 12.sp,
+                color = valueColor,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+private fun formatMins(mins: Int): String {
+    if (mins <= 0) return "0m"
+    val h = mins / 60
+    val m = mins % 60
+    return if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
+}

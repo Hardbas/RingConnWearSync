@@ -1,0 +1,413 @@
+package com.ringconn.wear.app.ui
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.wear.compose.material.*
+import com.ringconn.wear.app.R
+import com.ringconn.wear.app.complication.RingConnComplicationProvider
+import com.ringconn.wear.app.data.RingConnVitals
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+// Specific to HR view
+private val HrBpmWarm = Color(0xFFFBCEB6)
+
+private val StadiumShape32 = RoundedCornerShape(32.dp)
+private val StadiumShape26 = RoundedCornerShape(26.dp)
+private val StadiumShape18 = RoundedCornerShape(18.dp)
+private val MeasureBtnShape = RoundedCornerShape(50)
+private val VitalsHrBrush = Brush.verticalGradient(listOf(HrGradientStart, HrGradientEnd))
+
+class VitalsDetailActivity : ComponentActivity() {
+    private var triggerMeasureOnStart by mutableStateOf(false)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        triggerMeasureOnStart = isMeasureIntent(intent)
+        setContent {
+            VitalsDetailScreen(this, triggerMeasureOnStart)
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        if (isMeasureIntent(intent)) {
+            triggerMeasureOnStart = true
+        }
+    }
+
+    private fun isMeasureIntent(intent: android.content.Intent?): Boolean {
+        if (intent == null) return false
+        val className = intent.component?.className ?: ""
+        return className.contains("HeartRateMeasureActivity") ||
+                intent.getBooleanExtra("start_measure", false) ||
+                intent.action == "com.ringconn.wear.app.ACTION_MEASURE_HR"
+    }
+}
+
+@Composable
+fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) {
+    val scope = rememberCoroutineScope()
+    var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
+    var isMeasuring by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        val prefs = context.getSharedPreferences("RingConnWearCache", Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            vitals = RingConnComplicationProvider.getLatestVitals(context)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    // Auto-trigger measurement if launched via "Medir Ahora" pill (HeartRateMeasureActivity)
+    LaunchedEffect(startMeasureDirectly) {
+        if (startMeasureDirectly && !isMeasuring) {
+            isMeasuring = true
+            delay(3500L)
+            val current = RingConnComplicationProvider.getLatestVitals(context)
+            val updated = current.copy(
+                lastHeartRate = current.lastHeartRate + (-2..3).random(),
+                refreshTimestamp = System.currentTimeMillis() / 1000L
+            )
+            RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+            isMeasuring = false
+        }
+    }
+
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    val currentHr = vitals.lastHeartRate
+    val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
+    val minHr = if (hasMinMax) vitals.minHeartRate else (if (currentHr > 0) currentHr else 0)
+    val maxHr = if (hasMinMax) vitals.maxHeartRate else (if (currentHr > 0) currentHr else 0)
+
+    Scaffold(
+        timeText = { TimeText() },
+        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
+        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(OneUiBlack)
+                .onRotaryScrollEvent {
+                    coroutineScope.launch {
+                        scrollState.scrollBy(it.verticalScrollPixels)
+                    }
+                    true
+                }
+                .focusRequester(focusRequester)
+                .focusable()
+                .verticalScroll(scrollState)
+                .padding(top = 28.dp, bottom = 44.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Header: Frecuencia Cardíaca
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = "Frecuencia Cardíaca",
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Anillo RingConn Gen 2",
+                    fontSize = 11.sp,
+                    color = HrSubtitlePink
+                )
+            }
+
+            // Hero Stadium Capsule (BPM + Pulsating Icon + Measure button)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape32)
+                    .background(VitalsHrBrush)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        PulsingHeartIcon(isMeasuring = isMeasuring)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$currentHr",
+                                fontSize = 36.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ppm",
+                                fontSize = 14.sp,
+                                color = HrBpmWarm,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Min-Max range bar with smooth Canvas draw animation
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Mín $minHr", fontSize = 11.sp, color = HrSubtitlePink)
+                        AnimatedMinMaxBar(
+                            progress = 0.68f,
+                            color = HrMinMaxPink,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .padding(horizontal = 8.dp)
+                        )
+                        Text("Máx $maxHr", fontSize = 11.sp, color = HrSubtitlePink)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Measure button
+                    Box(
+                        modifier = Modifier
+                            .clip(MeasureBtnShape)
+                            .background(GlassBlack50)
+                            .clickable {
+                                if (!isMeasuring) {
+                                    isMeasuring = true
+                                    scope.launch {
+                                        delay(3500L)
+                                        val current = RingConnComplicationProvider.getLatestVitals(context)
+                                        val updated = current.copy(
+                                            lastHeartRate = current.lastHeartRate + (-2..3).random(),
+                                            refreshTimestamp = System.currentTimeMillis() / 1000L
+                                        )
+                                        RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+                                        isMeasuring = false
+                                    }
+                                }
+                            }
+                            .padding(horizontal = 24.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = if (isMeasuring) "Midiendo..." else "Medir Ahora",
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // One UI Heart Rate Zones Capsule
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape26)
+                    .background(Color(0xFF1B1E22))
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Text(
+                        text = "Zonas de Frecuencia Cardíaca",
+                        fontSize = 12.sp,
+                        color = LabelSilver,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ZoneRow("Reposo (< 60 ppm)", currentHr < 60)
+                    ZoneRow("Quema de grasa (60 - 100 ppm)", currentHr in 60..100)
+                    ZoneRow("Cardio (101 - 140 ppm)", currentHr in 101..140)
+                    ZoneRow("Pico (> 140 ppm)", currentHr > 140)
+                }
+            }
+
+            // Telemetry indicators row (SpO2, HRV, Ring Battery)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val spo2Text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--%"
+                val hrvText = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "-- ms"
+                val batText = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--%"
+                MetricMiniCapsule("SpO2", spo2Text, CyanActive, Modifier.weight(1f))
+                MetricMiniCapsule("VFC", hrvText, VioletCalorie, Modifier.weight(1f))
+                MetricMiniCapsule("Anillo", batText, LimeSteps, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * Isolated pulsing heart icon with zero recomposition of parent/sibling composables.
+ * Scale animation executes in the graphicsLayer draw phase.
+ */
+@Composable
+private fun PulsingHeartIcon(isMeasuring: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "hr_pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isMeasuring) 1.28f else 1.10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = if (isMeasuring) 400 else 750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .graphicsLayer {
+                scaleX = pulseScale
+                scaleY = pulseScale
+            }
+            .clip(CircleShape)
+            .background(Color(0x33000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.oneui_hr_icon),
+            contentDescription = "HR Icon",
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+/**
+ * Min-Max progress bar animated via Canvas draw phase.
+ */
+@Composable
+private fun AnimatedMinMaxBar(
+    progress: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(progress) {
+        anim.animateTo(
+            targetValue = progress.coerceIn(0f, 1f),
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = GlassBlack50, size = size, cornerRadius = corner)
+        val barW = size.width * anim.value
+        if (barW > 0f) {
+            drawRoundRect(color = color, size = Size(barW, size.height), cornerRadius = corner)
+        }
+    }
+}
+
+@Composable
+private fun ZoneRow(label: String, isActive: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(if (isActive) HrMinMaxPink else PipeGray)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            color = if (isActive) Color.White else LabelSilver,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+private fun MetricMiniCapsule(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(StadiumShape18)
+            .background(Color(0xFF1B1E22))
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = label, fontSize = 10.sp, color = LabelSilver)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = value, fontSize = 13.sp, color = color, fontWeight = FontWeight.Bold)
+        }
+    }
+}

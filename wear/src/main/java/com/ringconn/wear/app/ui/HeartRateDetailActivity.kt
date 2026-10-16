@@ -1,0 +1,869 @@
+package com.ringconn.wear.app.ui
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.os.Build
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.wear.compose.material.*
+import com.google.android.gms.wearable.Wearable
+import com.ringconn.wear.app.R
+import com.ringconn.wear.app.complication.RingConnComplicationProvider
+import com.ringconn.wear.app.data.RingConnVitals
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+// Specific One UI Watch 8 Heart Rate & HRV Palette
+private val HrBpmWarm = Color(0xFFFBCEB6)
+private val CardBg = Color(0xFF1B1E22)
+private val CardBgSubtle = Color(0xFF22262C)
+private val TrackDark = Color(0x33000000)
+
+// 5 Standard One UI Heart Rate Zones
+private val ZoneRestColor = Color(0xFF47CDFF)      // Reposo (< 100 bpm)
+private val ZoneWarmupColor = Color(0xFFA0F116)    // Calentamiento (100 - 120 bpm)
+private val ZoneFatBurnColor = Color(0xFFFFB703)   // Quema de grasa (120 - 140 bpm)
+private val ZoneCardioColor = Color(0xFFFB8500)    // Cardio (140 - 160 bpm)
+private val ZonePeakColor = Color(0xFFFF5D99)      // Pico (> 160 bpm)
+
+private val StadiumShape32 = RoundedCornerShape(32.dp)
+private val StadiumShape26 = RoundedCornerShape(26.dp)
+private val StadiumShape18 = RoundedCornerShape(18.dp)
+private val StadiumShape12 = RoundedCornerShape(12.dp)
+private val PillShape = RoundedCornerShape(50)
+private val VitalsHrBrush = Brush.verticalGradient(listOf(HrGradientStart, HrGradientEnd))
+
+/**
+ * Dedicated Heart Rate & HRV Insights Detail Screen for Samsung One UI Watch 8.
+ * Provides deep insights into cardiac rhythm, autonomic balance (HRV RMSSD),
+ * resting heart rate baseline comparison, and 5 standard One UI HR zones.
+ */
+class HeartRateDetailActivity : ComponentActivity() {
+    private var triggerMeasureOnStart by mutableStateOf(false)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        triggerMeasureOnStart = isMeasureIntent(intent)
+        setContent {
+            HeartRateDetailScreen(this, triggerMeasureOnStart)
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= 34) {
+            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
+            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
+        } else {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+        if (isMeasureIntent(intent)) {
+            triggerMeasureOnStart = true
+        }
+    }
+
+    private fun isMeasureIntent(intent: android.content.Intent?): Boolean {
+        if (intent == null) return false
+        val className = intent.component?.className ?: ""
+        return className.contains("Measure") ||
+                intent.getBooleanExtra("start_measure", false) ||
+                intent.action == "com.ringconn.wear.app.ACTION_MEASURE_HR"
+    }
+}
+
+@Composable
+fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = false) {
+    val scope = rememberCoroutineScope()
+    var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
+    var isMeasuring by remember { mutableStateOf(false) }
+
+    // Live sync with SharedPreferences cache
+    DisposableEffect(context) {
+        val prefs = context.getSharedPreferences("RingConnWearCache", Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
+            vitals = RingConnComplicationProvider.getLatestVitals(context)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
+    }
+
+    // Auto-trigger measurement if launched via tile "Medir" button
+    LaunchedEffect(startMeasureDirectly) {
+        if (startMeasureDirectly && !isMeasuring) {
+            isMeasuring = true
+            delay(3500L)
+            val current = RingConnComplicationProvider.getLatestVitals(context)
+            if (current.lastHeartRate > 0) {
+                val newHr = current.lastHeartRate
+                val newMin = if (current.minHeartRate > 0) minOf(current.minHeartRate, newHr) else newHr
+                val newMax = if (current.maxHeartRate > 0) maxOf(current.maxHeartRate, newHr) else newHr
+                val updated = current.copy(
+                    lastHeartRate = newHr,
+                    minHeartRate = newMin,
+                    maxHeartRate = newMax,
+                    refreshTimestamp = System.currentTimeMillis() / 1000L
+                )
+                RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+            }
+            isMeasuring = false
+        }
+    }
+
+    val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    val currentHr = vitals.lastHeartRate
+    val hasHr = currentHr > 0
+    val hrDisplay = if (hasHr) "$currentHr" else "--"
+
+    val avgHr = vitals.avgHeartRate
+    val minHr = vitals.minHeartRate
+    val maxHr = vitals.maxHeartRate
+    val hasMinMax = minHr > 0 && maxHr > 0
+    val minHrText = if (minHr > 0) "Mín $minHr" else "--"
+    val maxHrText = if (maxHr > 0) "Máx $maxHr" else "--"
+
+    val hrvVal = vitals.lastHrv
+    val hasHrv = hrvVal > 0
+    val hrvDisplay = if (hasHrv) "$hrvVal" else "--"
+
+    // Status evaluation
+    val hrStatusLabel = when {
+        !hasHr -> "--"
+        currentHr < 60 -> "Reposo"
+        currentHr <= 100 -> "Normal"
+        else -> "Elevado"
+    }
+    val hrStatusColor = when {
+        !hasHr -> LabelSilver
+        currentHr < 60 -> CyanActive
+        currentHr <= 100 -> LimeSteps
+        else -> HrMinMaxPink
+    }
+
+    // HRV status evaluation
+    val hrvStatusLabel = when {
+        !hasHrv -> "--"
+        hrvVal >= 60 -> "Óptimo"
+        hrvVal >= 40 -> "Equilibrado"
+        else -> "Fatiga"
+    }
+    val hrvStatusColor = when {
+        !hasHrv -> LabelSilver
+        hrvVal >= 60 -> LimeSteps
+        hrvVal >= 40 -> CyanActive
+        else -> HrMinMaxPink
+    }
+
+    Scaffold(
+        timeText = { TimeText() },
+        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
+        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(OneUiBlack)
+                .onRotaryScrollEvent {
+                    scope.launch {
+                        scrollState.scrollBy(it.verticalScrollPixels)
+                    }
+                    true
+                }
+                .focusRequester(focusRequester)
+                .focusable()
+                .verticalScroll(scrollState)
+                .padding(top = 28.dp, bottom = 44.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // =========================================================================
+            // a) Header: "Frecuencia Cardíaca" + "Anillo RingConn Gen 2"
+            // =========================================================================
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                Text(
+                    text = "Frecuencia Cardíaca",
+                    fontSize = 15.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Anillo RingConn Gen 2",
+                    fontSize = 11.sp,
+                    color = HrSubtitlePink
+                )
+            }
+
+            // =========================================================================
+            // b) Hero Stadium Card: Live BPM, pulsing heart, Min-Max range & Measure button
+            // =========================================================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape32)
+                    .background(VitalsHrBrush)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        PulsingHeartIcon(isMeasuring = isMeasuring)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = hrDisplay,
+                                fontSize = 36.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "ppm",
+                                fontSize = 14.sp,
+                                color = HrBpmWarm,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Min-Max range bar with smooth Canvas draw animation
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(minHrText, fontSize = 11.sp, color = HrSubtitlePink)
+                        AnimatedMinMaxBar(
+                            progress = if (hasMinMax && maxHr > minHr && hasHr) {
+                                ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
+                            } else if (hasHr) 0.65f else 0f,
+                            color = HrMinMaxPink,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(6.dp)
+                                .padding(horizontal = 8.dp)
+                        )
+                        Text(maxHrText, fontSize = 11.sp, color = HrSubtitlePink)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // "Medir Ahora" pill button
+                    Box(
+                        modifier = Modifier
+                            .clip(PillShape)
+                            .background(GlassBlack50)
+                            .clickable {
+                                if (!isMeasuring) {
+                                    isMeasuring = true
+                                    scope.launch {
+                                        try {
+                                            val nodes = Wearable.getNodeClient(context).connectedNodes
+                                            nodes.addOnSuccessListener { nodeList ->
+                                                nodeList.forEach { node ->
+                                                    Wearable.getMessageClient(context).sendMessage(
+                                                        node.id,
+                                                        "/action/measure_now",
+                                                        ByteArray(0)
+                                                    )
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                        delay(3500L)
+                                        val current = RingConnComplicationProvider.getLatestVitals(context)
+                                        if (current.lastHeartRate > 0) {
+                                            val newHr = current.lastHeartRate
+                                            val newMin = if (current.minHeartRate > 0) minOf(current.minHeartRate, newHr) else newHr
+                                            val newMax = if (current.maxHeartRate > 0) maxOf(current.maxHeartRate, newHr) else newHr
+                                            val updated = current.copy(
+                                                lastHeartRate = newHr,
+                                                minHeartRate = newMin,
+                                                maxHeartRate = newMax,
+                                                refreshTimestamp = System.currentTimeMillis() / 1000L
+                                            )
+                                            RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+                                        }
+                                        isMeasuring = false
+                                    }
+                                }
+                            }
+                            .padding(horizontal = 24.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = if (isMeasuring) "Midiendo..." else "Medir Ahora",
+                            fontSize = 12.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // =========================================================================
+            // c) Insights Card: Ritmo y Reposo
+            // =========================================================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape26)
+                    .background(CardBg)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Ritmo y Reposo",
+                            fontSize = 13.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(hrStatusColor.copy(alpha = 0.22f))
+                                .padding(horizontal = 10.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = hrStatusLabel,
+                                fontSize = 10.sp,
+                                color = hrStatusColor,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // RHR Comparison Mini Tiles
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(StadiumShape12)
+                                .background(CardBgSubtle)
+                                .padding(horizontal = 8.dp, vertical = 7.dp)
+                        ) {
+                            Column {
+                                Text("FC Reposo Media", fontSize = 9.5.sp, color = LabelSilver)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val avgHrText = if (avgHr > 0) "$avgHr ppm" else "--"
+                                Text(avgHrText, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        val diff = if (hasHr && avgHr > 0) currentHr - avgHr else null
+                        val diffText = if (diff != null) (if (diff >= 0) "+$diff ppm" else "$diff ppm") else "--"
+                        val diffColor = if (diff != null) (if (diff <= 6) CyanActive else HrMinMaxPink) else LabelSilver
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(StadiumShape12)
+                                .background(CardBgSubtle)
+                                .padding(horizontal = 8.dp, vertical = 7.dp)
+                        ) {
+                            Column {
+                                Text("Variación", fontSize = 9.5.sp, color = LabelSilver)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    diffText,
+                                    fontSize = 13.sp,
+                                    color = diffColor,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
+            // d) Variabilidad Cardíaca (HRV / VFC)
+            // =========================================================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape26)
+                    .background(CardBg)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Variabilidad Cardíaca",
+                            fontSize = 13.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "RMSSD",
+                            fontSize = 10.sp,
+                            color = LabelSilver,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = hrvDisplay,
+                                fontSize = 28.sp,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "ms",
+                                fontSize = 13.sp,
+                                color = CyanActive,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(PillShape)
+                                .background(hrvStatusColor.copy(alpha = 0.22f))
+                                .padding(horizontal = 10.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = hrvStatusLabel,
+                                fontSize = 10.sp,
+                                color = hrvStatusColor,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Visual HRV status gauge with current dot indicator
+                    HrvStatusGauge(
+                        hrvValue = hrvVal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Gauge legends
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("< 40 ms", fontSize = 9.sp, color = HrMinMaxPink, fontWeight = FontWeight.Medium)
+                        Text("40 - 60 ms", fontSize = 9.sp, color = CyanActive, fontWeight = FontWeight.Medium)
+                        Text("> 60 ms", fontSize = 9.sp, color = LimeSteps, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+
+            // =========================================================================
+            // e) Zonas Cardíacas (Heart Rate Zones): 5 standard One UI zones
+            // =========================================================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(StadiumShape26)
+                    .background(CardBg)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins
+                val z1Pct = if (totalZoneMins > 0) vitals.zone1Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                val z2Pct = if (totalZoneMins > 0) vitals.zone2Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                val z3Pct = if (totalZoneMins > 0) vitals.zone3Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                val z4Pct = if (totalZoneMins > 0) vitals.zone4Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                val z5Pct = if (totalZoneMins > 0) vitals.zone5Mins.toFloat() / totalZoneMins.toFloat() else 0f
+
+                Column {
+                    Text(
+                        text = "Zonas de Frecuencia Cardíaca",
+                        fontSize = 13.sp,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Zone 1: Reposo (< 100 bpm)
+                    ZoneItemRow(
+                        zoneName = "Z1 · Reposo",
+                        bpmRange = "< 100 ppm",
+                        durationText = formatZoneDuration(vitals.zone1Mins, totalZoneMins),
+                        zoneColor = ZoneRestColor,
+                        distributionPct = z1Pct,
+                        isActive = hasHr && currentHr < 100
+                    )
+
+                    // Zone 2: Calentamiento (100 - 120 bpm)
+                    ZoneItemRow(
+                        zoneName = "Z2 · Calentamiento",
+                        bpmRange = "100 - 120 ppm",
+                        durationText = formatZoneDuration(vitals.zone2Mins, totalZoneMins),
+                        zoneColor = ZoneWarmupColor,
+                        distributionPct = z2Pct,
+                        isActive = hasHr && currentHr in 100..120
+                    )
+
+                    // Zone 3: Quema de grasa (120 - 140 bpm)
+                    ZoneItemRow(
+                        zoneName = "Z3 · Quema Grasa",
+                        bpmRange = "121 - 140 ppm",
+                        durationText = formatZoneDuration(vitals.zone3Mins, totalZoneMins),
+                        zoneColor = ZoneFatBurnColor,
+                        distributionPct = z3Pct,
+                        isActive = hasHr && currentHr in 121..140
+                    )
+
+                    // Zone 4: Cardio (140 - 160 bpm)
+                    ZoneItemRow(
+                        zoneName = "Z4 · Cardio",
+                        bpmRange = "141 - 160 ppm",
+                        durationText = formatZoneDuration(vitals.zone4Mins, totalZoneMins),
+                        zoneColor = ZoneCardioColor,
+                        distributionPct = z4Pct,
+                        isActive = hasHr && currentHr in 141..160
+                    )
+
+                    // Zone 5: Pico (> 160 bpm)
+                    ZoneItemRow(
+                        zoneName = "Z5 · Pico Máximo",
+                        bpmRange = "> 160 ppm",
+                        durationText = formatZoneDuration(vitals.zone5Mins, totalZoneMins),
+                        zoneColor = ZonePeakColor,
+                        distributionPct = z5Pct,
+                        isActive = hasHr && currentHr > 160
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Isolated pulsing heart icon with graphicsLayer scale animation.
+ * Zero parent recomposition during animation ticks.
+ */
+@Composable
+private fun PulsingHeartIcon(isMeasuring: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "hr_pulse_solitary")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = if (isMeasuring) 1.28f else 1.10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = if (isMeasuring) 400 else 750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .graphicsLayer {
+                scaleX = pulseScale
+                scaleY = pulseScale
+            }
+            .clip(CircleShape)
+            .background(Color(0x33000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.oneui_hr_icon),
+            contentDescription = "HR Icon",
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+/**
+ * Min-Max progress bar animated via Canvas draw phase.
+ */
+@Composable
+private fun AnimatedMinMaxBar(
+    progress: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(progress) {
+        anim.animateTo(
+            targetValue = progress.coerceIn(0f, 1f),
+            animationSpec = tween(
+                durationMillis = 350,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = GlassBlack50, size = size, cornerRadius = corner)
+        val barW = size.width * anim.value
+        if (barW > 0f) {
+            drawRoundRect(color = color, size = Size(barW, size.height), cornerRadius = corner)
+        }
+    }
+}
+
+/**
+ * Segmented HRV Status Gauge with indicator marker dot executed solely on Canvas.
+ */
+@Composable
+private fun HrvStatusGauge(hrvValue: Int, modifier: Modifier = Modifier) {
+    val animPos = remember { Animatable(0.5f) }
+    val targetNormalized = ((hrvValue - 20f) / 70f).coerceIn(0.06f, 0.94f)
+
+    LaunchedEffect(targetNormalized) {
+        animPos.animateTo(
+            targetValue = targetNormalized,
+            animationSpec = tween(
+                durationMillis = 400,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = TrackDark, size = size, cornerRadius = corner)
+
+        val segW = (size.width - 4f) / 3f
+        val segH = size.height
+
+        // Segment 1: Pink (Baja)
+        drawRoundRect(
+            color = HrMinMaxPink.copy(alpha = 0.85f),
+            topLeft = Offset(0f, 0f),
+            size = Size(segW, segH),
+            cornerRadius = CornerRadius(segH / 2f, segH / 2f)
+        )
+
+        // Segment 2: Cyan (Equilibrada)
+        drawRoundRect(
+            color = CyanActive.copy(alpha = 0.85f),
+            topLeft = Offset(segW + 2f, 0f),
+            size = Size(segW, segH),
+            cornerRadius = CornerRadius(segH / 2f, segH / 2f)
+        )
+
+        // Segment 3: Lime (Óptima)
+        drawRoundRect(
+            color = LimeSteps.copy(alpha = 0.85f),
+            topLeft = Offset((segW * 2f) + 4f, 0f),
+            size = Size(segW, segH),
+            cornerRadius = CornerRadius(segH / 2f, segH / 2f)
+        )
+
+        // Current Indicator Needle / Dot
+        val indicatorX = size.width * animPos.value
+        drawCircle(
+            color = Color.Black,
+            radius = segH / 2f + 1f,
+            center = Offset(indicatorX, segH / 2f)
+        )
+        drawCircle(
+            color = Color.White,
+            radius = segH / 2f - 1f,
+            center = Offset(indicatorX, segH / 2f)
+        )
+    }
+}
+
+private fun formatZoneDuration(mins: Int, totalMins: Int): String {
+    if (totalMins <= 0) return "--"
+    if (mins <= 0) return "0m · 0%"
+    val pct = (mins.toDouble() / totalMins.toDouble() * 100.0).roundToInt()
+    val hours = mins / 60
+    val remMins = mins % 60
+    val timeStr = when {
+        hours > 0 && remMins > 0 -> "${hours}h ${remMins}m"
+        hours > 0 -> "${hours}h"
+        else -> "${remMins}m"
+    }
+    return "$timeStr · $pct%"
+}
+
+/**
+ * Individual Heart Rate Zone Row with visual distribution bar, duration, and active indicator.
+ */
+@Composable
+private fun ZoneItemRow(
+    zoneName: String,
+    bpmRange: String,
+    durationText: String,
+    zoneColor: Color,
+    distributionPct: Float,
+    isActive: Boolean
+) {
+    Column(modifier = Modifier.padding(vertical = 3.5.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(zoneColor)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = zoneName,
+                    fontSize = 11.5.sp,
+                    color = if (isActive) Color.White else LabelSilver,
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+                )
+            }
+            Text(
+                text = durationText,
+                fontSize = 10.5.sp,
+                color = if (isActive) Color.White else LabelSilver,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = bpmRange,
+                fontSize = 9.5.sp,
+                color = if (isActive) zoneColor else PipeGray,
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
+            )
+            if (isActive) {
+                Box(
+                    modifier = Modifier
+                        .clip(PillShape)
+                        .background(zoneColor)
+                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = "ACTUAL",
+                        fontSize = 7.5.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(3.dp))
+
+        // Distribution progress bar
+        val animBar = remember { Animatable(0f) }
+        LaunchedEffect(distributionPct) {
+            animBar.animateTo(
+                targetValue = distributionPct,
+                animationSpec = tween(
+                    durationMillis = 350,
+                    easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+                )
+            )
+        }
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+        ) {
+            val corner = CornerRadius(size.height / 2f, size.height / 2f)
+            drawRoundRect(color = TrackDark, size = size, cornerRadius = corner)
+            val w = size.width * animBar.value
+            if (w > 0f) {
+                drawRoundRect(
+                    color = if (isActive) zoneColor else zoneColor.copy(alpha = 0.5f),
+                    size = Size(w, size.height),
+                    cornerRadius = corner
+                )
+            }
+        }
+    }
+}
