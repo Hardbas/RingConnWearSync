@@ -59,17 +59,17 @@ import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import kotlinx.coroutines.launch
 
-private val TempCool = Color(0xFF38BDF8)       // Electric Sky Cyan
-private val TempOptimal = Color(0xFF00E676)    // Clinical Mint
-private val TempRuby = Color(0xFFFF4D6D)       // Gentle AI Electric Ruby Crimson
-private val TempRoseSoft = Color(0xFFFF758F)   // Gentle AI Soft Rose
+private val TempCool = Color(0xFF38BDF8)          // Electric Sky Cyan
+private val TempOptimal = Color(0xFF00E676)       // Clinical Mint
+private val TempWarmAlert = Color(0xFFFF7043)     // Warm Amber / Coral
+private val TempEmeraldSoft = Color(0xFF34D399)   // Luminous Mint Emerald
 
 private val TempHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF5E1E26), Color(0xFF3A1117), Color(0xFF1D080B))
+    listOf(Color(0xFF144238), Color(0xFF0B2822), Color(0xFF051411))
 )
 
 private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF2C1014), Color(0xFF150608))
+    listOf(Color(0xFF132B25), Color(0xFF0C1A16))
 )
 
 class TemperatureDetailActivity : ComponentActivity() {
@@ -136,7 +136,7 @@ fun TemperatureDetailScreen(context: Context) {
 
     val statusColor = when {
         offset in -0.5f..0.5f -> TempOptimal
-        offset > 0.5f -> TempRuby
+        offset > 0.5f -> TempWarmAlert
         else -> TempCool
     }
 
@@ -207,7 +207,7 @@ fun TemperatureDetailScreen(context: Context) {
 
                     Text(
                         text = stringResource(R.string.temp_baseline_format, baseline),
-                        color = Color(0xFFFFCCD5),
+                        color = Color(0xFFD1FAE5),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -286,7 +286,7 @@ fun TemperatureDetailScreen(context: Context) {
                         Spacer(modifier = Modifier.width(7.dp))
                         Text(
                             text = stringResource(R.string.temp_delta_explanation_title),
-                            color = TempRuby,
+                            color = TempEmeraldSoft,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -332,7 +332,7 @@ fun TemperatureDetailScreen(context: Context) {
                         label = stringResource(R.string.elevated),
                         range = "> +0.5 °C",
                         desc = stringResource(R.string.elevated_temp_desc),
-                        color = TempRuby,
+                        color = TempWarmAlert,
                         isActive = offset > 0.5f
                     )
                     Spacer(modifier = Modifier.height(5.dp))
@@ -353,13 +353,13 @@ fun TemperatureDetailScreen(context: Context) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xFF2E1015))
+                    .background(Color(0xFF162B24))
                     .padding(14.dp)
             ) {
                 Column {
                     Text(
                         text = stringResource(R.string.temp_recovery_title),
-                        color = TempRoseSoft,
+                        color = TempEmeraldSoft,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -399,7 +399,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 )
                 Text(
                     text = stringResource(R.string.sleep_stat),
-                    color = TempRoseSoft,
+                    color = TempEmeraldSoft,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -431,7 +431,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 )
 
                 drawLine(
-                    color = TempRuby.copy(alpha = 0.25f),
+                    color = TempEmeraldSoft.copy(alpha = 0.25f),
                     start = Offset(0f, bandTopY),
                     end = Offset(totalW, bandTopY),
                     strokeWidth = 1.dp.toPx(),
@@ -479,7 +479,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 drawPath(
                     path = fillPath,
                     brush = Brush.verticalGradient(
-                        listOf(TempRuby.copy(alpha = 0.25f), TempCool.copy(alpha = 0.25f)),
+                        listOf(TempEmeraldSoft.copy(alpha = 0.25f), TempCool.copy(alpha = 0.25f)),
                         startY = bandTopY,
                         endY = bandBottomY
                     )
@@ -489,7 +489,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 drawPath(
                     path = splinePath,
                     brush = Brush.horizontalGradient(
-                        listOf(TempCool, Color(0xFF00E676), TempRoseSoft, TempRuby)
+                        listOf(TempCool, Color(0xFF00E676), TempEmeraldSoft, Color(0xFF00E5FF))
                     ),
                     style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
                 )
