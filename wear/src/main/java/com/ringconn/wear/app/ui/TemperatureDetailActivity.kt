@@ -55,16 +55,16 @@ import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import kotlinx.coroutines.launch
 
-private val TempOptimal = Color(0xFF81C784)
-private val TempWarm = Color(0xFFFFB74D)
-private val TempCool = Color(0xFF4FC3F7)
+private val TempOptimal = Color(0xFFA0F116)
+private val TempWarm = Color(0xFFFF9800)
+private val TempCool = Color(0xFF47CDFF)
 
 private val TempHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF1E6B7B), Color(0xFF0A2025))
+    listOf(Color(0xFF2E3E48), Color(0xFF10161B))
 )
 
 private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF13282F), Color(0xFF0B171B))
+    listOf(Color(0xFF1E282E), Color(0xFF12181C))
 )
 
 class TemperatureDetailActivity : ComponentActivity() {
