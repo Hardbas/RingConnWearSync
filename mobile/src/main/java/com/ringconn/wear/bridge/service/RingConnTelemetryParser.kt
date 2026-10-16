@@ -2,12 +2,16 @@ package com.ringconn.wear.bridge.service
 
 import android.util.Log
 import com.ringconn.wear.bridge.data.RingConnVitals
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlin.math.roundToInt
 
 object RingConnTelemetryParser {
     private const val TAG = "RingConnParser"
 
     // Regex matchers for units / composite tokens
+    private val TIME_STRING_REGEX = Regex("""(?i)\b([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])(?:\s*([ap]\.?\s*m\.?))?\b""")
+    private val AMPM_STANDALONE_REGEX = Regex("""(?i)^([ap]\.?\s*m\.?)$""")
     private val VITAL_SIGNS_REGEX = Regex("""(?i)\b(\d{2,3})\s*bpm\s+(\d{2,3})\s*%\s+(\d{1,3})\s*ms\b""")
     private val HR_BPM_REGEX = Regex("""(?i)\b(\d{2,3})\s*(?:bpm|lpm)\b""")
     private val SPO2_PCT_REGEX = Regex("""\b(8\d|9\d|100)\s*%""")
@@ -68,6 +72,8 @@ object RingConnTelemetryParser {
             if (hrv != null && hrv in 10..250) lastHrv = hrv
         }
 
+        var parsedWidgetTimestamp: Long? = null
+
         // 2. Token-by-token contextual parsing
         for (i in cleanTokens.indices) {
             val token = cleanTokens[i]
@@ -75,6 +81,44 @@ object RingConnTelemetryParser {
 
             if (IGNORED_TITLES.contains(lower) || lower.startsWith("unsupported size")) {
                 continue
+            }
+
+            // --- Time Token Extraction (e.g. "3:20 PM", "03:20", "3:20 p. m.") ---
+            if (parsedWidgetTimestamp == null) {
+                TIME_STRING_REGEX.find(token)?.let { match ->
+                    var hour = match.groupValues[1].toInt()
+                    val minute = match.groupValues[2].toInt()
+                    var ampm = match.groupValues[3].trim()
+
+                    if (ampm.isEmpty()) {
+                        val nextToken = cleanTokens.getOrNull(i + 1)?.trim()
+                        if (nextToken != null && AMPM_STANDALONE_REGEX.matches(nextToken)) {
+                            ampm = nextToken
+                        }
+                    }
+
+                    if (ampm.isNotEmpty()) {
+                        val isPm = ampm.startsWith("p", ignoreCase = true)
+                        val isAm = ampm.startsWith("a", ignoreCase = true)
+                        if (isPm && hour in 1..11) {
+                            hour += 12
+                        } else if (isAm && hour == 12) {
+                            hour = 0
+                        }
+                    }
+
+                    try {
+                        val now = ZonedDateTime.now(ZoneId.systemDefault())
+                        var candidateTime = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
+                        if (candidateTime.isAfter(now.plusMinutes(2))) {
+                            candidateTime = candidateTime.minusDays(1)
+                        }
+                        parsedWidgetTimestamp = candidateTime.toEpochSecond()
+                        Log.i(TAG, "Parsed widget sample time from token '$token' (ampm='$ampm'): $parsedWidgetTimestamp ($candidateTime)")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed parsing widget time '$token': ${e.message}")
+                    }
+                }
             }
 
             // --- Composite contentDescription matches (e.g. "Sleep 88", "Battery 70%") ---
@@ -363,7 +407,7 @@ object RingConnTelemetryParser {
             targetCalorie = targetCalorie,
             ringBattery = ringBattery,
             isConnected = true,
-            refreshTimestamp = System.currentTimeMillis() / 1000L,
+            refreshTimestamp = parsedWidgetTimestamp ?: (System.currentTimeMillis() / 1000L),
             sleepDeepMins = baseVitals.sleepDeepMins,
             sleepRemMins = baseVitals.sleepRemMins,
             sleepLightMins = baseVitals.sleepLightMins,

@@ -146,6 +146,10 @@ object RingConnTelemetryReader {
         var z4 = 0
         var z5 = 0
 
+        var latestHrTimestamp = 0L
+        var latestSpo2Timestamp = 0L
+        var latestHrvTimestamp = 0L
+
         // 1. Heart Rate
         if (granted.contains(HealthPermission.getReadPermission(HeartRateRecord::class))) {
             try {
@@ -173,6 +177,7 @@ object RingConnTelemetryReader {
                     val latestSample = allSamples.maxByOrNull { it.first.time }?.first
                     if (latestSample != null) {
                         lastBpm = latestSample.beatsPerMinute.toInt()
+                        latestHrTimestamp = latestSample.time.epochSecond
                     }
 
                     val todaySamples = allSamples.filter { it.first.time >= todayStart }
@@ -239,6 +244,7 @@ object RingConnTelemetryReader {
                 if (latestSpo2Record != null) {
                     val rawVal = latestSpo2Record.percentage.value
                     lastSpo2 = if (rawVal <= 1.0) (rawVal * 100.0).roundToInt() else rawVal.roundToInt()
+                    latestSpo2Timestamp = latestSpo2Record.time.epochSecond
                 }
 
                 val todaySpo2 = effectiveSpo2.filter { it.time >= todayStart }
@@ -273,6 +279,7 @@ object RingConnTelemetryReader {
                 val latestHrvRecord = effectiveHrv.maxByOrNull { it.time }
                 if (latestHrvRecord != null) {
                     lastHrv = latestHrvRecord.heartRateVariabilityMillis.roundToInt()
+                    latestHrvTimestamp = latestHrvRecord.time.epochSecond
                 }
 
                 val todayHrv = effectiveHrv.filter { it.time >= todayStart }
@@ -645,7 +652,7 @@ object RingConnTelemetryReader {
             ringBattery = ringBattery,
             isCharging = existing.isCharging,
             isConnected = true,
-            refreshTimestamp = now.epochSecond,
+            refreshTimestamp = maxOf(latestHrTimestamp, latestSpo2Timestamp, latestHrvTimestamp).takeIf { it > 0 } ?: now.epochSecond,
             minHeartRate = finalMinHr,
             maxHeartRate = finalMaxHr,
             zone1Mins = finalZ1,
@@ -681,6 +688,63 @@ object RingConnTelemetryReader {
             } catch (e: Exception) {
                 null
             }
+
+            // Smart Timestamp Merge: Compare widget sample time vs Health Connect sample time
+            val hcHrIsFresher = hcVitals != null && hcVitals.lastHeartRate > 0 && hcVitals.refreshTimestamp > widgetVitals.refreshTimestamp
+            if (hcHrIsFresher) {
+                Log.i(TAG, "Smart Merge: Health Connect HR (${hcVitals!!.lastHeartRate} bpm @ ${hcVitals.refreshTimestamp}) is FRESHER than widget (${widgetVitals.lastHeartRate} bpm @ ${widgetVitals.refreshTimestamp}) -> prioritizing Health Connect HR")
+            } else {
+                Log.i(TAG, "Smart Merge: Widget vitals (${widgetVitals.lastHeartRate} bpm @ ${widgetVitals.refreshTimestamp}) are >= Health Connect (${hcVitals?.refreshTimestamp ?: 0}) -> prioritizing Widget vitals")
+            }
+
+            val finalHr = if (hcHrIsFresher) {
+                hcVitals!!.lastHeartRate
+            } else if (widgetVitals.lastHeartRate > 0) {
+                widgetVitals.lastHeartRate
+            } else {
+                hcVitals?.lastHeartRate?.takeIf { it > 0 } ?: cached.lastHeartRate
+            }
+
+            val finalAvgHr = if (hcHrIsFresher && hcVitals!!.avgHeartRate > 0) {
+                hcVitals.avgHeartRate
+            } else if (widgetVitals.avgHeartRate > 0) {
+                widgetVitals.avgHeartRate
+            } else {
+                hcVitals?.avgHeartRate?.takeIf { it > 0 } ?: cached.avgHeartRate
+            }
+
+            val finalSpo2 = if (hcHrIsFresher && hcVitals!!.lastSpo2 > 0) {
+                hcVitals.lastSpo2
+            } else if (widgetVitals.lastSpo2 > 0) {
+                widgetVitals.lastSpo2
+            } else {
+                hcVitals?.lastSpo2?.takeIf { it > 0 } ?: cached.lastSpo2
+            }
+
+            val finalAvgSpo2 = if (hcHrIsFresher && hcVitals!!.avgSpo2 > 0) {
+                hcVitals.avgSpo2
+            } else if (widgetVitals.avgSpo2 > 0) {
+                widgetVitals.avgSpo2
+            } else {
+                hcVitals?.avgSpo2?.takeIf { it > 0 } ?: cached.avgSpo2
+            }
+
+            val finalHrv = if (hcHrIsFresher && hcVitals!!.lastHrv > 0) {
+                hcVitals.lastHrv
+            } else if (widgetVitals.lastHrv > 0) {
+                widgetVitals.lastHrv
+            } else {
+                hcVitals?.lastHrv?.takeIf { it > 0 } ?: cached.lastHrv
+            }
+
+            val finalAvgHrv = if (hcHrIsFresher && hcVitals!!.avgHrv > 0) {
+                hcVitals.avgHrv
+            } else if (widgetVitals.avgHrv > 0) {
+                widgetVitals.avgHrv
+            } else {
+                hcVitals?.avgHrv?.takeIf { it > 0 } ?: cached.avgHrv
+            }
+
             val minHr = hcVitals?.minHeartRate?.takeIf { it > 0 } ?: cached.minHeartRate
             val maxHr = hcVitals?.maxHeartRate?.takeIf { it > 0 } ?: cached.maxHeartRate
             val z1 = hcVitals?.zone1Mins?.takeIf { it > 0 } ?: cached.zone1Mins
@@ -689,7 +753,25 @@ object RingConnTelemetryReader {
             val z4 = hcVitals?.zone4Mins?.takeIf { it > 0 } ?: cached.zone4Mins
             val z5 = hcVitals?.zone5Mins?.takeIf { it > 0 } ?: cached.zone5Mins
 
+            val finalSteps = maxOf(widgetVitals.liveSteps, hcVitals?.liveSteps ?: 0, cached.liveSteps)
+            val finalCalorie = maxOf(widgetVitals.liveCalorie, hcVitals?.liveCalorie ?: 0, cached.liveCalorie)
+            val finalBattery = if (widgetVitals.ringBattery > 0) widgetVitals.ringBattery else cached.ringBattery
+            val finalSleepScore = if (widgetVitals.sleepScore > 0) widgetVitals.sleepScore else (hcVitals?.sleepScore?.takeIf { it > 0 } ?: cached.sleepScore)
+            val finalStressScore = if (widgetVitals.stressScore > 0) widgetVitals.stressScore else (hcVitals?.stressScore?.takeIf { it > 0 } ?: cached.stressScore)
+
             val merged = widgetVitals.copy(
+                lastHeartRate = finalHr,
+                avgHeartRate = finalAvgHr,
+                lastSpo2 = finalSpo2,
+                avgSpo2 = finalAvgSpo2,
+                lastHrv = finalHrv,
+                avgHrv = finalAvgHrv,
+                liveSteps = finalSteps,
+                liveCalorie = finalCalorie,
+                ringBattery = finalBattery,
+                sleepScore = finalSleepScore,
+                stressScore = finalStressScore,
+                refreshTimestamp = maxOf(widgetVitals.refreshTimestamp, hcVitals?.refreshTimestamp ?: 0L),
                 minHeartRate = minHr,
                 maxHeartRate = maxHr,
                 zone1Mins = z1,
@@ -701,10 +783,11 @@ object RingConnTelemetryReader {
                 sleepRemMins = hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
                 sleepLightMins = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
                 sleepAwakeMins = if (hcVitals != null && (hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) > 0) hcVitals.sleepAwakeMins else (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
-                skinTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset,
-                skinTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
+                skinTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else (hcVitals?.skinTempOffset?.takeIf { it != 0.0f } ?: cached.skinTempOffset),
+                skinTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else (hcVitals?.skinTempBaseline?.takeIf { it > 0f } ?: cached.skinTempBaseline)
             )
-            saveToPreferences(context, merged, source = "Glance Widgets + HC")
+            val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
+            saveToPreferences(context, merged, source = sourceLabel)
             return merged
         }
 
