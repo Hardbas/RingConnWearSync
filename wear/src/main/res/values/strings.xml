@@ -140,4 +140,22 @@
     <string name="syncing_ring">Syncing Ring...</string>
     <string name="blood_oxygen_short">SpO2</string>
     <string name="hrv_short">HRV</string>
+
+    <!-- Stress Chart Strings -->
+    <string name="stress_timeline_title">24h Stress Timeline</string>
+    <string name="stress_calm_pct">Calm Time</string>
+    <string name="stress_demand_pct">Demand Time</string>
+    <string name="stress_peak_label">Peak Stress</string>
+    <string name="stress_autonomic_balance_title">Autonomic Balance</string>
+    <string name="stress_parasympathetic">Parasympathetic</string>
+    <string name="stress_sympathetic">Sympathetic</string>
+
+    <!-- Temperature Chart Strings -->
+    <string name="temp_circadian_curve_title">Nocturnal Temperature Curve</string>
+    <string name="temp_baseline_label">0.0 °C Baseline</string>
+    <string name="temp_nadir_label">Nadir (Cooling)</string>
+    <string name="temp_wake_label">Wake Rise</string>
+    <string name="temp_min_label">Night Min</string>
+    <string name="temp_max_label">Night Max</string>
+    <string name="temp_stability_label">Stability</string>
 </resources>

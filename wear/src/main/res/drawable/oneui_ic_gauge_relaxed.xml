@@ -1,72 +1,97 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="64dp"
-    android:height="48dp"
-    android:viewportWidth="64"
-    android:viewportHeight="48">
+    android:width="256dp"
+    android:height="192dp"
+    android:viewportWidth="256"
+    android:viewportHeight="192">
 
-    <!-- Segment 1: Deep Cyan (Cold / Rest) -->
+    <!-- Segment 1: Deep Cyan (Rest / Sleep) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF00B0FF"
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 30.1,156.6 A 98,98 0 0,1 35.9,126.5" />
+
+    <!-- Segment 2: Sky Cyan (Calm) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF00E5FF"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 8.1,38.3 A 24,24 0 0,1 10.8,28.7" />
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 38.5,120.1 A 98,98 0 0,1 55.2,94.4" />
 
-    <!-- Segment 2: Mint Green (Relaxed) -->
+    <!-- Segment 3: Mint Green (Relaxed Optimal) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF00E676"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 12.1,26.6 A 24,24 0 0,1 19.3,19.6" />
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 59.9,89.5 A 98,98 0 0,1 85.0,71.9" />
 
-    <!-- Segment 3: Lime Yellow (Optimal Calm) -->
+    <!-- Segment 4: Lime Green (Normal Vigor) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFAEEA00"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 21.5,18.4 A 24,24 0 0,1 31.2,16.0" />
+        android:strokeColor="#FF76FF03"
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 91.3,69.1 A 98,98 0 0,1 121.2,62.2" />
 
-    <!-- Segment 4: Sunny Yellow (Balanced) -->
+    <!-- Segment 5: Sunny Yellow (Balanced Demand) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFFFD600"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 32.8,16.0 A 24,24 0 0,1 42.5,18.4" />
+        android:strokeColor="#FFFFEA00"
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 128.0,62.0 A 98,98 0 0,1 158.3,66.8" />
 
-    <!-- Segment 5: Vivid Orange (Moderate Demand) -->
+    <!-- Segment 6: Amber (Mild Stress) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFF9100"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 44.7,19.6 A 24,24 0 0,1 51.9,26.6" />
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 164.7,69.1 A 98,98 0 0,1 191.0,84.9" />
 
-    <!-- Segment 6: Coral Red (High Stress Alarm) -->
+    <!-- Segment 7: Vivid Orange (Elevated Stress) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFF6D00"
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 196.1,89.5 A 98,98 0 0,1 214.5,114.0" />
+
+    <!-- Segment 8: Coral Red (Alarm / Peak) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFF3D00"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M 53.2,28.7 A 24,24 0 0,1 55.9,38.3" />
+        android:strokeWidth="20"
+        android:strokeLineCap="butt"
+        android:pathData="M 217.5,120.1 A 98,98 0 0,1 225.5,149.8" />
 
-    <!-- Needle pointing to Relaxed (Cyan/Mint zone, 30°) -->
+    <!-- Needle Drop Shadow -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2.5"
-        android:strokeLineCap="round"
-        android:pathData="M 32,40 L 17.3,31.5" />
+        android:fillColor="#80000000"
+        android:pathData="M 126.7,165.7 L 76.5,113.8 L 133.3,158.3 Z" />
 
-    <!-- Pivot Hub Outer -->
+    <!-- Needle Body (High-contrast pure white pointer) -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M 32,36.5 A 3.5,3.5 0 1,1 31.9,36.5 Z" />
+        android:pathData="M 124.7,163.7 L 74.5,111.8 L 131.3,156.3 Z" />
 
-    <!-- Pivot Hub Inner Pin -->
+    <!-- Pivot Hub Outer Shadow -->
     <path
-        android:fillColor="#FF181A22"
-        android:pathData="M 32,38.5 A 1.5,1.5 0 1,1 31.9,38.5 Z" />
+        android:fillColor="#80000000"
+        android:pathData="M 128,143 A 17,17 0 1,1 127.9,143 Z" />
+
+    <!-- Pivot Hub Metallic Body -->
+    <path
+        android:fillColor="#FF181B26"
+        android:strokeColor="#FF4A526D"
+        android:strokeWidth="2.5"
+        android:pathData="M 128,146 A 14,14 0 1,1 127.9,146 Z" />
+
+    <!-- Pivot Hub Center Silver Pin -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M 128,154 A 6,6 0 1,1 127.9,154 Z" />
 </vector>
