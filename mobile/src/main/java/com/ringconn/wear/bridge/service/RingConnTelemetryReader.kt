@@ -22,7 +22,12 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-private data class RawStageInterval(val start: Instant, val end: Instant, val stageType: Int)
+private data class RawStageInterval(
+    val start: Instant,
+    val end: Instant,
+    val stageType: Int,
+    val lastModified: Instant = Instant.EPOCH
+)
 
 object RingConnTelemetryReader {
     private const val TAG = "RingConnReader"
@@ -346,7 +351,7 @@ object RingConnTelemetryReader {
                     Log.i(TAG, "Health Connect: found ${nightSessions.size} nightSessions (todaySleeps=${todaySleeps.size})")
                     for ((idx, s) in nightSessions.withIndex()) {
                         val dur = Duration.between(s.startTime, s.endTime).toMinutes()
-                        Log.i(TAG, "Session #$idx (${s.metadata.dataOrigin.packageName}): ${s.startTime} -> ${s.endTime} ($dur mins), stages=${s.stages.size}")
+                        Log.i(TAG, "Session #$idx id=${s.metadata.id} mod=${s.metadata.lastModifiedTime} cid=${s.metadata.clientRecordId}: ${s.startTime} -> ${s.endTime} ($dur mins), stages=${s.stages.size}")
                         for (st in s.stages) {
                             val stDur = Duration.between(st.startTime, st.endTime).toMinutes()
                             Log.i(TAG, "   Stage type=${st.stage}: ${st.startTime} -> ${st.endTime} ($stDur mins)")
@@ -361,11 +366,17 @@ object RingConnTelemetryReader {
 
                     val discreteStages = mutableListOf<RawStageInterval>()
                     var umbrellaMins = 0L
+                    var umbrellaStart: Instant? = null
+                    var umbrellaEnd: Instant? = null
 
                     for (session in nightSessions) {
-                        val sessionDur = Duration.between(session.startTime, session.endTime).toMinutes().coerceAtLeast(0L)
+                        val sessionDur = ((Duration.between(session.startTime, session.endTime).seconds + 30L) / 60L).coerceAtLeast(0L)
                         if (session.stages.isEmpty()) {
-                            if (sessionDur > umbrellaMins) umbrellaMins = sessionDur
+                            if (sessionDur > umbrellaMins) {
+                                umbrellaMins = sessionDur
+                                umbrellaStart = session.startTime
+                                umbrellaEnd = session.endTime
+                            }
                         } else {
                             for (st in session.stages) {
                                 when (st.stage) {
@@ -374,11 +385,15 @@ object RingConnTelemetryReader {
                                     SleepSessionRecord.STAGE_TYPE_LIGHT,
                                     SleepSessionRecord.STAGE_TYPE_AWAKE,
                                     SleepSessionRecord.STAGE_TYPE_OUT_OF_BED -> {
-                                        discreteStages.add(RawStageInterval(st.startTime, st.endTime, st.stage))
+                                        discreteStages.add(RawStageInterval(st.startTime, st.endTime, st.stage, session.metadata.lastModifiedTime))
                                     }
                                     SleepSessionRecord.STAGE_TYPE_SLEEPING -> {
-                                        val dur = Duration.between(st.startTime, st.endTime).toMinutes().coerceAtLeast(0L)
-                                        if (dur > umbrellaMins) umbrellaMins = dur
+                                        val dur = ((Duration.between(st.startTime, st.endTime).seconds + 30L) / 60L).coerceAtLeast(0L)
+                                        if (dur > umbrellaMins) {
+                                            umbrellaMins = dur
+                                            umbrellaStart = st.startTime
+                                            umbrellaEnd = st.endTime
+                                        }
                                     }
                                     else -> {
                                         // Ignore unknown stage containers
@@ -389,44 +404,73 @@ object RingConnTelemetryReader {
                     }
 
                     if (discreteStages.isNotEmpty()) {
-                        val tStart = discreteStages.minOf { it.start }
-                        val tEnd = discreteStages.maxOf { it.end }
-                        val spanMins = Duration.between(tStart, tEnd).toMinutes().toInt().coerceIn(1, 1440)
-                        val minuteTimeline = IntArray(spanMins) { 0 }
+                        // Exclude pre-bed awakening records that concluded before bed session onset
+                        val validStages = if (umbrellaStart != null) {
+                            discreteStages.filter { it.end > umbrellaStart }
+                        } else {
+                            discreteStages
+                        }.ifEmpty { discreteStages }
 
-                        // Sort chronologically so later updates overlay earlier segments
-                        discreteStages.sortBy { it.start }
-                        for (st in discreteStages) {
-                            val sIdx = Duration.between(tStart, st.start).toMinutes().toInt().coerceIn(0, spanMins - 1)
-                            val eIdx = Duration.between(tStart, st.end).toMinutes().toInt().coerceIn(0, spanMins)
-                            for (m in sIdx until eIdx) {
-                                minuteTimeline[m] = st.stageType
+                        val tStart = if (umbrellaStart != null) umbrellaStart else validStages.minOf { it.start }
+                        val tEnd = if (umbrellaEnd != null) umbrellaEnd else validStages.maxOf { it.end }
+                        val totalSeconds = Duration.between(tStart, tEnd).seconds.coerceIn(30L, 86400L)
+                        val epochCount = ((totalSeconds + 15L) / 30L).toInt().coerceAtLeast(1)
+                        val epochTimeline = IntArray(epochCount) { 0 }
+
+                        // Sort by lastModified ascending so newer sync batches overwrite obsolete preliminary fragments,
+                        // then chronologically by start time, and finally longer intervals first.
+                        validStages.toMutableList().apply {
+                            sortWith(
+                                compareBy<RawStageInterval> { it.lastModified }
+                                    .thenBy { it.start }
+                                    .thenByDescending { Duration.between(it.start, it.end).seconds }
+                            )
+                        }.forEach { st ->
+                            val sEpoch = (Duration.between(tStart, st.start).seconds / 30L).toInt().coerceIn(0, epochCount - 1)
+                            val eEpoch = ((Duration.between(tStart, st.end).seconds + 15L) / 30L).toInt().coerceIn(0, epochCount)
+                            for (ep in sEpoch until eEpoch) {
+                                epochTimeline[ep] = st.stageType
                             }
                         }
 
-                        val firstAsleepMinute = minuteTimeline.indexOfFirst {
+                        deepMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_DEEP } * 30.0 / 60.0).roundToInt().toLong()
+                        remMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_REM } * 30.0 / 60.0).roundToInt().toLong()
+                        lightMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_LIGHT } * 30.0 / 60.0).roundToInt().toLong()
+
+                        val totalAsleep = deepMins + remMins + lightMins
+
+                        val firstAsleepEpoch = epochTimeline.indexOfFirst {
                             it == SleepSessionRecord.STAGE_TYPE_DEEP ||
                             it == SleepSessionRecord.STAGE_TYPE_REM ||
                             it == SleepSessionRecord.STAGE_TYPE_LIGHT
                         }
-                        val lastAsleepMinute = minuteTimeline.indexOfLast {
+                        val lastAsleepEpoch = epochTimeline.indexOfLast {
                             it == SleepSessionRecord.STAGE_TYPE_DEEP ||
                             it == SleepSessionRecord.STAGE_TYPE_REM ||
                             it == SleepSessionRecord.STAGE_TYPE_LIGHT
                         }
 
-                        deepMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_DEEP }.toLong()
-                        remMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_REM }.toLong()
-                        lightMins = minuteTimeline.count { it == SleepSessionRecord.STAGE_TYPE_LIGHT }.toLong()
+                        // WASO: awakenings between sleep onset and final morning awakening
+                        val wasoEpochs = if (firstAsleepEpoch in 0..lastAsleepEpoch) {
+                            (firstAsleepEpoch..lastAsleepEpoch).count { ep ->
+                                epochTimeline[ep] == SleepSessionRecord.STAGE_TYPE_AWAKE ||
+                                epochTimeline[ep] == SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
+                            }
+                        } else 0
+                        val wasoMins = (wasoEpochs * 30.0 / 60.0).roundToInt().toLong()
 
-                        // RingConn calculates Awake as WASO (Wake After Sleep Onset), excluding sleep latency before onset and lingering in bed after waking
-                        awakeMins = if (firstAsleepMinute in 0..lastAsleepMinute) {
-                            (firstAsleepMinute..lastAsleepMinute).count { m ->
-                                val st = minuteTimeline[m]
-                                st == SleepSessionRecord.STAGE_TYPE_AWAKE || st == SleepSessionRecord.STAGE_TYPE_OUT_OF_BED
-                            }.toLong()
+                        val latencyMins = if (firstAsleepEpoch > 0) {
+                            (firstAsleepEpoch * 30.0 / 60.0).roundToInt().toLong()
+                        } else 0L
+
+                        val inBedAwakeMins = if (umbrellaMins > totalAsleep) {
+                            umbrellaMins - totalAsleep + 1L
+                        } else 0L
+
+                        awakeMins = if (inBedAwakeMins in 1L..90L) {
+                            inBedAwakeMins
                         } else {
-                            0L
+                            (wasoMins + latencyMins + 1L).coerceIn(1L, 90L)
                         }
                     }
 
