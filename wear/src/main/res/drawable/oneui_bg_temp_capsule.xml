@@ -1,21 +1,41 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="190dp"
-    android:height="136dp"
-    android:viewportWidth="190"
-    android:viewportHeight="136">
+    android:width="206dp"
+    android:height="146dp"
+    android:viewportWidth="206"
+    android:viewportHeight="146">
+
+    <!-- Stadium Capsule Base Fill & Gentle AI Ruby Rim (206dp x 146dp) -->
     <path
-        android:pathData="M68,0 L122,0 A68,68 0 0,1 190,68 A68,68 0 0,1 122,136 L68,136 A68,68 0 0,1 0,68 A68,68 0 0,1 68,0 Z">
+        android:pathData="M 73,1 L 133,1 A 72,72 0 0,1 205,73 A 72,72 0 0,1 133,145 L 73,145 A 72,72 0 0,1 1,73 A 72,72 0 0,1 73,1 Z"
+        android:strokeWidth="1.8"
+        android:strokeColor="#FFFF4D6D">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="0"
                 android:startY="0"
-                android:endX="190"
-                android:endY="136"
+                android:endX="206"
+                android:endY="146"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#FF2E3E48" />
-                <item android:offset="0.55" android:color="#FF1A242B" />
-                <item android:offset="1.0" android:color="#FF10161B" />
+                <item android:offset="0.0" android:color="#FF5E1E26" />
+                <item android:offset="0.45" android:color="#FF3A1117" />
+                <item android:offset="1.0" android:color="#FF1D080B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Ambient Radial Ruby Glow Accent -->
+    <path
+        android:pathData="M 152,25 A 48,48 0 1,1 151.9,25 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="152"
+                android:centerY="73"
+                android:gradientRadius="48"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#40FF4D6D" />
+                <item android:offset="0.6" android:color="#1AFF1744" />
+                <item android:offset="1.0" android:color="#00000000" />
             </gradient>
         </aapt:attr>
     </path>

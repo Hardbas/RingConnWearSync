@@ -87,21 +87,21 @@ class TemperatureTileService : TileService() {
                 else -> context.getString(R.string.temp_cool)
             }
 
-            val limeStepsColor = 0xFFA0F116.toInt()       // Neon Lime (from Daily Activity)
-            val cyanAccentColor = 0xFF47CDFF.toInt()      // Electric Sky Cyan (from Daily Activity)
-            val labelSilverColor = 0xFFB7B7BB.toInt()     // Metallic Titanium Silver
+            val rubyAccentColor = 0xFFFF4D6D.toInt()       // Gentle AI Electric Ruby Crimson
+            val rubySoftColor = 0xFFFF758F.toInt()         // Gentle AI Soft Rose
+            val labelRoseColor = 0xFFFFE4E6.toInt()        // Pastel Rose White
 
             val statusColorInt = when {
-                offset in -0.5f..0.5f -> limeStepsColor // Vibrant neon lime optimal!
-                offset > 0.5f -> 0xFFFF9800.toInt()     // Vivid warm amber
-                else -> cyanAccentColor                 // Electric sky cyan
+                offset in -0.5f..0.5f -> 0xFF00E676.toInt() // Vibrant clinical mint optimal
+                offset > 0.5f -> rubyAccentColor            // Gentle AI warm ruby alert
+                else -> 0xFF38BDF8.toInt()                  // Sky cyan cooling
             }
 
             val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
 
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val silverColor = argb(labelSilverColor)
-            val cyanUnitColor = argb(cyanAccentColor)
+            val silverColor = argb(labelRoseColor)
+            val rubyUnitColor = argb(rubyAccentColor)
             val statusColor = argb(statusColorInt)
             val translucentGlassBlack = argb(0x66000000.toInt())
 
@@ -118,15 +118,15 @@ class TemperatureTileService : TileService() {
                 .setId("open_temperature_detail")
                 .build()
 
-            // 1. One UI Watch 8 Circular Fit Stadium Capsule (190dp x 136dp)
+            // 1. One UI Watch 8 Enlarged Gentle AI Ruby Stadium Capsule (206dp x 146dp)
             val bgImage = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_BG_TEMP_CAPSULE)
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
                 .build()
 
-            // 2. Title Text (13sp Medium Silver)
+            // 2. Title Text (13sp Medium Pastel Rose)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.tile_temperature_title))
                 .setMaxLines(1)
@@ -155,8 +155,8 @@ class TemperatureTileService : TileService() {
             // 4. Hero Offset Row (Icon + Big Value + °C)
             val tempIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_TEMP)
-                .setWidth(dp(16f))
-                .setHeight(dp(16f))
+                .setWidth(dp(18f))
+                .setHeight(dp(18f))
                 .build()
 
             val offsetNumberText = LayoutElementBuilders.Text.Builder()
@@ -164,7 +164,7 @@ class TemperatureTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(26f))
+                        .setSize(sp(32f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -178,7 +178,7 @@ class TemperatureTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(13f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(cyanUnitColor)
+                        .setColor(rubyUnitColor)
                         .build()
                 )
                 .build()
@@ -194,11 +194,11 @@ class TemperatureTileService : TileService() {
                 .addContent(unitText)
                 .build()
 
-            // 5. One UI 8 Static Deterministic Fluctuation Scale Bar (-1.0°C to +1.0°C, 136dp x 10dp)
-            val barWidthDp = 136f
+            // 5. One UI 8 Static Deterministic Fluctuation Scale Bar (-1.0°C to +1.0°C, 146dp x 10dp)
+            val barWidthDp = 146f
             val barHeightDp = 10f
             val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
-            val dotPosDp = ((normOffset * barWidthDp) - 3.5f).coerceIn(0f, barWidthDp - 7f)
+            val dotPosDp = ((normOffset * barWidthDp) - 4f).coerceIn(0f, barWidthDp - 8f)
 
             val barTrackBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(dp(barWidthDp))
@@ -222,7 +222,7 @@ class TemperatureTileService : TileService() {
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x55A0F116.toInt()))
+                                .setColor(argb(0x4400E676.toInt()))
                                 .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(3f)).build())
                                 .build()
                         ).build()
@@ -245,7 +245,7 @@ class TemperatureTileService : TileService() {
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x66FFFFFF.toInt()))
+                                .setColor(argb(0x88FFFFFF.toInt()))
                                 .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(0.75f)).build())
                                 .build()
                         ).build()
@@ -261,14 +261,14 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val dotIndicator = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(7f))
-                .setHeight(dp(7f))
+                .setWidth(dp(8f))
+                .setHeight(dp(8f))
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(whiteColor)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(3.5f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(4f)).build())
                                 .build()
                         ).build()
                 )
@@ -298,13 +298,13 @@ class TemperatureTileService : TileService() {
                 .addContent(dotIndicatorRow)
                 .build()
 
-            // 6. Action Pill Button (92dp x 24dp, radius 12dp, 50% glass)
+            // 6. Action Pill Button (94dp x 24dp, radius 12dp, translucent glass)
             val actionButtonText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.details))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -312,7 +312,7 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(92f))
+                .setWidth(dp(94f))
                 .setHeight(dp(24f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
@@ -330,12 +330,12 @@ class TemperatureTileService : TileService() {
                 .addContent(actionButtonText)
                 .build()
 
-            // Assemble inside the 190dp x 136dp Stadium Capsule
+            // Assemble inside the 206dp x 146dp Stadium Capsule
             val capsuleContentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(12f)).setWidth(dp(1f)).build())
                 .addContent(titleText)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(subtitleText)
@@ -343,13 +343,13 @@ class TemperatureTileService : TileService() {
                 .addContent(heroTempRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
                 .addContent(tempChartBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
             val stadiumCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
