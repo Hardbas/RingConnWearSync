@@ -1,0 +1,165 @@
+package com.ringconn.wear.bridge.service
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.ringconn.wear.bridge.PhoneBridgeMainActivity
+import com.ringconn.wear.bridge.data.RingConnVitals
+import kotlinx.coroutines.*
+
+class RingConnForegroundService : Service() {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var syncJob: Job? = null
+    private var lastMorningSyncDay: Int = -1
+
+    private val userPresentReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_USER_PRESENT) {
+                val cal = java.util.Calendar.getInstance()
+                val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                val day = cal.get(java.util.Calendar.DAY_OF_YEAR)
+                if (hour in 6..11 && lastMorningSyncDay != day) {
+                    lastMorningSyncDay = day
+                    Log.i(TAG, "Morning user-present detected: waking RingConn to sync sleep BLE data")
+                    scope.launch {
+                        try {
+                            val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
+                            if (launchIntent != null) {
+                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                                startActivity(launchIntent)
+                                delay(4000L)
+                                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                                    addCategory(Intent.CATEGORY_HOME)
+                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                                startActivity(homeIntent)
+                                triggerSync(force = true)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in morning auto-sync", e)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, buildForegroundNotification("Conectado con Galaxy Watch 8"))
+        registerReceiver(userPresentReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT))
+        startPeriodicSync()
+    }
+
+    private var lastNotificationText: String = ""
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SYNC_NOW) {
+            scope.launch {
+                triggerSync(force = true)
+            }
+        }
+        return START_STICKY
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        try {
+            unregisterReceiver(userPresentReceiver)
+        } catch (_: Exception) {}
+        syncJob?.cancel()
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    private fun startPeriodicSync() {
+        syncJob = scope.launch {
+            while (isActive) {
+                triggerSync(force = false)
+                delay(60_000L) // Chequea cambios localmente cada 60s; solo despierta el reloj si cambiaron las métricas
+            }
+        }
+    }
+
+    private suspend fun triggerSync(force: Boolean = false) {
+        try {
+            val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@RingConnForegroundService)
+            val success = WearDataSyncService(this@RingConnForegroundService).syncVitalsToWatch(vitals, force = force)
+            val noteText = if (success) {
+                "Sincronizado · FC: ${vitals.lastHeartRate} bpm · SpO2: ${vitals.lastSpo2}% · Anillo: ${vitals.ringBattery}%"
+            } else {
+                "Buscando Galaxy Watch 8..."
+            }
+            updateNotification(noteText)
+            Log.d(TAG, "Periodic sync completed: success=$success")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in periodic sync", e)
+        }
+    }
+
+    private fun buildForegroundNotification(contentText: String): Notification {
+        val launchIntent = Intent(this, PhoneBridgeMainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("RingConn Wear Sync")
+            .setContentText(contentText)
+            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+            .setOngoing(true)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
+            .build()
+    }
+
+    private fun updateNotification(contentText: String) {
+        if (contentText == lastNotificationText) return
+        lastNotificationText = contentText
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(NOTIFICATION_ID, buildForegroundNotification(contentText))
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "RingConn Wear Sync Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Mantiene la sincronización en tiempo real entre RingConn y Galaxy Watch 8"
+            }
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    companion object {
+        private const val TAG = "RingConnFgs"
+        const val CHANNEL_ID = "ringconn_wear_sync_channel"
+        const val NOTIFICATION_ID = 2001
+        const val ACTION_SYNC_NOW = "com.ringconn.wear.bridge.SYNC_NOW"
+
+        fun start(context: Context) {
+            val intent = Intent(context, RingConnForegroundService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+    }
+}

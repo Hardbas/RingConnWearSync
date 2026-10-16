@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:hardwareAccelerated="true"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
+        <activity
+            android:name=".ui.WearMainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.VitalsDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <activity-alias
+            android:name=".ui.HeartRateMeasureActivity"
+            android:targetActivity=".ui.VitalsDetailActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.DailySummaryDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <activity
+            android:name=".ui.SleepDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <activity
+            android:name=".ui.HeartRateDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <activity-alias
+            android:name=".ui.HeartRateMeasureSolitaryActivity"
+            android:targetActivity=".ui.HeartRateDetailActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".ui.StressDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <activity
+            android:name=".ui.TemperatureDetailActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RingConnWear" />
+
+        <!-- 1. Wear OS Heart Rate Complication Provider -->
+        <service
+            android:name=".complication.RingConnComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_heart"
+            android:label="@string/complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 2. Wear OS Ring Battery Complication Provider -->
+        <service
+            android:name=".complication.RingBatteryComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_battery"
+            android:label="@string/complication_battery_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 3. Wear OS Blood Oxygen (SpO2) Complication Provider -->
+        <service
+            android:name=".complication.Spo2ComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_spo2"
+            android:label="@string/complication_spo2_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 4. Wear OS Sleep Complication Provider -->
+        <service
+            android:name=".complication.SleepScoreComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_sleep"
+            android:label="@string/complication_sleep_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 5. Wear OS Steps Complication Provider -->
+        <service
+            android:name=".complication.StepsComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_steps"
+            android:label="@string/complication_steps_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 6. Wear OS Stress Complication Provider -->
+        <service
+            android:name=".complication.StressComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_stress"
+            android:label="@string/complication_stress_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- 7. Wear OS Skin Temperature Complication Provider -->
+        <service
+            android:name=".complication.TemperatureComplicationProvider"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_temp"
+            android:label="@string/complication_temp_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="androidx.wear.watchface.complications.datasource.SAFE_WATCH_FACE_SUPPORTED_TYPES"
+                android:value="SHORT_TEXT,RANGED_VALUE,LONG_TEXT,MONOCHROMATIC_IMAGE,SMALL_IMAGE,GOAL_PROGRESS" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
+
+        <!-- One UI Vitals Tile Service -->
+        <service
+            android:name=".tile.VitalsTileService"
+            android:exported="true"
+            android:icon="@drawable/oneui_hr_icon"
+            android:label="@string/tile_vitals_title"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <!-- One UI Daily Summary Tile Service -->
+        <service
+            android:name=".tile.DailySummaryTileService"
+            android:exported="true"
+            android:icon="@drawable/oneui_sleep_icon"
+            android:label="@string/tile_summary_title"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <!-- One UI Solitary Heart Rate Tile Service -->
+        <service
+            android:name=".tile.HeartRateTileService"
+            android:exported="true"
+            android:icon="@drawable/oneui_hr_icon"
+            android:label="@string/tile_heart_rate_title"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <!-- One UI Stress Tile Service -->
+        <service
+            android:name=".tile.StressTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_stress"
+            android:label="@string/tile_stress_title"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <!-- One UI Skin Temperature Tile Service -->
+        <service
+            android:name=".tile.TemperatureTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_comp_temp"
+            android:label="@string/tile_temperature_title"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
+        <!-- Wearable Data Listener Service -->
+        <service
+            android:name=".service.WearDataListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/ringconn"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>

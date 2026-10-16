@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Puente RingConn Wear</string>
+    <string name="service_running">Puente RingConn activo</string>
+    <string name="status_connected">Conectado a RingConn</string>
+    <string name="status_disconnected">Desconectado</string>
+    <string name="accessibility_service_description">Sincroniza telemetría exacta de RingConn directamente al Galaxy Watch 8.</string>
+</resources>
