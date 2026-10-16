@@ -83,4 +83,57 @@
     <string name="temp_thermoregulation_desc2">Variations within ±0.5 °C indicate metabolic stability and healthy circadian rhythm.</string>
     <string name="temp_recovery_title">Nocturnal Recovery</string>
     <string name="temp_recovery_desc">During sleep, peripheral blood vessels dilate to cool the body core. A nighttime temperature drop reflects deep restorative sleep.</string>
+
+    <!-- General & Model -->
+    <string name="ring_model_subtitle">RingConn Smart Ring</string>
+    <string name="pts_unit">pts</string>
+    <string name="excellent">Excellent</string>
+    <string name="good">Good</string>
+    <string name="fair">Fair</string>
+    <string name="no_data">No data</string>
+
+    <!-- Daily Activity Detail -->
+    <string name="daily_activity_title">Daily Activity</string>
+    <string name="daily_goals_title">Daily Goals</string>
+    <string name="active_time">Active Time</string>
+    <string name="active_calories">Active Calories</string>
+    <string name="min_unit">m</string>
+
+    <!-- Sleep Detail -->
+    <string name="sleep_analysis_title">Sleep Analysis</string>
+    <string name="total_sleep_time">Total Sleep</string>
+    <string name="sleep_stages_title">Sleep Stages</string>
+    <string name="no_sleep_records">No records</string>
+    <string name="no_stages_detected">No sleep stages detected today.</string>
+    <string name="stage_awake">Awake</string>
+    <string name="stage_rem">REM</string>
+    <string name="stage_light">Light</string>
+    <string name="stage_deep">Deep</string>
+    <string name="nocturnal_biometrics">Nocturnal Biometrics</string>
+
+    <!-- Heart Rate Detail -->
+    <string name="min_hr_format">Min %1$d</string>
+    <string name="max_hr_format">Max %1$d</string>
+    <string name="status_resting">Resting</string>
+    <string name="status_normal">Normal</string>
+    <string name="status_elevated">Elevated</string>
+    <string name="status_optimal">Optimal</string>
+    <string name="status_balanced">Balanced</string>
+    <string name="status_fatigue">Fatigue</string>
+    <string name="rhythm_and_rest">Rhythm &amp; Rest</string>
+    <string name="avg_resting_hr">Avg Resting HR</string>
+    <string name="variation">Variation</string>
+    <string name="zone_rest">Z1 · Resting</string>
+    <string name="zone_warmup">Z2 · Warm Up</string>
+    <string name="zone_fat_burn">Z3 · Fat Burn</string>
+    <string name="zone_cardio">Z4 · Cardio</string>
+    <string name="zone_peak">Z5 · Peak</string>
+    <string name="zone_rest_range">Resting (&lt; 60 bpm)</string>
+    <string name="zone_fat_burn_range">Fat Burn (60 - 100 bpm)</string>
+    <string name="zone_cardio_range">Cardio (101 - 140 bpm)</string>
+    <string name="zone_peak_range">Peak (&gt; 140 bpm)</string>
+    <string name="sync_ring">Sync Ring</string>
+    <string name="syncing_ring">Syncing Ring...</string>
+    <string name="blood_oxygen_short">SpO2</string>
+    <string name="hrv_short">HRV</string>
 </resources>

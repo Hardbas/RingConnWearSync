@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -166,8 +167,8 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
     val minHr = vitals.minHeartRate
     val maxHr = vitals.maxHeartRate
     val hasMinMax = minHr > 0 && maxHr > 0
-    val minHrText = if (minHr > 0) "Mín $minHr" else "--"
-    val maxHrText = if (maxHr > 0) "Máx $maxHr" else "--"
+    val minHrText = if (minHr > 0) stringResource(R.string.min_hr_format, minHr) else "--"
+    val maxHrText = if (maxHr > 0) stringResource(R.string.max_hr_format, maxHr) else "--"
 
     val hrvVal = vitals.lastHrv
     val hasHrv = hrvVal > 0
@@ -176,9 +177,9 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
     // Status evaluation
     val hrStatusLabel = when {
         !hasHr -> "--"
-        currentHr < 60 -> "Reposo"
-        currentHr <= 100 -> "Normal"
-        else -> "Elevado"
+        currentHr < 60 -> stringResource(R.string.status_resting)
+        currentHr <= 100 -> stringResource(R.string.status_normal)
+        else -> stringResource(R.string.status_elevated)
     }
     val hrStatusColor = when {
         !hasHr -> LabelSilver
@@ -190,9 +191,9 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
     // HRV status evaluation
     val hrvStatusLabel = when {
         !hasHrv -> "--"
-        hrvVal >= 60 -> "Óptimo"
-        hrvVal >= 40 -> "Equilibrado"
-        else -> "Fatiga"
+        hrvVal >= 60 -> stringResource(R.string.status_optimal)
+        hrvVal >= 40 -> stringResource(R.string.status_balanced)
+        else -> stringResource(R.string.status_fatigue)
     }
     val hrvStatusColor = when {
         !hasHrv -> LabelSilver
@@ -231,14 +232,14 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Text(
-                    text = "Frecuencia Cardíaca",
+                    text = stringResource(R.string.tile_heart_rate_title),
                     fontSize = 15.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Anillo RingConn Gen 2",
+                    text = stringResource(R.string.ring_model_subtitle),
                     fontSize = 11.sp,
                     color = HrSubtitlePink
                 )
@@ -271,7 +272,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "ppm",
+                                text = stringResource(R.string.bpm_unit),
                                 fontSize = 14.sp,
                                 color = HrBpmWarm,
                                 modifier = Modifier.padding(bottom = 6.dp)
@@ -347,7 +348,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                             .padding(horizontal = 24.dp, vertical = 7.dp)
                     ) {
                         Text(
-                            text = if (isMeasuring) "Midiendo..." else "Medir Ahora",
+                            text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
                             fontSize = 12.sp,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
@@ -373,7 +374,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Ritmo y Reposo",
+                            text = stringResource(R.string.rhythm_and_rest),
                             fontSize = 13.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
@@ -403,6 +404,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val bpmUnit = stringResource(R.string.bpm_unit)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -411,15 +413,15 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         ) {
                             Column {
-                                Text("FC Reposo Media", fontSize = 9.5.sp, color = LabelSilver)
+                                Text(stringResource(R.string.avg_resting_hr), fontSize = 9.5.sp, color = LabelSilver)
                                 Spacer(modifier = Modifier.height(2.dp))
-                                val avgHrText = if (avgHr > 0) "$avgHr ppm" else "--"
+                                val avgHrText = if (avgHr > 0) "$avgHr $bpmUnit" else "--"
                                 Text(avgHrText, fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
 
                         val diff = if (hasHr && avgHr > 0) currentHr - avgHr else null
-                        val diffText = if (diff != null) (if (diff >= 0) "+$diff ppm" else "$diff ppm") else "--"
+                        val diffText = if (diff != null) (if (diff >= 0) "+$diff $bpmUnit" else "$diff $bpmUnit") else "--"
                         val diffColor = if (diff != null) (if (diff <= 6) CyanActive else HrMinMaxPink) else LabelSilver
                         Box(
                             modifier = Modifier
@@ -429,7 +431,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         ) {
                             Column {
-                                Text("Variación", fontSize = 9.5.sp, color = LabelSilver)
+                                Text(stringResource(R.string.variation), fontSize = 9.5.sp, color = LabelSilver)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     diffText,
@@ -460,7 +462,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Variabilidad Cardíaca",
+                            text = stringResource(R.string.hrv_title),
                             fontSize = 13.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
@@ -558,17 +560,19 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
 
                 Column {
                     Text(
-                        text = "Zonas de Frecuencia Cardíaca",
+                        text = stringResource(R.string.hr_zones_title),
                         fontSize = 13.sp,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    val bpmUnit = stringResource(R.string.bpm_unit)
+
                     // Zone 1: Reposo (< 100 bpm)
                     ZoneItemRow(
-                        zoneName = "Z1 · Reposo",
-                        bpmRange = "< 100 ppm",
+                        zoneName = stringResource(R.string.zone_rest),
+                        bpmRange = "< 100 $bpmUnit",
                         durationText = formatZoneDuration(vitals.zone1Mins, totalZoneMins),
                         zoneColor = ZoneRestColor,
                         distributionPct = z1Pct,
@@ -577,8 +581,8 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
 
                     // Zone 2: Calentamiento (100 - 120 bpm)
                     ZoneItemRow(
-                        zoneName = "Z2 · Calentamiento",
-                        bpmRange = "100 - 120 ppm",
+                        zoneName = stringResource(R.string.zone_warmup),
+                        bpmRange = "100 - 120 $bpmUnit",
                         durationText = formatZoneDuration(vitals.zone2Mins, totalZoneMins),
                         zoneColor = ZoneWarmupColor,
                         distributionPct = z2Pct,
@@ -587,8 +591,8 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
 
                     // Zone 3: Quema de grasa (120 - 140 bpm)
                     ZoneItemRow(
-                        zoneName = "Z3 · Quema Grasa",
-                        bpmRange = "121 - 140 ppm",
+                        zoneName = stringResource(R.string.zone_fat_burn),
+                        bpmRange = "121 - 140 $bpmUnit",
                         durationText = formatZoneDuration(vitals.zone3Mins, totalZoneMins),
                         zoneColor = ZoneFatBurnColor,
                         distributionPct = z3Pct,
@@ -597,8 +601,8 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
 
                     // Zone 4: Cardio (140 - 160 bpm)
                     ZoneItemRow(
-                        zoneName = "Z4 · Cardio",
-                        bpmRange = "141 - 160 ppm",
+                        zoneName = stringResource(R.string.zone_cardio),
+                        bpmRange = "141 - 160 $bpmUnit",
                         durationText = formatZoneDuration(vitals.zone4Mins, totalZoneMins),
                         zoneColor = ZoneCardioColor,
                         distributionPct = z4Pct,
@@ -607,8 +611,8 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
 
                     // Zone 5: Pico (> 160 bpm)
                     ZoneItemRow(
-                        zoneName = "Z5 · Pico Máximo",
-                        bpmRange = "> 160 ppm",
+                        zoneName = stringResource(R.string.zone_peak),
+                        bpmRange = "> 160 $bpmUnit",
                         durationText = formatZoneDuration(vitals.zone5Mins, totalZoneMins),
                         zoneColor = ZonePeakColor,
                         distributionPct = z5Pct,

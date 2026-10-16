@@ -83,4 +83,57 @@
     <string name="temp_thermoregulation_desc2">Variaciones dentro de ±0.5 °C indican estabilidad metabólica y un ciclo circadiano saludable.</string>
     <string name="temp_recovery_title">Recuperación Nocturna</string>
     <string name="temp_recovery_desc">Al dormir, los vasos sanguíneos periféricos se dilatan para enfriar el núcleo corporal. Un descenso térmico nocturno refleja profundidad de descanso.</string>
+
+    <!-- General & Model -->
+    <string name="ring_model_subtitle">Anillo RingConn</string>
+    <string name="pts_unit">pts</string>
+    <string name="excellent">Excelente</string>
+    <string name="good">Bueno</string>
+    <string name="fair">Regular</string>
+    <string name="no_data">Sin datos</string>
+
+    <!-- Daily Activity Detail -->
+    <string name="daily_activity_title">Actividad Diaria</string>
+    <string name="daily_goals_title">Objetivos Diarios</string>
+    <string name="active_time">Tiempo Activo</string>
+    <string name="active_calories">Calorías Activas</string>
+    <string name="min_unit">m</string>
+
+    <!-- Sleep Detail -->
+    <string name="sleep_analysis_title">Análisis de Sueño</string>
+    <string name="total_sleep_time">Tiempo Total</string>
+    <string name="sleep_stages_title">Fases del Sueño</string>
+    <string name="no_sleep_records">Sin registros</string>
+    <string name="no_stages_detected">No se detectaron etapas de sueño hoy.</string>
+    <string name="stage_awake">Despierto</string>
+    <string name="stage_rem">REM</string>
+    <string name="stage_light">Ligero</string>
+    <string name="stage_deep">Profundo</string>
+    <string name="nocturnal_biometrics">Biometría Nocturna</string>
+
+    <!-- Heart Rate Detail -->
+    <string name="min_hr_format">Mín %1$d</string>
+    <string name="max_hr_format">Máx %1$d</string>
+    <string name="status_resting">Reposo</string>
+    <string name="status_normal">Normal</string>
+    <string name="status_elevated">Elevado</string>
+    <string name="status_optimal">Óptimo</string>
+    <string name="status_balanced">Equilibrado</string>
+    <string name="status_fatigue">Fatiga</string>
+    <string name="rhythm_and_rest">Ritmo y Reposo</string>
+    <string name="avg_resting_hr">FC Reposo Media</string>
+    <string name="variation">Variación</string>
+    <string name="zone_rest">Z1 · Reposo</string>
+    <string name="zone_warmup">Z2 · Calentamiento</string>
+    <string name="zone_fat_burn">Z3 · Quema Grasa</string>
+    <string name="zone_cardio">Z4 · Cardio</string>
+    <string name="zone_peak">Z5 · Pico</string>
+    <string name="zone_rest_range">Reposo (&lt; 60 ppm)</string>
+    <string name="zone_fat_burn_range">Quema de grasa (60 - 100 ppm)</string>
+    <string name="zone_cardio_range">Cardio (101 - 140 ppm)</string>
+    <string name="zone_peak_range">Pico (&gt; 140 ppm)</string>
+    <string name="sync_ring">Sincronizar Anillo</string>
+    <string name="syncing_ring">Sincronizando Anillo...</string>
+    <string name="blood_oxygen_short">SpO2</string>
+    <string name="hrv_short">VFC</string>
 </resources>

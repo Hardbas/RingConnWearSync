@@ -114,7 +114,8 @@ class DailySummaryTileService : TileService() {
 
             val rawSteps = vitals.liveSteps
             val stepsFormatted = if (rawSteps > 0) NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps) else "--"
-            val activityVal = if (vitals.activityScore > 0) "${vitals.activityScore}m" else "--"
+            val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
+            val activityVal = if (activeMins > 0) "${activeMins}m" else "--"
             val calorieVal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else "--"
             val sleepVal = if (vitals.sleepScore > 0) "${vitals.sleepScore}" else "--"
             val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
@@ -172,7 +173,7 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val activityTitle = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.steps))
+                .setText(context.getString(R.string.daily_activity_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
@@ -377,7 +378,7 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val sleepPtsLabel = LayoutElementBuilders.Text.Builder()
-                .setText(if (vitals.sleepScore > 0) " pts  ·  " else "  ·  ")
+                .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)}  ·  " else "  ·  ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(12f))

@@ -38,7 +38,9 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.res.stringResource
 import androidx.wear.compose.material.*
+import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
 import kotlinx.coroutines.launch
@@ -101,7 +103,8 @@ fun DailySummaryDetailScreen(context: Context) {
 
     val liveSteps = vitals.liveSteps
     val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 8000
-    val activeMins = vitals.activityScore
+    // Real active minutes from RingConn (not conflating with activityScore!)
+    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else 3
     val targetActiveMins = 60
     val calories = vitals.liveCalorie
     val targetCalories = if (vitals.targetCalorie > 0) vitals.targetCalorie else 500
@@ -137,20 +140,20 @@ fun DailySummaryDetailScreen(context: Context) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Header: Actividad Diaria
+            // Header: Daily Activity
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Text(
-                    text = "Actividad Diaria",
+                    text = stringResource(R.string.daily_activity_title),
                     fontSize = 15.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Anillo RingConn Gen 2",
+                    text = stringResource(R.string.ring_model_subtitle),
                     fontSize = 11.sp,
                     color = LabelSilver
                 )
@@ -180,13 +183,13 @@ fun DailySummaryDetailScreen(context: Context) {
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "$activityScore pts",
+                            text = "$activityScore ${stringResource(R.string.pts_unit)}",
                             fontSize = 24.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Excelente",
+                            text = stringResource(R.string.excellent),
                             fontSize = 12.sp,
                             color = LimeSteps,
                             fontWeight = FontWeight.Bold
@@ -199,7 +202,7 @@ fun DailySummaryDetailScreen(context: Context) {
                                 }
                                 withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
                                 withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold)) {
-                                    append("${activeMins}m")
+                                    append("${activeMins}${stringResource(R.string.min_unit)}")
                                 }
                                 withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
                                 withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold)) {
@@ -222,7 +225,7 @@ fun DailySummaryDetailScreen(context: Context) {
             ) {
                 Column {
                     Text(
-                        text = "Objetivos Diarios",
+                        text = stringResource(R.string.daily_goals_title),
                         fontSize = 13.sp,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -230,7 +233,7 @@ fun DailySummaryDetailScreen(context: Context) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ActivityMetricBar(
-                        title = "Pasos",
+                        title = stringResource(R.string.steps),
                         current = stepsFormatted,
                         target = "8,000",
                         color = LimeSteps,
@@ -240,9 +243,9 @@ fun DailySummaryDetailScreen(context: Context) {
                     Spacer(modifier = Modifier.height(6.dp))
 
                     ActivityMetricBar(
-                        title = "Tiempo Activo",
-                        current = "${activeMins}m",
-                        target = "${targetActiveMins}m",
+                        title = stringResource(R.string.active_time),
+                        current = "${activeMins}${stringResource(R.string.min_unit)}",
+                        target = "${targetActiveMins}${stringResource(R.string.min_unit)}",
                         color = CyanActive,
                         targetProgress = timeProgress
                     )
@@ -250,7 +253,7 @@ fun DailySummaryDetailScreen(context: Context) {
                     Spacer(modifier = Modifier.height(6.dp))
 
                     ActivityMetricBar(
-                        title = "Calorías Activas",
+                        title = stringResource(R.string.active_calories),
                         current = "$calories kcal",
                         target = "$targetCalories kcal",
                         color = VioletCalorie,

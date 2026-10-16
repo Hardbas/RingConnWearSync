@@ -9,6 +9,7 @@ data class RingConnVitals(
     val avgHrv: Int = 0,
     val sleepScore: Int = 0,
     val activityScore: Int = 0,
+    val activeMinutes: Int = 0,
     val stressScore: Int = 0,
     val liveSteps: Int = 0,
     val targetSteps: Int = 10000,

@@ -227,7 +227,7 @@ fun WearAppContent(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = " bpm  ",
+                                text = " ${stringResource(R.string.bpm_unit)}  ",
                                 fontSize = 11.sp,
                                 color = HrSubtitlePink,
                                 modifier = Modifier.padding(bottom = 2.dp)
@@ -277,7 +277,8 @@ fun WearAppContent(
                                     append(" | ")
                                 }
                                 withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold, fontSize = 16.sp)) {
-                                    append("${vitals.activityScore}")
+                                    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
+                                    append(if (activeMins > 0) "${activeMins}m" else "--")
                                 }
                                 withStyle(SpanStyle(color = PipeGray, fontSize = 13.sp)) {
                                     append(" | ")
@@ -325,7 +326,7 @@ fun WearAppContent(
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "${vitals.sleepScore} pts",
+                                text = "${vitals.sleepScore} ${stringResource(R.string.pts_unit)}",
                                 fontSize = 17.sp,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold

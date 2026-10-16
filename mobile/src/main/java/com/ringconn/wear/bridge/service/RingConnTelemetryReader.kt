@@ -38,6 +38,7 @@ object RingConnTelemetryReader {
     const val KEY_AVG_HRV = "keyAvgHrv"
     const val KEY_SLEEP_SCORE = "sleepScore"
     const val KEY_ACTIVITY_SCORE = "activityScore"
+    const val KEY_ACTIVE_MINUTES = "activeMinutes"
     const val KEY_STRESS_SCORE = "stressScore"
     const val KEY_LIVE_STEPS = "liveSteps"
     const val KEY_TARGET_STEPS = "targetSteps"
@@ -261,6 +262,7 @@ object RingConnTelemetryReader {
 
         // 4. Steps Today (Prioritize RingConn data origin)
         var todaySteps = 0
+        var activeMinutes = 0
         var hasRingConnOrigin = false
         if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class))) {
             try {
@@ -273,11 +275,16 @@ object RingConnTelemetryReader {
                 val ringConnSteps = stepsResponse.records.filter {
                     it.metadata.dataOrigin.packageName == RINGCONN_PKG
                 }
+                val effectiveSteps = ringConnSteps.ifEmpty { stepsResponse.records }
                 if (ringConnSteps.isNotEmpty()) {
-                    todaySteps = ringConnSteps.sumOf { it.count }.toInt()
                     hasRingConnOrigin = true
-                } else {
-                    todaySteps = stepsResponse.records.sumOf { it.count }.toInt()
+                }
+                if (effectiveSteps.isNotEmpty()) {
+                    todaySteps = effectiveSteps.sumOf { it.count }.toInt()
+                    activeMinutes = effectiveSteps.sumOf {
+                        val m = Duration.between(it.startTime, it.endTime).toMinutes()
+                        if (m > 0) m else 1L
+                    }.toInt()
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed querying StepsRecord: ${e.message}")
@@ -563,6 +570,7 @@ object RingConnTelemetryReader {
             avgHrv = finalAvgHrv,
             sleepScore = finalSleep,
             activityScore = actScore,
+            activeMinutes = if (activeMinutes > 0) activeMinutes else existing.activeMinutes,
             stressScore = stressScore,
             liveSteps = finalSteps,
             targetSteps = 10000,
@@ -725,6 +733,7 @@ object RingConnTelemetryReader {
             putInt(KEY_AVG_HRV, vitals.avgHrv)
             putInt(KEY_SLEEP_SCORE, vitals.sleepScore)
             putInt(KEY_ACTIVITY_SCORE, vitals.activityScore)
+            putInt(KEY_ACTIVE_MINUTES, vitals.activeMinutes)
             putInt(KEY_STRESS_SCORE, vitals.stressScore)
             putInt(KEY_LIVE_STEPS, vitals.liveSteps)
             putInt(KEY_TARGET_STEPS, vitals.targetSteps)
@@ -763,6 +772,7 @@ object RingConnTelemetryReader {
             avgHrv = prefs.getInt(KEY_AVG_HRV, 0),
             sleepScore = prefs.getInt(KEY_SLEEP_SCORE, 0),
             activityScore = prefs.getInt(KEY_ACTIVITY_SCORE, 0),
+            activeMinutes = prefs.getInt(KEY_ACTIVE_MINUTES, 0),
             stressScore = prefs.getInt(KEY_STRESS_SCORE, 0),
             liveSteps = prefs.getInt(KEY_LIVE_STEPS, 0),
             targetSteps = prefs.getInt(KEY_TARGET_STEPS, 10000),

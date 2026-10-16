@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,10 +116,10 @@ fun SleepDetailScreen(context: Context) {
     val sleepScore = vitals.sleepScore
     val sleepScoreText = if (hasSleepData) "$sleepScore" else "--"
     val qualityBadge = when {
-        !hasSleepData -> "Sin datos de hoy"
-        sleepScore >= 85 -> "Excelente"
-        sleepScore >= 70 -> "Bueno"
-        else -> "Regular"
+        !hasSleepData -> stringResource(R.string.no_data)
+        sleepScore >= 85 -> stringResource(R.string.excellent)
+        sleepScore >= 70 -> stringResource(R.string.good)
+        else -> stringResource(R.string.fair)
     }
 
     val totalStagesMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins + vitals.sleepAwakeMins
@@ -132,12 +133,13 @@ fun SleepDetailScreen(context: Context) {
     } else if (hasSleepData) {
         "--"
     } else {
-        "Sin registros"
+        stringResource(R.string.no_sleep_records)
     }
 
+    val bpmUnit = stringResource(R.string.bpm_unit)
     val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
     val hrvVal = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "--"
-    val minHr = if (vitals.minHeartRate > 0) "${vitals.minHeartRate} ppm" else if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate} ppm" else "--"
+    val minHr = if (vitals.minHeartRate > 0) "${vitals.minHeartRate} $bpmUnit" else if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate} $bpmUnit" else "--"
     val stressVal = if (vitals.stressScore > 0) "${vitals.stressScore}" else "--"
 
     Scaffold(
@@ -168,14 +170,14 @@ fun SleepDetailScreen(context: Context) {
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Text(
-                    text = "Análisis de Sueño",
+                    text = stringResource(R.string.sleep_analysis_title),
                     fontSize = 15.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Anillo RingConn Gen 2",
+                    text = stringResource(R.string.ring_model_subtitle),
                     fontSize = 11.sp,
                     color = SleepPeriwinkle
                 )
@@ -220,7 +222,7 @@ fun SleepDetailScreen(context: Context) {
                                 if (hasSleepData) {
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "pts",
+                                        text = stringResource(R.string.pts_unit),
                                         fontSize = 13.sp,
                                         color = SleepPeriwinkle,
                                         fontWeight = FontWeight.Medium,
@@ -256,7 +258,7 @@ fun SleepDetailScreen(context: Context) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Tiempo total",
+                            text = stringResource(R.string.total_sleep_time),
                             fontSize = 11.5.sp,
                             color = SleepPeriwinkle
                         )
@@ -285,14 +287,14 @@ fun SleepDetailScreen(context: Context) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Fases del Sueño",
+                            text = stringResource(R.string.sleep_stages_title),
                             fontSize = 13.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                         if (!hasStages) {
                             Text(
-                                text = "Sin datos",
+                                text = stringResource(R.string.no_data),
                                 fontSize = 10.sp,
                                 color = LabelSilver
                             )
@@ -322,14 +324,14 @@ fun SleepDetailScreen(context: Context) {
                         Spacer(modifier = Modifier.height(10.dp))
 
                         // Detailed stage breakdowns with real duration and percentages
-                        SleepStageRow("Despierto", formatMins(vitals.sleepAwakeMins), "${(awakePct * 100).roundToInt()}%", StageAwake)
-                        SleepStageRow("REM", formatMins(vitals.sleepRemMins), "${(remPct * 100).roundToInt()}%", StageRem)
-                        SleepStageRow("Ligero", formatMins(vitals.sleepLightMins), "${(lightPct * 100).roundToInt()}%", StageLight)
-                        SleepStageRow("Profundo", formatMins(vitals.sleepDeepMins), "${(deepPct * 100).roundToInt()}%", StageDeep)
+                        SleepStageRow(stringResource(R.string.stage_awake), formatMins(vitals.sleepAwakeMins), "${(awakePct * 100).roundToInt()}%", StageAwake)
+                        SleepStageRow(stringResource(R.string.stage_rem), formatMins(vitals.sleepRemMins), "${(remPct * 100).roundToInt()}%", StageRem)
+                        SleepStageRow(stringResource(R.string.stage_light), formatMins(vitals.sleepLightMins), "${(lightPct * 100).roundToInt()}%", StageLight)
+                        SleepStageRow(stringResource(R.string.stage_deep), formatMins(vitals.sleepDeepMins), "${(deepPct * 100).roundToInt()}%", StageDeep)
                     } else {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "No se detectaron etapas de sueño en el anillo hoy.",
+                            text = stringResource(R.string.no_stages_detected),
                             fontSize = 11.sp,
                             color = LabelSilver,
                             lineHeight = 14.sp
@@ -348,7 +350,7 @@ fun SleepDetailScreen(context: Context) {
             ) {
                 Column {
                     Text(
-                        text = "Biometría Nocturna",
+                        text = stringResource(R.string.nocturnal_biometrics),
                         fontSize = 13.sp,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -359,8 +361,8 @@ fun SleepDetailScreen(context: Context) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        NocturnalMetricBox("SpO2 Nocturno", spo2Val, StageRem)
-                        NocturnalMetricBox("VFC / HRV", hrvVal, StageLight)
+                        NocturnalMetricBox(stringResource(R.string.blood_oxygen), spo2Val, StageRem)
+                        NocturnalMetricBox(stringResource(R.string.hrv_title), hrvVal, StageLight)
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -369,8 +371,8 @@ fun SleepDetailScreen(context: Context) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        NocturnalMetricBox("FC en Reposo", minHr, Color(0xFFFF85A1))
-                        NocturnalMetricBox("Estrés", stressVal, Color(0xFF70E000))
+                        NocturnalMetricBox(stringResource(R.string.resting_hr), minHr, Color(0xFFFF85A1))
+                        NocturnalMetricBox(stringResource(R.string.stress), stressVal, Color(0xFF70E000))
                     }
                 }
             }
@@ -414,7 +416,7 @@ fun SleepDetailScreen(context: Context) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (isSyncing) "Sincronizando Anillo..." else "Sincronizar Anillo",
+                    text = if (isSyncing) stringResource(R.string.syncing_ring) else stringResource(R.string.sync_ring),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isSyncing) Color(0xFF70E000) else Color(0xFF8E99F3)
