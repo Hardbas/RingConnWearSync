@@ -36,6 +36,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.wear.compose.material.*
+import com.google.android.gms.wearable.Wearable
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
@@ -233,7 +234,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Measure button
+                    // Sync button
                     Box(
                         modifier = Modifier
                             .clip(MeasureBtnShape)
@@ -242,13 +243,21 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                                 if (!isMeasuring) {
                                     isMeasuring = true
                                     scope.launch {
-                                        delay(3500L)
-                                        val current = RingConnComplicationProvider.getLatestVitals(context)
-                                        val updated = current.copy(
-                                            lastHeartRate = current.lastHeartRate + (-2..3).random(),
-                                            refreshTimestamp = System.currentTimeMillis() / 1000L
-                                        )
-                                        RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+                                        try {
+                                            val nodes = Wearable.getNodeClient(context).connectedNodes
+                                            nodes.addOnSuccessListener { nodeList ->
+                                                nodeList.forEach { node ->
+                                                    Wearable.getMessageClient(context).sendMessage(
+                                                        node.id,
+                                                        "/action/sync_ringconn",
+                                                        ByteArray(0)
+                                                    )
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
+                                        delay(5500L)
                                         isMeasuring = false
                                     }
                                 }

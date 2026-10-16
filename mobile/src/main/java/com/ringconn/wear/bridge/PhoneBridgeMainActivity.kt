@@ -846,7 +846,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 try {
                     val nodes = Wearable.getNodeClient(this@PhoneBridgeMainActivity).connectedNodes.await()
                     val targetName = if (nodes.isEmpty()) "Galaxy Watch 8" else nodes.joinToString { it.displayName }
-                    val ok = WearDataSyncService(this@PhoneBridgeMainActivity).syncVitalsToWatch(vitals)
+                    val ok = WearDataSyncService(this@PhoneBridgeMainActivity).syncVitalsToWatch(vitals, force = true)
                     ok to targetName
                 } catch (e: Exception) {
                     false to (e.message ?: "Error desconocido")

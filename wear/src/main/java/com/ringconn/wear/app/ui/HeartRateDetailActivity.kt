@@ -319,7 +319,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                                                 nodeList.forEach { node ->
                                                     Wearable.getMessageClient(context).sendMessage(
                                                         node.id,
-                                                        "/action/measure_now",
+                                                        "/action/sync_ringconn",
                                                         ByteArray(0)
                                                     )
                                                 }
@@ -327,7 +327,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                                         } catch (e: Exception) {
                                             e.printStackTrace()
                                         }
-                                        delay(3500L)
+                                        delay(5500L)
                                         val current = RingConnComplicationProvider.getLatestVitals(context)
                                         if (current.lastHeartRate > 0) {
                                             val newHr = current.lastHeartRate

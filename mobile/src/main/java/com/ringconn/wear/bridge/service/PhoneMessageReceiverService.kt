@@ -40,11 +40,15 @@ class PhoneMessageReceiverService : WearableListenerService() {
                     }
                     startActivity(homeIntent)
 
-                    // Immediately trigger fresh sync to Galaxy Watch
-                    val serviceIntent = Intent(this@PhoneMessageReceiverService, RingConnForegroundService::class.java).apply {
-                        action = RingConnForegroundService.ACTION_SYNC_NOW
-                    }
-                    startService(serviceIntent)
+                    // Brief delay for RingConn widget inflation
+                    kotlinx.coroutines.delay(1000L)
+
+                    // Read best available vitals (prioritizes direct RingConn Glance widgets)
+                    val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneMessageReceiverService)
+
+                    // Force immediate sync to Watch (bypassing battery throttle)
+                    WearDataSyncService(this@PhoneMessageReceiverService).syncVitalsToWatch(vitals, force = true)
+                    Log.i(TAG, "Forced fresh RingConn vitals sync to Watch: HR=${vitals.lastHeartRate}, SpO2=${vitals.lastSpo2}")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error triggering sync on RingConn", e)

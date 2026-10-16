@@ -619,11 +619,13 @@ object RingConnTelemetryReader {
         val finalZ4 = if (hasNewZones) z4 else existing.zone4Mins
         val finalZ5 = if (hasNewZones) z5 else existing.zone5Mins
 
-        val hasNewStages = (deepMins + remMins + lightMins + awakeMins) > 0
-        val finalDeep = if (hasNewStages) deepMins.toInt() else existing.sleepDeepMins
-        val finalRem = if (hasNewStages) remMins.toInt() else existing.sleepRemMins
-        val finalLight = if (hasNewStages) lightMins.toInt() else existing.sleepLightMins
-        val finalAwake = if (hasNewStages) awakeMins.toInt() else existing.sleepAwakeMins
+        // A valid sleep breakdown requires effective sleep (deep, rem, or light).
+        // Never allow awake-only intervals to overwrite and zero out real nocturnal sleep stages.
+        val hasValidStages = (deepMins + remMins + lightMins) > 0
+        val finalDeep = if (hasValidStages) deepMins.toInt() else existing.sleepDeepMins
+        val finalRem = if (hasValidStages) remMins.toInt() else existing.sleepRemMins
+        val finalLight = if (hasValidStages) lightMins.toInt() else existing.sleepLightMins
+        val finalAwake = if (hasValidStages) awakeMins.toInt() else existing.sleepAwakeMins
 
         val vitals = RingConnVitals(
             lastHeartRate = finalHr,
@@ -698,7 +700,7 @@ object RingConnTelemetryReader {
                 sleepDeepMins = hcVitals?.sleepDeepMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepDeepMins > 0) widgetVitals.sleepDeepMins else cached.sleepDeepMins),
                 sleepRemMins = hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
                 sleepLightMins = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
-                sleepAwakeMins = hcVitals?.sleepAwakeMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
+                sleepAwakeMins = if (hcVitals != null && (hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) > 0) hcVitals.sleepAwakeMins else (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
                 skinTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset,
                 skinTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
             )
@@ -715,7 +717,18 @@ object RingConnTelemetryReader {
         }
 
         if (hcVitals != null && (hcVitals.lastHeartRate > 0 || hcVitals.liveSteps > 0 || hcVitals.lastSpo2 > 0)) {
-            return hcVitals
+            val cached = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
+            val finalHcVitals = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) {
+                hcVitals.copy(
+                    sleepDeepMins = cached.sleepDeepMins,
+                    sleepRemMins = cached.sleepRemMins,
+                    sleepLightMins = cached.sleepLightMins,
+                    sleepAwakeMins = cached.sleepAwakeMins
+                )
+            } else {
+                hcVitals
+            }
+            return finalHcVitals
         }
 
         // 3. Local cache or user calibration

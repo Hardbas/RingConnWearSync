@@ -18,9 +18,9 @@
     <string name="sleep_score">Puntuación de Sueño</string>
     <string name="steps">Pasos Diarios</string>
     <string name="stress">Nivel de Estrés</string>
-    <string name="measure_now">Medir Ahora</string>
-    <string name="measuring">Midiendo...</string>
-    <string name="measure">Medir</string>
+    <string name="measure_now">Sincronizar</string>
+    <string name="measuring">Sincronizando...</string>
+    <string name="measure">Sincronizar</string>
     <string name="ring_battery">Batería Anillo: %1$d%%</string>
     <string name="ring_short">Anillo</string>
     <string name="sleep_short">Sueño</string>
