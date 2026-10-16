@@ -62,11 +62,11 @@ private val StressModerate = Color(0xFFFFD600)
 private val StressHigh = Color(0xFFFF5252)
 
 private val StressHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF2B5278), Color(0xFF0D1A27))
+    listOf(Color(0xFF383F63), Color(0xFF131522))
 )
 
 private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF162536), Color(0xFF0E1722))
+    listOf(Color(0xFF22263A), Color(0xFF141624))
 )
 
 class StressDetailActivity : ComponentActivity() {

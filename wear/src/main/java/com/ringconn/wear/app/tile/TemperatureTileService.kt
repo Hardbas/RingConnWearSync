@@ -40,7 +40,7 @@ class TemperatureTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-temp-v5"
+        const val RESOURCES_VERSION = "oneui8-temp-v6"
         private const val RES_BG_TEMP_CAPSULE = "oneui_bg_temp_capsule"
         private const val RES_IC_TEMP = "ic_comp_temp"
 
@@ -87,18 +87,23 @@ class TemperatureTileService : TileService() {
                 else -> context.getString(R.string.temp_cool)
             }
 
+            val limeStepsColor = 0xFFA0F116.toInt()       // Neon Lime (from Daily Activity)
+            val cyanAccentColor = 0xFF47CDFF.toInt()      // Electric Sky Cyan (from Daily Activity)
+            val labelSilverColor = 0xFFB7B7BB.toInt()     // Metallic Titanium Silver
+
             val statusColorInt = when {
-                offset in -0.5f..0.5f -> 0xFF81C784.toInt() // Green optimal
-                offset > 0.5f -> 0xFFFFB74D.toInt()         // Warm amber
-                else -> 0xFF4FC3F7.toInt()                 // Cool blue
+                offset in -0.5f..0.5f -> limeStepsColor // Vibrant neon lime optimal!
+                offset > 0.5f -> 0xFFFF9800.toInt()     // Vivid warm amber
+                else -> cyanAccentColor                 // Electric sky cyan
             }
 
             val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
 
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val silverColor = argb(0xFFB0BEC5.toInt())
+            val silverColor = argb(labelSilverColor)
+            val cyanUnitColor = argb(cyanAccentColor)
             val statusColor = argb(statusColorInt)
-            val translucentGlassBlack = argb(0x80000000.toInt())
+            val translucentGlassBlack = argb(0x66000000.toInt())
 
             val clickAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
@@ -121,15 +126,15 @@ class TemperatureTileService : TileService() {
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
                 .build()
 
-            // 2. Title Text (13.5sp Bold White)
+            // 2. Title Text (13sp Medium Silver)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.tile_temperature_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13.5f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
+                        .setSize(sp(13f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
+                        .setColor(silverColor)
                         .build()
                 )
                 .build()
@@ -159,7 +164,7 @@ class TemperatureTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(24f))
+                        .setSize(sp(26f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -171,9 +176,9 @@ class TemperatureTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(silverColor)
+                        .setSize(sp(13f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(cyanUnitColor)
                         .build()
                 )
                 .build()
@@ -217,7 +222,7 @@ class TemperatureTileService : TileService() {
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x4481C784.toInt()))
+                                .setColor(argb(0x55A0F116.toInt()))
                                 .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(3f)).build())
                                 .build()
                         ).build()

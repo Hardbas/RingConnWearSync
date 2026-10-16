@@ -40,7 +40,7 @@ class StressTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-stress-v5"
+        const val RESOURCES_VERSION = "oneui8-stress-v6"
         private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
         private const val RES_IC_STRESS = "ic_comp_stress"
 
@@ -96,10 +96,13 @@ class StressTileService : TileService() {
                 context.getString(R.string.stress_resting)
             }
 
+            val sleepLabelColor = 0xFFA5AEDE.toInt()      // Periwinkle Lavender (from Sleep Score)
+            val cyanAccentColor = 0xFF47CDFF.toInt()      // Electric Sky Cyan (from Daily Activity)
+
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val silverColor = argb(0xFFB0BEC5.toInt())
+            val lavenderColor = argb(sleepLabelColor)
             val statusColor = argb(statusColorInt)
-            val translucentGlassBlack = argb(0x80000000.toInt())
+            val translucentGlassBlack = argb(0x66000000.toInt())
 
             val clickAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
@@ -122,15 +125,15 @@ class StressTileService : TileService() {
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
                 .build()
 
-            // 2. Title Text (13.5sp Bold White)
+            // 2. Title Text (13sp Medium Lavender)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.stress_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13.5f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
+                        .setSize(sp(13f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
+                        .setColor(lavenderColor)
                         .build()
                 )
                 .build()
@@ -160,7 +163,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(24f))
+                        .setSize(sp(26f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -172,9 +175,9 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(silverColor)
+                        .setSize(sp(13f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(lavenderColor)
                         .build()
                 )
                 .build()
