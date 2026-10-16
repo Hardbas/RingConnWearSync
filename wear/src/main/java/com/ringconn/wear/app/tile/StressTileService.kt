@@ -150,8 +150,8 @@ class StressTileService : TileService() {
                 context.getString(R.string.stress_resting)
             }
 
-            val sleepLabelColor = 0xFFA5AEDE.toInt()      // Periwinkle Lavender
-            val cyanAccentColor = 0xFF47CDFF.toInt()      // Electric Sky Cyan
+            val sleepLabelColor = 0xFFE9D5FF.toInt()      // Soft Pastel Lilac
+            val cyanAccentColor = 0xFF5EEAD4.toInt()      // Electric Aquamarine Mint
 
             val whiteColor = argb(0xFFFFFFFF.toInt())
             val lavenderColor = argb(sleepLabelColor)
@@ -171,21 +171,21 @@ class StressTileService : TileService() {
                 .setId("open_stress_detail")
                 .build()
 
-            // 1. One UI Watch 8 Stadium Capsule Background (190dp x 136dp)
+            // 1. One UI Watch 8 Enlarged Stadium Capsule Background (206dp x 146dp)
             val bgImage = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_BG_STRESS_CAPSULE)
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
                 .build()
 
-            // 2. Top Header Row: Title on Left, Status Pill on Right (width 156dp)
+            // 2. Top Header Row: Title on Left, Status Pill on Right (width 152dp)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.stress_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(13f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(lavenderColor)
                         .build()
@@ -206,7 +206,7 @@ class StressTileService : TileService() {
 
             val statusChipBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(wrap())
-                .setHeight(dp(17f))
+                .setHeight(dp(18f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -214,13 +214,13 @@ class StressTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(argb(statusBgInt))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(8.5f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(9f)).build())
                                 .build()
                         )
                         .setPadding(
                             ModifiersBuilders.Padding.Builder()
-                                .setStart(dp(7f))
-                                .setEnd(dp(7f))
+                                .setStart(dp(8f))
+                                .setEnd(dp(8f))
                                 .build()
                         )
                         .build()
@@ -229,21 +229,21 @@ class StressTileService : TileService() {
                 .build()
 
             val topHeaderRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(136f))
+                .setWidth(dp(152f))
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(8f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(14f)).setHeight(dp(1f)).build())
                 .addContent(statusChipBox)
                 .build()
 
-            // 3. Center Hero Row: Score & VFC on Left, Semicircle Tachometer on Right (width 142dp)
+            // 3. Center Hero Row: Score & VFC on Left, Semicircle Tachometer on Right (width 156dp)
             val scoreNumberText = LayoutElementBuilders.Text.Builder()
                 .setText(scoreStr)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(32f))
+                        .setSize(sp(34f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -255,9 +255,9 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(lavenderColor)
+                        .setColor(argb(0xFFD8B4FE.toInt()))
                         .build()
                 )
                 .build()
@@ -267,7 +267,7 @@ class StressTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_BOTTOM)
                 .addContent(scoreNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(2f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
                 .addContent(scoreUnitText)
                 .build()
 
@@ -276,7 +276,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(argb(cyanAccentColor))
                         .build()
@@ -284,7 +284,7 @@ class StressTileService : TileService() {
                 .build()
 
             val leftHeroColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(76f))
+                .setWidth(dp(88f))
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
                 .addContent(scoreNumbersRow)
@@ -300,21 +300,21 @@ class StressTileService : TileService() {
                 .build()
 
             val centerHeroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(142f))
+                .setWidth(dp(156f))
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(leftHeroColumn)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
                 .addContent(gaugeImage)
                 .build()
 
-            // 4. Action Pill Button (86dp x 22dp, translucent glass)
+            // 4. Action Pill Button (94dp x 24dp, translucent glass)
             val actionButtonText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.details))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -322,8 +322,8 @@ class StressTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(86f))
-                .setHeight(dp(22f))
+                .setWidth(dp(94f))
+                .setHeight(dp(24f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -332,7 +332,7 @@ class StressTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(12f)).build())
                                 .build()
                         )
                         .build()
@@ -340,10 +340,10 @@ class StressTileService : TileService() {
                 .addContent(actionButtonText)
                 .build()
 
-            // 5. Assemble inside the 190dp x 136dp Stadium Capsule
+            // 5. Assemble inside the 206dp x 146dp Stadium Capsule
             val capsuleContentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(12f)).setWidth(dp(1f)).build())
                 .addContent(topHeaderRow)
@@ -354,8 +354,8 @@ class StressTileService : TileService() {
                 .build()
 
             val stadiumCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(190f))
-                .setHeight(dp(136f))
+                .setWidth(dp(206f))
+                .setHeight(dp(146f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
