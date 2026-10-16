@@ -4,8 +4,28 @@
     android:height="136dp"
     android:viewportWidth="190"
     android:viewportHeight="136">
+
+    <!-- Ambient Glow Accent behind right-side gauge -->
     <path
-        android:pathData="M68,0 L122,0 A68,68 0 0,1 190,68 A68,68 0 0,1 122,136 L68,136 A68,68 0 0,1 0,68 A68,68 0 0,1 68,0 Z">
+        android:pathData="M145,20 A48,48 0 1,1 144.9,20 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="145"
+                android:centerY="68"
+                android:gradientRadius="48"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#357C4DFF" />
+                <item android:offset="0.5" android:color="#1A5333AA" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Stadium Capsule Base Fill & Luminous Rim -->
+    <path
+        android:pathData="M68,0 L122,0 A68,68 0 0,1 190,68 A68,68 0 0,1 122,136 L68,136 A68,68 0 0,1 0,68 A68,68 0 0,1 68,0 Z"
+        android:strokeWidth="1.4"
+        android:strokeColor="#4D8C7CFF">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="0"
@@ -13,9 +33,9 @@
                 android:endX="190"
                 android:endY="136"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#FF383F63" />
-                <item android:offset="0.55" android:color="#FF202438" />
-                <item android:offset="1.0" android:color="#FF131522" />
+                <item android:offset="0.0" android:color="#FF251D3A" />
+                <item android:offset="0.5" android:color="#FF151022" />
+                <item android:offset="1.0" android:color="#FF0C0914" />
             </gradient>
         </aapt:attr>
     </path>

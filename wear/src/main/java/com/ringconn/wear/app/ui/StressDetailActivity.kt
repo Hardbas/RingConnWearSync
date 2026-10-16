@@ -175,7 +175,7 @@ fun StressDetailScreen(context: Context) {
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(statusColor.copy(alpha = 0.22f))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = statusLabel,
@@ -185,74 +185,50 @@ fun StressDetailScreen(context: Context) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Big Score
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            text = if (score > 0) "$score" else "--",
-                            color = Color.White,
-                            fontSize = 44.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "/ 100",
-                            color = Color(0xFF9E9E9E),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
+                    val gaugeResId = when {
+                        score < 30 -> R.drawable.oneui_ic_gauge_relaxed
+                        score < 60 -> R.drawable.oneui_ic_gauge_balanced
+                        score < 80 -> R.drawable.oneui_ic_gauge_moderate
+                        else -> R.drawable.oneui_ic_gauge_high
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // 4-Zone Segmented Stadium Gauge
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val totalW = size.width
-                        val h = size.height
-                        val gap = 4.dp.toPx()
-                        val segW = (totalW - gap * 3) / 4f
+                        Column(horizontalAlignment = Alignment.Start) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = if (score > 0) "$score" else "--",
+                                    color = Color.White,
+                                    fontSize = 42.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "/ 100",
+                                    color = Color(0xFFA5AEDE),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                            }
+                            val hrvVal = if (vitals.lastHrv > 0) "VFC ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
+                            Text(
+                                text = hrvVal,
+                                color = Color(0xFF47CDFF),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
-                        // Zone 1: Relaxed (0-30)
-                        drawRoundRect(
-                            color = StressRelaxed,
-                            topLeft = Offset(0f, 0f),
-                            size = Size(segW, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
-                        )
-                        // Zone 2: Balanced (30-60)
-                        drawRoundRect(
-                            color = StressBalanced,
-                            topLeft = Offset(segW + gap, 0f),
-                            size = Size(segW, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
-                        )
-                        // Zone 3: Moderate (60-80)
-                        drawRoundRect(
-                            color = StressModerate,
-                            topLeft = Offset((segW + gap) * 2, 0f),
-                            size = Size(segW, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
-                        )
-                        // Zone 4: High (80-100)
-                        drawRoundRect(
-                            color = StressHigh,
-                            topLeft = Offset((segW + gap) * 3, 0f),
-                            size = Size(segW, h),
-                            cornerRadius = CornerRadius(h / 2, h / 2)
-                        )
-
-                        // Marker dot
-                        val markerX = (score / 100f) * totalW
-                        drawCircle(
-                            color = Color.White,
-                            radius = 6.dp.toPx(),
-                            center = Offset(markerX.coerceIn(6.dp.toPx(), totalW - 6.dp.toPx()), h / 2)
+                        Image(
+                            painter = painterResource(id = gaugeResId),
+                            contentDescription = statusLabel,
+                            modifier = Modifier.size(72.dp, 54.dp)
                         )
                     }
                 }
