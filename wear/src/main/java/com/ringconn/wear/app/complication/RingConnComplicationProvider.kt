@@ -190,6 +190,7 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 ringBattery = battery,
                 sleepScore = sleep,
                 activityScore = prefs.getInt("activity_score", 0),
+                activeMinutes = prefs.getInt("active_mins", 0),
                 stressScore = prefs.getInt("stress_score", 0),
                 liveSteps = prefs.getInt("steps_live", 0),
                 targetSteps = prefs.getInt("steps_target", 10000),
@@ -224,6 +225,7 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putInt("hrv_avg", vitals.avgHrv)
                 putInt("sleep_score", vitals.sleepScore)
                 putInt("activity_score", vitals.activityScore)
+                putInt("active_mins", vitals.activeMinutes)
                 putInt("stress_score", vitals.stressScore)
                 putInt("steps_live", vitals.liveSteps)
                 putInt("steps_target", vitals.targetSteps)

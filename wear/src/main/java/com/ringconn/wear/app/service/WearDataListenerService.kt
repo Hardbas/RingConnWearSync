@@ -34,6 +34,7 @@ class WearDataListenerService : WearableListenerService() {
                 val hrvAvg = dataMap.getInt("hrv_avg")
                 val sleepScore = dataMap.getInt("sleep_score")
                 val activityScore = dataMap.getInt("activity_score")
+                val activeMins = dataMap.getInt("active_mins")
                 val stressScore = dataMap.getInt("stress_score")
                 val stepsLive = dataMap.getInt("steps_live")
                 val stepsTarget = dataMap.getInt("steps_target")
@@ -66,6 +67,7 @@ class WearDataListenerService : WearableListenerService() {
                     avgHrv = hrvAvg,
                     sleepScore = sleepScore,
                     activityScore = activityScore,
+                    activeMinutes = activeMins,
                     stressScore = stressScore,
                     liveSteps = stepsLive,
                     targetSteps = stepsTarget,
@@ -108,6 +110,7 @@ class WearDataListenerService : WearableListenerService() {
                     avgHrv = json.optInt("hrv_avg", 0),
                     sleepScore = json.optInt("sleep_score", 0),
                     activityScore = json.optInt("activity_score", 0),
+                    activeMinutes = json.optInt("active_mins", 0),
                     stressScore = json.optInt("stress_score", 0),
                     liveSteps = json.optInt("steps_live", 0),
                     targetSteps = json.optInt("steps_target", 10000),

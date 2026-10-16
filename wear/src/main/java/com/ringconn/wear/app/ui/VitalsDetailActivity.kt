@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -164,14 +165,14 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                 modifier = Modifier.padding(bottom = 4.dp)
             ) {
                 Text(
-                    text = "Frecuencia Cardíaca",
+                    text = stringResource(R.string.tile_heart_rate_title),
                     fontSize = 15.sp,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Anillo RingConn Gen 2",
+                    text = stringResource(R.string.ring_model_subtitle),
                     fontSize = 11.sp,
                     color = HrSubtitlePink
                 )
@@ -202,7 +203,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "ppm",
+                                text = stringResource(R.string.bpm_unit),
                                 fontSize = 14.sp,
                                 color = HrBpmWarm,
                                 modifier = Modifier.padding(bottom = 6.dp)
@@ -218,7 +219,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Mín $minHr", fontSize = 11.sp, color = HrSubtitlePink)
+                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = 11.sp, color = HrSubtitlePink)
                         AnimatedMinMaxBar(
                             progress = 0.68f,
                             color = HrMinMaxPink,
@@ -227,7 +228,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                                 .height(6.dp)
                                 .padding(horizontal = 8.dp)
                         )
-                        Text("Máx $maxHr", fontSize = 11.sp, color = HrSubtitlePink)
+                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = 11.sp, color = HrSubtitlePink)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -255,7 +256,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                             .padding(horizontal = 24.dp, vertical = 7.dp)
                     ) {
                         Text(
-                            text = if (isMeasuring) "Midiendo..." else "Medir Ahora",
+                            text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
                             fontSize = 12.sp,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
@@ -274,16 +275,16 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
             ) {
                 Column {
                     Text(
-                        text = "Zonas de Frecuencia Cardíaca",
+                        text = stringResource(R.string.hr_zones_title),
                         fontSize = 12.sp,
                         color = LabelSilver,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    ZoneRow("Reposo (< 60 ppm)", currentHr < 60)
-                    ZoneRow("Quema de grasa (60 - 100 ppm)", currentHr in 60..100)
-                    ZoneRow("Cardio (101 - 140 ppm)", currentHr in 101..140)
-                    ZoneRow("Pico (> 140 ppm)", currentHr > 140)
+                    ZoneRow(stringResource(R.string.zone_rest_range), currentHr < 60)
+                    ZoneRow(stringResource(R.string.zone_fat_burn_range), currentHr in 60..100)
+                    ZoneRow(stringResource(R.string.zone_cardio_range), currentHr in 101..140)
+                    ZoneRow(stringResource(R.string.zone_peak_range), currentHr > 140)
                 }
             }
 
@@ -297,9 +298,9 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                 val spo2Text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--%"
                 val hrvText = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "-- ms"
                 val batText = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--%"
-                MetricMiniCapsule("SpO2", spo2Text, CyanActive, Modifier.weight(1f))
-                MetricMiniCapsule("VFC", hrvText, VioletCalorie, Modifier.weight(1f))
-                MetricMiniCapsule("Anillo", batText, LimeSteps, Modifier.weight(1f))
+                MetricMiniCapsule(stringResource(R.string.blood_oxygen_short), spo2Text, CyanActive, Modifier.weight(1f))
+                MetricMiniCapsule(stringResource(R.string.hrv_short), hrvText, VioletCalorie, Modifier.weight(1f))
+                MetricMiniCapsule(stringResource(R.string.ring_short), batText, LimeSteps, Modifier.weight(1f))
             }
         }
     }

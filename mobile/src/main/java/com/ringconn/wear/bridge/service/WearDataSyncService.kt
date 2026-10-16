@@ -15,7 +15,7 @@ class WearDataSyncService(private val context: Context) {
 
     suspend fun syncVitalsToWatch(vitals: RingConnVitals, force: Boolean = false): Boolean {
         val signature = "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.lastHrv}_" +
-            "${vitals.sleepScore}_${vitals.activityScore}_${vitals.stressScore}_${vitals.liveSteps}_" +
+            "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
             "${vitals.liveCalorie}_${vitals.ringBattery}_${vitals.isCharging}_" +
             "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
             "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
@@ -41,6 +41,7 @@ class WearDataSyncService(private val context: Context) {
                 dataMap.putInt(KEY_HRV_AVG, vitals.avgHrv)
                 dataMap.putInt(KEY_SLEEP_SCORE, vitals.sleepScore)
                 dataMap.putInt(KEY_ACTIVITY_SCORE, vitals.activityScore)
+                dataMap.putInt(KEY_ACTIVE_MINS, vitals.activeMinutes)
                 dataMap.putInt(KEY_STRESS_SCORE, vitals.stressScore)
                 dataMap.putInt(KEY_STEPS_LIVE, vitals.liveSteps)
                 dataMap.putInt(KEY_STEPS_TARGET, vitals.targetSteps)
@@ -83,6 +84,7 @@ class WearDataSyncService(private val context: Context) {
                 put(KEY_HRV_AVG, vitals.avgHrv)
                 put(KEY_SLEEP_SCORE, vitals.sleepScore)
                 put(KEY_ACTIVITY_SCORE, vitals.activityScore)
+                put(KEY_ACTIVE_MINS, vitals.activeMinutes)
                 put(KEY_STRESS_SCORE, vitals.stressScore)
                 put(KEY_STEPS_LIVE, vitals.liveSteps)
                 put(KEY_STEPS_TARGET, vitals.targetSteps)
@@ -142,6 +144,7 @@ class WearDataSyncService(private val context: Context) {
         const val KEY_HRV_AVG = "hrv_avg"
         const val KEY_SLEEP_SCORE = "sleep_score"
         const val KEY_ACTIVITY_SCORE = "activity_score"
+        const val KEY_ACTIVE_MINS = "active_mins"
         const val KEY_STRESS_SCORE = "stress_score"
         const val KEY_STEPS_LIVE = "steps_live"
         const val KEY_STEPS_TARGET = "steps_target"
