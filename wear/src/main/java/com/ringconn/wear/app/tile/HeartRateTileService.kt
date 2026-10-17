@@ -12,9 +12,12 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -48,16 +51,11 @@ class HeartRateTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
-        val now = System.currentTimeMillis()
-        if (now - lastEnterTimestamp > 1200L) {
-            lastEnterTimestamp = now
-            TileService.getUpdater(this).requestUpdate(this.javaClass)
-        }
+        TileService.getUpdater(this).requestUpdate(this.javaClass)
     }
 
     companion object {
-        private var lastEnterTimestamp = 0L
-        const val RESOURCES_VERSION = "oneui8-hr-solitary-v2"
+        const val RESOURCES_VERSION = "oneui8-hr-solitary-v3"
         private const val RES_BG_HR_CAPSULE = "oneui_bg_hr_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"
@@ -246,16 +244,35 @@ class HeartRateTileService : TileService() {
                 )
                 .build()
 
+            // Continuous pulse animation for indicator dot (800ms reverse loop, reverse-engineered from shealth cg7.java:482)
+            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(800L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
             val dynamicRangeStart = DimensionBuilders.DpProp.Builder(rangeStartDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, rangeStartDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("hr_range_start"), sweepAnimSpec))
                 .build()
 
             val dynamicRangeLength = DimensionBuilders.DpProp.Builder(rangeLengthDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, rangeLengthDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("hr_range_length"), sweepAnimSpec))
                 .build()
 
             val dynamicDotPos = DimensionBuilders.DpProp.Builder(dotPosDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, dotPosDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("hr_dot_pos"), sweepAnimSpec))
+                .build()
+
+            val dynamicDotSize = DimensionBuilders.DpProp.Builder(7.5f)
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(6f, 9f, pulseAnimSpec))
                 .build()
 
             val barTrackBox = LayoutElementBuilders.Box.Builder()
@@ -314,8 +331,8 @@ class HeartRateTileService : TileService() {
                 .addContent(
                     LayoutElementBuilders.Image.Builder()
                         .setResourceId(RES_HR_DOT)
-                        .setWidth(dp(7.5f))
-                        .setHeight(dp(7.5f))
+                        .setWidth(dynamicDotSize)
+                        .setHeight(dynamicDotSize)
                         .build()
                 )
                 .build()
@@ -409,9 +426,16 @@ class HeartRateTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
+            val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(AppDataKey("hr_range_start"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeStartDp))
+                .addKeyToValueMapping(AppDataKey("hr_range_length"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeLengthDp))
+                .addKeyToValueMapping(AppDataKey("hr_dot_pos"), DynamicDataBuilders.DynamicDataValue.fromFloat(dotPosDp))
+                .build()
+
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
+                .setState(tileState)
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
