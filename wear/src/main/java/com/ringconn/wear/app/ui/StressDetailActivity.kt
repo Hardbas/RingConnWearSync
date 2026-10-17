@@ -51,9 +51,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.Text
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
+import com.ringconn.wear.app.data.RingConnVitals
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -110,6 +112,11 @@ fun StressDetailScreen(context: Context) {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
+    StressDetailContent(vitals = vitals)
+}
+
+@Composable
+fun StressDetailContent(vitals: RingConnVitals) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -608,3 +615,20 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
         )
     }
 }
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun StressDetailPreview() {
+    StressDetailContent(
+        vitals = RingConnVitals(
+            stressScore = 28,
+            lastHeartRate = 72,
+            lastHrv = 46,
+            isConnected = true
+        )
+    )
+}
+

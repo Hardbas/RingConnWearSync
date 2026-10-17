@@ -37,6 +37,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import com.ringconn.wear.app.R
@@ -152,6 +153,55 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
         }
     }
 
+    HeartRateDetailContent(
+        vitals = vitals,
+        isMeasuring = isMeasuring,
+        onMeasureClick = {
+            if (!isMeasuring) {
+                isMeasuring = true
+                scope.launch {
+                    try {
+                        val nodes = Wearable.getNodeClient(context).connectedNodes
+                        nodes.addOnSuccessListener { nodeList ->
+                            nodeList.forEach { node ->
+                                Wearable.getMessageClient(context).sendMessage(
+                                    node.id,
+                                    "/action/sync_ringconn",
+                                    ByteArray(0)
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    delay(5500L)
+                    val current = RingConnComplicationProvider.getLatestVitals(context)
+                    if (current.lastHeartRate > 0) {
+                        val newHr = current.lastHeartRate
+                        val newMin = if (current.minHeartRate > 0) minOf(current.minHeartRate, newHr) else newHr
+                        val newMax = if (current.maxHeartRate > 0) maxOf(current.maxHeartRate, newHr) else newHr
+                        val updated = current.copy(
+                            lastHeartRate = newHr,
+                            minHeartRate = newMin,
+                            maxHeartRate = newMax,
+                            refreshTimestamp = System.currentTimeMillis() / 1000L
+                        )
+                        RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+                    }
+                    isMeasuring = false
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun HeartRateDetailContent(
+    vitals: RingConnVitals,
+    isMeasuring: Boolean = false,
+    onMeasureClick: () -> Unit = {}
+) {
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val focusRequester = remember { FocusRequester() }
 
@@ -212,7 +262,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                 .fillMaxSize()
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
-                    scope.launch {
+                    coroutineScope.launch {
                         scrollState.scrollBy(it.verticalScrollPixels)
                     }
                     true
@@ -310,40 +360,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                             .clip(PillShape)
                             .background(GlassBlack50)
                             .clickable {
-                                if (!isMeasuring) {
-                                    isMeasuring = true
-                                    scope.launch {
-                                        try {
-                                            val nodes = Wearable.getNodeClient(context).connectedNodes
-                                            nodes.addOnSuccessListener { nodeList ->
-                                                nodeList.forEach { node ->
-                                                    Wearable.getMessageClient(context).sendMessage(
-                                                        node.id,
-                                                        "/action/sync_ringconn",
-                                                        ByteArray(0)
-                                                    )
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
-                                        delay(5500L)
-                                        val current = RingConnComplicationProvider.getLatestVitals(context)
-                                        if (current.lastHeartRate > 0) {
-                                            val newHr = current.lastHeartRate
-                                            val newMin = if (current.minHeartRate > 0) minOf(current.minHeartRate, newHr) else newHr
-                                            val newMax = if (current.maxHeartRate > 0) maxOf(current.maxHeartRate, newHr) else newHr
-                                            val updated = current.copy(
-                                                lastHeartRate = newHr,
-                                                minHeartRate = newMin,
-                                                maxHeartRate = newMax,
-                                                refreshTimestamp = System.currentTimeMillis() / 1000L
-                                            )
-                                            RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
-                                        }
-                                        isMeasuring = false
-                                    }
-                                }
+                                onMeasureClick()
                             }
                             .padding(horizontal = 24.dp, vertical = 7.dp)
                     ) {
@@ -871,3 +888,24 @@ private fun ZoneItemRow(
         }
     }
 }
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun HeartRateDetailPreview() {
+    HeartRateDetailContent(
+        vitals = RingConnVitals(
+            lastHeartRate = 74,
+            minHeartRate = 58,
+            maxHeartRate = 124,
+            lastHrv = 48,
+            lastSpo2 = 98,
+            isConnected = true
+        ),
+        isMeasuring = false,
+        onMeasureClick = {}
+    )
+}
+
