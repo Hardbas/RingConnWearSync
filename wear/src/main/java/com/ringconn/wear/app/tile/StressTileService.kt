@@ -204,6 +204,30 @@ class StressTileService : TileService() {
                 )
                 .build()
 
+            val stressPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(800L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val dynamicStatusColor = DynamicBuilders.DynamicColor.animate(
+                statusColorInt,
+                0x60FFFFFF.toInt(),
+                stressPulseAnimSpec
+            )
+
+            val dynamicStatusTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(statusColorInt)
+                .setDynamicValue(dynamicStatusColor)
+                .build()
+
             val statusChipText = LayoutElementBuilders.Text.Builder()
                 .setText(statusText)
                 .setMaxLines(1)
@@ -211,7 +235,7 @@ class StressTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(statusColor)
+                        .setColor(dynamicStatusTint)
                         .build()
                 )
                 .build()
@@ -427,6 +451,11 @@ class StressTileService : TileService() {
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(mainCapsuleClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
                 .addContent(bgImage)

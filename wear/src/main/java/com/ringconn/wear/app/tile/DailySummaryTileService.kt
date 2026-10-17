@@ -314,6 +314,11 @@ class DailySummaryTileService : TileService() {
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(activityClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
                 .addContent(activityBg)
@@ -328,6 +333,30 @@ class DailySummaryTileService : TileService() {
                 .setWidth(dp(188f))
                 .setHeight(dp(66f))
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
+                .build()
+
+            val sleepPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(800L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val dynamicSleepColor = DynamicBuilders.DynamicColor.animate(
+                0xFFFFFFFF.toInt(),
+                0x50FFFFFF.toInt(),
+                sleepPulseAnimSpec
+            )
+
+            val dynamicSleepTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
+                .setDynamicValue(dynamicSleepColor)
                 .build()
 
             val sleepIconBox = LayoutElementBuilders.Box.Builder()
@@ -350,6 +379,11 @@ class DailySummaryTileService : TileService() {
                         .setResourceId(RES_IC_SLEEP)
                         .setWidth(dp(22f))
                         .setHeight(dp(22f))
+                        .setColorFilter(
+                            LayoutElementBuilders.ColorFilter.Builder()
+                                .setTint(dynamicSleepTint)
+                                .build()
+                        )
                         .build()
                 )
                 .build()
@@ -478,6 +512,11 @@ class DailySummaryTileService : TileService() {
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(sleepClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
                 .addContent(sleepBg)
