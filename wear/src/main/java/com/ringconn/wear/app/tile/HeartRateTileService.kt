@@ -180,11 +180,41 @@ class HeartRateTileService : TileService() {
                 )
                 .build()
 
+            // Continuous heartbeat pulse animation (650ms reverse loop, reverse-engineered from shealth cg7.java:482)
+            val heartbeatPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
+                0xFFFF5D99.toInt(),
+                0xFF8A1E4A.toInt(),
+                heartbeatPulseAnimSpec
+            )
+
+            val dynamicHeartTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFF5D99.toInt())
+                .setDynamicValue(dynamicHeartColor)
+                .build()
+
             // 4. Hero row: Heart icon (15dp) + BPM value in large bold font (26sp) + "ppm" / "bpm" unit (11.5sp)
             val hrIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_HR)
                 .setWidth(dp(15f))
                 .setHeight(dp(15f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(dynamicHeartTint)
+                        .build()
+                )
                 .build()
 
             val hrNumberText = LayoutElementBuilders.Text.Builder()
@@ -318,6 +348,16 @@ class HeartRateTileService : TileService() {
                 )
                 .build()
 
+            val dynamicDotColor = DynamicBuilders.DynamicColor.animate(
+                0xFFFFFFFF.toInt(),
+                0x33FFFFFF.toInt(),
+                heartbeatPulseAnimSpec
+            )
+
+            val dynamicDotTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
+                .setDynamicValue(dynamicDotColor)
+                .build()
+
             val dotIndicatorRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(dp(barWidthDp))
                 .setHeight(dp(barHeightDp))
@@ -331,8 +371,13 @@ class HeartRateTileService : TileService() {
                 .addContent(
                     LayoutElementBuilders.Image.Builder()
                         .setResourceId(RES_HR_DOT)
-                        .setWidth(dynamicDotSize)
-                        .setHeight(dynamicDotSize)
+                        .setWidth(dp(7.5f))
+                        .setHeight(dp(7.5f))
+                        .setColorFilter(
+                            LayoutElementBuilders.ColorFilter.Builder()
+                                .setTint(dynamicDotTint)
+                                .build()
+                        )
                         .build()
                 )
                 .build()
@@ -404,6 +449,11 @@ class HeartRateTileService : TileService() {
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(mainCapsuleClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
                 .addContent(bgImage)

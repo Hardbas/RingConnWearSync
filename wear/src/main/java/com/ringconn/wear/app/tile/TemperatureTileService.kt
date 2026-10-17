@@ -304,15 +304,25 @@ class TemperatureTileService : TileService() {
                 .addContent(centerTick)
                 .build()
 
+            val dynamicDotColor = DynamicBuilders.DynamicColor.animate(
+                0xFFFFFFFF.toInt(),
+                0x33FFFFFF.toInt(),
+                pulseAnimSpec
+            )
+
+            val dynamicDotTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
+                .setDynamicValue(dynamicDotColor)
+                .build()
+
             val dotIndicator = LayoutElementBuilders.Box.Builder()
-                .setWidth(dynamicDotSize)
-                .setHeight(dynamicDotSize)
+                .setWidth(dp(8f))
+                .setHeight(dp(8f))
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(whiteColor)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(4.75f)).build())
+                                .setColor(dynamicDotTint)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(4f)).build())
                                 .build()
                         ).build()
                 )
@@ -399,6 +409,11 @@ class TemperatureTileService : TileService() {
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(mainCapsuleClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
                 .addContent(bgImage)
