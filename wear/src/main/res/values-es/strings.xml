@@ -36,6 +36,8 @@
     <string name="complication_stress_desc">Índice de Estrés: %1$d</string>
     <string name="complication_temp_label">RingConn Temperatura</string>
     <string name="complication_temp_desc">Temp Cutánea: %1$+.1f °C</string>
+    <string name="low_battery_alert_title">Batería baja del anillo</string>
+    <string name="low_battery_alert_desc">La batería del anillo está al %1$d%%. Por favor cargá tu anillo.</string>
 
     <!-- Stress Strings (Spanish) -->
     <string name="stress_title">Estrés</string>
