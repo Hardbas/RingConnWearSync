@@ -124,6 +124,8 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
             RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
             isMeasuring = false
         }
+    }
+
     VitalsDetailContent(
         vitals = vitals,
         isMeasuring = isMeasuring,

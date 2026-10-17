@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -100,12 +101,12 @@ class HeartRateTileService : TileService() {
             val subtitleTextStr = if (vitals.refreshTimestamp > 0L) {
                 val diffSec = (System.currentTimeMillis() / 1000L) - vitals.refreshTimestamp
                 if (diffSec in 0..120) {
-                    "Hace un momento"
+                    context.getString(R.string.just_now)
                 } else {
-                    SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(vitals.refreshTimestamp * 1000L))
+                    DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date(vitals.refreshTimestamp * 1000L))
                 }
             } else {
-                "Hace un momento"
+                context.getString(R.string.just_now)
             }
 
             // Exact Samsung Health One UI Watch 8 Heart Rate Colors
@@ -272,13 +273,13 @@ class HeartRateTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(rangeStartDp))
+                        .setWidth(dynamicRangeStart)
                         .setHeight(dp(barHeightDp))
                         .build()
                 )
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(rangeLengthDp))
+                        .setWidth(dynamicRangeLength)
                         .setHeight(dp(barHeightDp))
                         .setModifiers(
                             ModifiersBuilders.Modifiers.Builder()
@@ -300,7 +301,7 @@ class HeartRateTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(dotPosDp))
+                        .setWidth(dynamicDotPos)
                         .setHeight(dp(barHeightDp))
                         .build()
                 )

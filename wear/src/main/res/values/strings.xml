@@ -172,4 +172,5 @@
     <string name="euthermia_desc">Normal resting euthermia</string>
     <string name="elevated_temp_desc">Active metabolism or immune response</string>
     <string name="cool_temp_desc">Environmental cooling or deep recovery</string>
+    <string name="just_now">Just now</string>
 </resources>

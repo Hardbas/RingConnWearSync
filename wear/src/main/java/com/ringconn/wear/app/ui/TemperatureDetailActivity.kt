@@ -610,7 +610,7 @@ fun TemperatureDetailPreview() {
         vitals = RingConnVitals(
             skinTempOffset = 0.3f,
             skinTempBaseline = 36.4f,
-            skinTempTime = System.currentTimeMillis(),
+            refreshTimestamp = System.currentTimeMillis() / 1000L,
             isConnected = true
         )
     )

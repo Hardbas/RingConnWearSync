@@ -271,7 +271,7 @@ class DailySummaryTileService : TileService() {
                 )
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(targetStepsProgress))
+                        .setWidth(dynamicActivityBarWidth)
                         .setHeight(dp(3.5f))
                         .setModifiers(
                             ModifiersBuilders.Modifiers.Builder()
@@ -435,7 +435,7 @@ class DailySummaryTileService : TileService() {
                 )
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(targetSleepProgress))
+                        .setWidth(dynamicSleepBarWidth)
                         .setHeight(dp(3.5f))
                         .setModifiers(
                             ModifiersBuilders.Modifiers.Builder()

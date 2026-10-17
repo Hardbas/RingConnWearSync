@@ -261,13 +261,13 @@ class VitalsTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(rangeStartDp))
+                        .setWidth(dynamicRangeStart)
                         .setHeight(dp(barHeightDp))
                         .build()
                 )
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(rangeLengthDp))
+                        .setWidth(dynamicRangeLength)
                         .setHeight(dp(barHeightDp))
                         .setModifiers(
                             ModifiersBuilders.Modifiers.Builder()
@@ -289,7 +289,7 @@ class VitalsTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(dotPosDp))
+                        .setWidth(dynamicDotPos)
                         .setHeight(dp(barHeightDp))
                         .build()
                 )
