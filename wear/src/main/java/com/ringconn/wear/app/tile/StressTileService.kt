@@ -12,9 +12,12 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -45,16 +48,11 @@ class StressTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
-        val now = System.currentTimeMillis()
-        if (now - lastEnterTimestamp > 1200L) {
-            lastEnterTimestamp = now
-            TileService.getUpdater(this).requestUpdate(this.javaClass)
-        }
+        TileService.getUpdater(this).requestUpdate(this.javaClass)
     }
 
     companion object {
-        private var lastEnterTimestamp = 0L
-        const val RESOURCES_VERSION = "oneui8-stress-v9"
+        const val RESOURCES_VERSION = "oneui8-stress-v10"
         private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
         private const val RES_IC_STRESS = "ic_comp_stress"
         private const val RES_GAUGE_RELAXED = "oneui_ic_gauge_relaxed"
@@ -314,7 +312,7 @@ class StressTileService : TileService() {
                 4f
             }
             val dynamicStressBarWidth = DimensionBuilders.DpProp.Builder(targetStressBarWidth)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, targetStressBarWidth, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("stress_bar_width"), sweepAnimSpec))
                 .build()
 
             val stressMiniProgressBar = LayoutElementBuilders.Box.Builder()
@@ -453,9 +451,14 @@ class StressTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
+            val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(AppDataKey("stress_bar_width"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStressBarWidth))
+                .build()
+
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
+                .setState(tileState)
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }

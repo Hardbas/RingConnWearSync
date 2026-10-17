@@ -12,9 +12,12 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -41,16 +44,11 @@ class DailySummaryTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
-        val now = System.currentTimeMillis()
-        if (now - lastEnterTimestamp > 1200L) {
-            lastEnterTimestamp = now
-            TileService.getUpdater(this).requestUpdate(this.javaClass)
-        }
+        TileService.getUpdater(this).requestUpdate(this.javaClass)
     }
 
     companion object {
-        private var lastEnterTimestamp = 0L
-        const val RESOURCES_VERSION = "oneui8-summary-v4"
+        const val RESOURCES_VERSION = "oneui8-summary-v5"
         private const val RES_BG_ACTIVITY_CAPSULE = "oneui_bg_activity_capsule"
         private const val RES_BG_SLEEP_CAPSULE = "oneui_bg_sleep_capsule"
         private const val RES_IC_ACTIVITY_RINGS = "oneui_ic_activity_rings"
@@ -254,7 +252,7 @@ class DailySummaryTileService : TileService() {
             val maxActivityBarWidth = 108f
             val targetStepsProgress = ((rawSteps.toFloat() / 8000f).coerceIn(0.08f, 1f) * maxActivityBarWidth)
             val dynamicActivityBarWidth = DimensionBuilders.DpProp.Builder(targetStepsProgress)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, targetStepsProgress, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("daily_steps_progress"), sweepAnimSpec))
                 .build()
 
             val activityMiniProgressBar = LayoutElementBuilders.Box.Builder()
@@ -418,7 +416,7 @@ class DailySummaryTileService : TileService() {
                 0f
             }
             val dynamicSleepBarWidth = DimensionBuilders.DpProp.Builder(targetSleepProgress)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, targetSleepProgress, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("daily_sleep_progress"), sweepAnimSpec))
                 .build()
 
             val sleepMiniProgressBar = LayoutElementBuilders.Box.Builder()
@@ -512,9 +510,15 @@ class DailySummaryTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
+            val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(AppDataKey("daily_steps_progress"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsProgress))
+                .addKeyToValueMapping(AppDataKey("daily_sleep_progress"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSleepProgress))
+                .build()
+
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
+                .setState(tileState)
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }

@@ -12,9 +12,12 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -39,16 +42,11 @@ class VitalsTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
-        val now = System.currentTimeMillis()
-        if (now - lastEnterTimestamp > 1200L) {
-            lastEnterTimestamp = now
-            TileService.getUpdater(this).requestUpdate(this.javaClass)
-        }
+        TileService.getUpdater(this).requestUpdate(this.javaClass)
     }
 
     companion object {
-        private var lastEnterTimestamp = 0L
-        const val RESOURCES_VERSION = "oneui8-vitals-v5"
+        const val RESOURCES_VERSION = "oneui8-vitals-v6"
         private const val RES_BG_VITALS_CAPSULE = "oneui_bg_vitals_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"
@@ -227,17 +225,36 @@ class VitalsTileService : TileService() {
                 )
                 .build()
 
-            // Dynamic Animated Offset & Widths with static fallbacks
+            // Continuous pulse animation for indicator dot (800ms reverse loop, reverse-engineered from shealth cg7.java:482)
+            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(800L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            // Dynamic Animated Offset & Widths bound to AppDataKey state
             val dynamicRangeStart = DimensionBuilders.DpProp.Builder(rangeStartDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, rangeStartDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_range_start"), sweepAnimSpec))
                 .build()
 
             val dynamicRangeLength = DimensionBuilders.DpProp.Builder(rangeLengthDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, rangeLengthDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_range_length"), sweepAnimSpec))
                 .build()
 
             val dynamicDotPos = DimensionBuilders.DpProp.Builder(dotPosDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, dotPosDp, sweepAnimSpec))
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_dot_pos"), sweepAnimSpec))
+                .build()
+
+            val dynamicDotSize = DimensionBuilders.DpProp.Builder(8.2f)
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(6.5f, 9.5f, pulseAnimSpec))
                 .build()
 
             val barTrackBox = LayoutElementBuilders.Box.Builder()
@@ -296,8 +313,8 @@ class VitalsTileService : TileService() {
                 .addContent(
                     LayoutElementBuilders.Image.Builder()
                         .setResourceId(RES_HR_DOT)
-                        .setWidth(dp(8.2f))
-                        .setHeight(dp(8.2f))
+                        .setWidth(dynamicDotSize)
+                        .setHeight(dynamicDotSize)
                         .build()
                 )
                 .build()
@@ -391,9 +408,16 @@ class VitalsTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
+            val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(AppDataKey("vitals_range_start"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeStartDp))
+                .addKeyToValueMapping(AppDataKey("vitals_range_length"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeLengthDp))
+                .addKeyToValueMapping(AppDataKey("vitals_dot_pos"), DynamicDataBuilders.DynamicDataValue.fromFloat(dotPosDp))
+                .build()
+
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
+                .setState(tileState)
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
