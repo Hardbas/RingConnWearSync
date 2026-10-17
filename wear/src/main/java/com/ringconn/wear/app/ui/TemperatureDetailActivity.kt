@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -180,7 +179,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(26.dp))
+                    .clip(ShapePod)
                     .background(TempHeroGradient)
                     .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
@@ -188,7 +187,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     // Badge status pill
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(ShapeChip)
                             .background(statusColor.copy(alpha = 0.22f))
                             .padding(horizontal = 12.dp, vertical = 3.5.dp)
                     ) {
@@ -279,7 +278,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ShapeCard)
                     .background(CardGradient)
                     .padding(14.dp)
             ) {
@@ -314,7 +313,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ShapeCard)
                     .background(CardGradient)
                     .padding(14.dp)
             ) {
@@ -359,7 +358,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ShapeCard)
                     .background(Color(0xFF162B24))
                     .padding(14.dp)
             ) {
@@ -388,7 +387,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(ShapeCard)
             .background(CardGradient)
             .padding(14.dp)
     ) {
@@ -558,7 +557,7 @@ private fun TempBandRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(ShapeChip)
             .background(if (isActive) color.copy(alpha = 0.18f) else Color.Transparent)
             .padding(horizontal = 8.dp, vertical = 5.dp)
     ) {

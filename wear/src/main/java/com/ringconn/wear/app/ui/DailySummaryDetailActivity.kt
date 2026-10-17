@@ -13,7 +13,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,8 +47,6 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
-private val StadiumShape32 = RoundedCornerShape(32.dp)
-private val StadiumShape30 = RoundedCornerShape(30.dp)
 private val DailyActivityBrush = Brush.verticalGradient(listOf(ActivityGradientStart, ActivityGradientEnd))
 
 class DailySummaryDetailActivity : ComponentActivity() {
@@ -169,7 +166,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape32)
+                    .clip(ShapeStadium)
                     .background(DailyActivityBrush)
                     .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
@@ -225,7 +222,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape30)
+                    .clip(ShapeStadium)
                     .background(DailyActivityBrush)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {

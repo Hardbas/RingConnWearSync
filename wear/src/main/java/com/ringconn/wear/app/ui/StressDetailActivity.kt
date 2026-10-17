@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -173,7 +172,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(26.dp))
+                    .clip(ShapePod)
                     .background(StressHeroGradient)
                     .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
@@ -181,7 +180,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     // Badge status pill
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(ShapeChip)
                             .background(statusColor.copy(alpha = 0.22f))
                             .padding(horizontal = 12.dp, vertical = 3.5.dp)
                     ) {
@@ -261,7 +260,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ShapeCard)
                     .background(CardGradient)
                     .padding(14.dp)
             ) {
@@ -290,7 +289,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(ShapeCard)
                     .background(Color(0xFF181528))
                     .padding(14.dp)
             ) {
@@ -335,7 +334,7 @@ private fun StressTimelineCard(score: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(ShapeCard)
             .background(CardGradient)
             .padding(14.dp)
     ) {
@@ -476,7 +475,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(ShapeCard)
             .background(CardGradient)
             .padding(14.dp)
     ) {
@@ -586,7 +585,7 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(ShapeChip)
             .background(if (isActive) color.copy(alpha = 0.18f) else Color.Transparent)
             .padding(horizontal = 8.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
