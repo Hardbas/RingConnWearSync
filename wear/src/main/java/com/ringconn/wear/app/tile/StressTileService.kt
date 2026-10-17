@@ -48,7 +48,6 @@ class StressTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
-        TileService.getUpdater(this).requestUpdate(this.javaClass)
     }
 
     companion object {
