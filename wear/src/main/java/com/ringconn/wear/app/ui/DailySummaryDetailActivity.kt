@@ -29,7 +29,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -150,14 +149,14 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
             ) {
                 Text(
                     text = stringResource(R.string.daily_activity_title),
-                    fontSize = 15.sp,
+                    fontSize = TextBody,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = 11.sp,
+                    fontSize = TextLabel,
                     color = LabelSilver
                 )
             }
@@ -185,15 +184,25 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "$activityScore ${stringResource(R.string.pts_unit)}",
-                            fontSize = 24.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$activityScore",
+                                fontSize = TextHero,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.pts_unit),
+                                fontSize = TextBody,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
                         Text(
                             text = stringResource(R.string.excellent),
-                            fontSize = 12.sp,
+                            fontSize = TextLabel,
                             color = LimeSteps,
                             fontWeight = FontWeight.Bold
                         )
@@ -212,7 +221,8 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     append("$calories")
                                 }
                             },
-                            fontSize = 12.5.sp
+                            fontSize = TextLabel,
+                            style = TabularNums
                         )
                     }
                 }
@@ -229,7 +239,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 Column {
                     Text(
                         text = stringResource(R.string.daily_goals_title),
-                        fontSize = 13.sp,
+                        fontSize = TextBody,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
@@ -407,9 +417,9 @@ private fun ActivityMetricBar(
                         .background(color)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(title, fontSize = 11.5.sp, color = Color.White)
+                Text(title, fontSize = TextLabel, color = Color.White)
             }
-            Text("$current / $target", fontSize = 11.sp, color = LabelSilver)
+            Text("$current / $target", fontSize = TextLabel, style = TabularNums, color = LabelSilver)
         }
         Spacer(modifier = Modifier.height(3.dp))
         Canvas(
