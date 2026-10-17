@@ -73,16 +73,49 @@ class RingConnForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                buildForegroundNotification("Conectado con Galaxy Watch 8"),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, buildForegroundNotification("Conectado con Galaxy Watch 8"))
+        val notification = buildForegroundNotification("Conectado con Galaxy Watch 8")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed startForeground with connectedDevice, falling back to dataSync", e)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                    )
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+            } catch (e2: Exception) {
+                Log.e(TAG, "Failed startForeground fallback to dataSync", e2)
+                try {
+                    startForeground(NOTIFICATION_ID, notification)
+                } catch (e3: Exception) {
+                    Log.e(TAG, "Failed default startForeground", e3)
+                }
+            }
         }
-        registerReceiver(userPresentReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT))
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(userPresentReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(userPresentReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT))
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not register userPresentReceiver", e)
+        }
+
         scheduleWatchdog(this)
         startPeriodicSync()
     }

@@ -82,10 +82,17 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. Iniciar servicio 24/7 en segundo plano
-        RingConnForegroundService.start(this)
+        // 1. Iniciar servicio 24/7 en segundo plano de forma protegida
+        try {
+            RingConnForegroundService.start(this)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting foreground service on launch", e)
+        }
 
-        // 2. ScrollView configurado para scroll suave sin bloqueos
+        // 2. Solicitar permisos de runtime adicionales si faltan
+        requestBridgePermissions()
+
+        // 3. ScrollView configurado para scroll suave sin bloqueos
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             isVerticalScrollBarEnabled = false
@@ -597,6 +604,23 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 headerBadge.text = "Permiso Requerido"
                 headerBadge.setTextColor(Color.parseColor("#FFD60A"))
             }
+        }
+    }
+
+    private fun requestBridgePermissions() {
+        val permissionsToRequest = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (checkSelfPermission(android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.BLUETOOTH_CONNECT)
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissions(permissionsToRequest.toTypedArray(), 105)
         }
     }
 
