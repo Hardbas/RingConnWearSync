@@ -52,7 +52,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.Text
 import com.ringconn.wear.app.R
@@ -170,7 +169,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             Text(
                 text = stringResource(R.string.skin_temp),
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = TextBody,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -194,7 +193,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         Text(
                             text = statusLabel,
                             color = statusColor,
-                            fontSize = 11.5.sp,
+                            fontSize = TextLabel,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -205,7 +204,8 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = offsetFormatted,
                         color = Color.White,
-                        fontSize = 38.sp,
+                        fontSize = TextHero,
+                        style = TabularNums,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -214,7 +214,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.temp_baseline_format, baseline),
                         color = Color(0xFFD1FAE5),
-                        fontSize = 12.sp,
+                        fontSize = TextLabel,
                         fontWeight = FontWeight.Medium
                     )
 
@@ -293,7 +293,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         Text(
                             text = stringResource(R.string.temp_delta_explanation_title),
                             color = TempEmeraldSoft,
-                            fontSize = 13.sp,
+                            fontSize = TextBody,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -301,8 +301,8 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.temp_delta_explanation_desc),
                         color = Color(0xFFCFD8DC),
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
                     )
                 }
             }
@@ -321,7 +321,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.temp_thermoregulation_title),
                         color = Color.White,
-                        fontSize = 13.5.sp,
+                        fontSize = TextBody,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -366,15 +366,15 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.temp_recovery_title),
                         color = TempEmeraldSoft,
-                        fontSize = 13.sp,
+                        fontSize = TextBody,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.temp_recovery_desc),
                         color = Color(0xFFCFD8DC),
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
                     )
                 }
             }
@@ -400,13 +400,13 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 Text(
                     text = stringResource(R.string.temp_circadian_curve_title),
                     color = Color.White,
-                    fontSize = 13.5.sp,
+                    fontSize = TextBody,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = stringResource(R.string.sleep_stat),
                     color = TempEmeraldSoft,
-                    fontSize = 11.sp,
+                    fontSize = TextLabel,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -513,10 +513,10 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "23h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "02h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "05h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "08h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "23h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "02h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "05h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "08h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -528,18 +528,18 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "-0.4 °C", color = TempCool, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.min_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "-0.4 °C", color = TempCool, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.min_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "98%", color = TempOptimal, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.in_range_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "98%", color = TempOptimal, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.in_range_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "0.0 °C", color = Color.White, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.baseline_stat), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "0.0 °C", color = Color.White, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.baseline_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
             }
         }
@@ -577,14 +577,15 @@ private fun TempBandRow(
                 Text(
                     text = label,
                     color = if (isActive) Color.White else Color(0xFFB0BEC5),
-                    fontSize = 12.sp,
+                    fontSize = TextLabel,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
                 )
             }
             Text(
                 text = range,
                 color = if (isActive) color else Color(0xFF78909C),
-                fontSize = 11.5.sp,
+                fontSize = TextLabel,
+                style = TabularNums,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
         }
@@ -592,8 +593,8 @@ private fun TempBandRow(
         Text(
             text = desc,
             color = Color(0xFF90A4AE),
-            fontSize = 10.5.sp,
-            lineHeight = 13.5.sp,
+            fontSize = TextCaption,
+            lineHeight = TextBody,
             modifier = Modifier.padding(start = 14.dp)
         )
     }

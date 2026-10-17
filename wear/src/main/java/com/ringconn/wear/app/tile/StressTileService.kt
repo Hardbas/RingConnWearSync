@@ -197,7 +197,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13f))
+                        .setSize(sp(TileType.TITLE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(lavenderColor)
                         .build()
@@ -209,7 +209,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(statusColor)
                         .build()
@@ -255,7 +255,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(34f))
+                        .setSize(sp(TileType.HERO))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -267,7 +267,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(argb(0xFFD8B4FE.toInt()))
                         .build()
@@ -288,7 +288,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(argb(cyanAccentColor))
                         .build()
@@ -380,7 +380,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()

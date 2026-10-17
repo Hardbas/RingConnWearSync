@@ -27,7 +27,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -193,14 +192,14 @@ fun SleepDetailContent(
             ) {
                 Text(
                     text = stringResource(R.string.sleep_analysis_title),
-                    fontSize = 15.sp,
+                    fontSize = TextBody,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = 11.sp,
+                    fontSize = TextLabel,
                     color = SleepPeriwinkle
                 )
             }
@@ -237,7 +236,8 @@ fun SleepDetailContent(
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = sleepScoreText,
-                                    fontSize = 32.sp,
+                                    fontSize = TextHero,
+                                    style = TabularNums,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -245,7 +245,7 @@ fun SleepDetailContent(
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = stringResource(R.string.pts_unit),
-                                        fontSize = 13.sp,
+                                        fontSize = TextBody,
                                         color = SleepPeriwinkle,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier.padding(bottom = 3.dp)
@@ -254,7 +254,7 @@ fun SleepDetailContent(
                             }
                             Text(
                                 text = qualityBadge,
-                                fontSize = 12.sp,
+                                fontSize = TextLabel,
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1
@@ -281,12 +281,13 @@ fun SleepDetailContent(
                     ) {
                         Text(
                             text = stringResource(R.string.total_sleep_time),
-                            fontSize = 11.5.sp,
+                            fontSize = TextLabel,
                             color = SleepPeriwinkle
                         )
                         Text(
                             text = durationText,
-                            fontSize = 11.5.sp,
+                            fontSize = TextLabel,
+                            style = TabularNums,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -310,14 +311,15 @@ fun SleepDetailContent(
                     ) {
                         Text(
                             text = stringResource(R.string.sleep_stages_title),
-                            fontSize = 13.sp,
+                            fontSize = TextBody,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                         if (!hasStages) {
                             Text(
                                 text = stringResource(R.string.no_data),
-                                fontSize = 10.sp,
+                                fontSize = TextCaption,
+                                style = TabularNums,
                                 color = LabelSilver
                             )
                         }
@@ -354,9 +356,9 @@ fun SleepDetailContent(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.no_stages_detected),
-                            fontSize = 11.sp,
+                            fontSize = TextLabel,
                             color = LabelSilver,
-                            lineHeight = 14.sp
+                            lineHeight = TextBody
                         )
                     }
                 }
@@ -373,7 +375,7 @@ fun SleepDetailContent(
                 Column {
                     Text(
                         text = stringResource(R.string.nocturnal_biometrics),
-                        fontSize = 13.sp,
+                        fontSize = TextBody,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
@@ -425,7 +427,7 @@ fun SleepDetailContent(
             ) {
                 Text(
                     text = if (isSyncing) stringResource(R.string.syncing_ring) else stringResource(R.string.sync_ring),
-                    fontSize = 12.sp,
+                    fontSize = TextLabel,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isSyncing) Color(0xFF70E000) else Color(0xFF8E99F3)
                 )
@@ -539,20 +541,22 @@ private fun SleepStageRow(
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = name,
-                fontSize = 11.5.sp,
+                fontSize = TextLabel,
                 color = Color.White
             )
         }
         Row {
             Text(
                 text = duration,
-                fontSize = 11.5.sp,
+                fontSize = TextLabel,
+                style = TabularNums,
                 color = SleepPeriwinkle
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = percentage,
-                fontSize = 11.5.sp,
+                fontSize = TextLabel,
+                style = TabularNums,
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )
@@ -576,14 +580,15 @@ private fun NocturnalMetricBox(
         Column {
             Text(
                 text = label,
-                fontSize = 9.5.sp,
+                fontSize = TextCaption,
                 color = SleepPeriwinkle,
                 maxLines = 1
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
-                fontSize = 12.sp,
+                fontSize = TextLabel,
+                style = TabularNums,
                 color = valueColor,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1

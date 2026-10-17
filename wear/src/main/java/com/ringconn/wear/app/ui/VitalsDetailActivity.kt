@@ -26,7 +26,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -198,14 +197,14 @@ fun VitalsDetailContent(
             ) {
                 Text(
                     text = stringResource(R.string.tile_heart_rate_title),
-                    fontSize = 15.sp,
+                    fontSize = TextBody,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = 11.sp,
+                    fontSize = TextLabel,
                     color = HrSubtitlePink
                 )
             }
@@ -229,14 +228,15 @@ fun VitalsDetailContent(
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = "$currentHr",
-                                fontSize = 36.sp,
+                                fontSize = TextHero,
+                                style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = stringResource(R.string.bpm_unit),
-                                fontSize = 14.sp,
+                                fontSize = TextBody,
                                 color = HrBpmWarm,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             )
@@ -251,7 +251,7 @@ fun VitalsDetailContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = 11.sp, color = HrSubtitlePink)
+                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
                         AnimatedMinMaxBar(
                             progress = 0.68f,
                             color = HrMinMaxPink,
@@ -260,7 +260,7 @@ fun VitalsDetailContent(
                                 .height(6.dp)
                                 .padding(horizontal = 8.dp)
                         )
-                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = 11.sp, color = HrSubtitlePink)
+                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -277,7 +277,7 @@ fun VitalsDetailContent(
                     ) {
                         Text(
                             text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
-                            fontSize = 12.sp,
+                            fontSize = TextLabel,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -296,7 +296,7 @@ fun VitalsDetailContent(
                 Column {
                     Text(
                         text = stringResource(R.string.hr_zones_title),
-                        fontSize = 12.sp,
+                        fontSize = TextLabel,
                         color = LabelSilver,
                         fontWeight = FontWeight.Bold
                     )
@@ -409,7 +409,7 @@ private fun ZoneRow(label: String, isActive: Boolean) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = TextLabel,
             color = if (isActive) Color.White else LabelSilver,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
@@ -426,9 +426,9 @@ private fun MetricMiniCapsule(label: String, value: String, color: Color, modifi
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = label, fontSize = 10.sp, color = LabelSilver)
+            Text(text = label, fontSize = TextCaption, color = LabelSilver)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(text = value, fontSize = 13.sp, color = color, fontWeight = FontWeight.Bold)
+            Text(text = value, fontSize = TextBody, style = TabularNums, color = color, fontWeight = FontWeight.Bold)
         }
     }
 }

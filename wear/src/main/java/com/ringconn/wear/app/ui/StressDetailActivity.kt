@@ -49,7 +49,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.Text
 import com.ringconn.wear.app.R
@@ -163,7 +162,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             Text(
                 text = stringResource(R.string.stress_title),
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = TextBody,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
@@ -187,7 +186,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                         Text(
                             text = statusLabel,
                             color = statusColor,
-                            fontSize = 11.5.sp,
+                            fontSize = TextLabel,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -214,14 +213,15 @@ fun StressDetailContent(vitals: RingConnVitals) {
                                 Text(
                                     text = if (score > 0) "$score" else "--",
                                     color = Color.White,
-                                    fontSize = 36.sp,
+                                    fontSize = TextHero,
+                                    style = TabularNums,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "/ 100",
                                     color = Color(0xFFD8B4FE),
-                                    fontSize = 12.5.sp,
+                                    fontSize = TextLabel,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 5.dp)
                                 )
@@ -230,7 +230,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                             Text(
                                 text = hrvVal,
                                 color = Color(0xFF5EEAD4),
-                                fontSize = 11.sp,
+                                fontSize = TextLabel,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -268,7 +268,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.stress_zones_title),
                         color = Color.White,
-                        fontSize = 13.5.sp,
+                        fontSize = TextBody,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -297,15 +297,15 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     Text(
                         text = stringResource(R.string.stress_breathing_title),
                         color = Color(0xFF00E676),
-                        fontSize = 13.sp,
+                        fontSize = TextBody,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.stress_breathing_guide),
                         color = Color(0xFFCFD8DC),
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
                     )
                 }
             }
@@ -347,13 +347,13 @@ private fun StressTimelineCard(score: Int) {
                 Text(
                     text = stringResource(R.string.stress_timeline_title),
                     color = Color.White,
-                    fontSize = 13.5.sp,
+                    fontSize = TextBody,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "24h",
                     color = Color(0xFFD8B4FE),
-                    fontSize = 11.sp,
+                    fontSize = TextLabel,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -436,11 +436,11 @@ private fun StressTimelineCard(score: Int) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "0h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "6h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "12h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "18h", color = Color(0xFF94A3B8), fontSize = 9.sp)
-                Text(text = "24h", color = Color(0xFF94A3B8), fontSize = 9.sp)
+                Text(text = "0h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "6h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "12h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "18h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = "24h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -452,18 +452,18 @@ private fun StressTimelineCard(score: Int) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "74%", color = StressRelaxed, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.calm), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "74%", color = StressRelaxed, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.calm), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "26%", color = StressModerate, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.tension), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "26%", color = StressModerate, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.tension), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "64", color = StressHigh, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.peak), color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                    Text(text = "64", color = StressHigh, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.peak), color = Color(0xFF94A3B8), fontSize = TextCaption)
                 }
             }
         }
@@ -490,7 +490,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                 Text(
                     text = stringResource(R.string.stress_autonomic_balance_title),
                     color = Color(0xFF00E5FF),
-                    fontSize = 13.sp,
+                    fontSize = TextBody,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -540,24 +540,25 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                 Text(
                     text = stringResource(R.string.calm_vagal),
                     color = StressRelaxed,
-                    fontSize = 9.5.sp,
+                    fontSize = TextCaption,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = stringResource(R.string.alert_load),
                     color = StressHigh,
-                    fontSize = 9.5.sp,
+                    fontSize = TextCaption,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
             val hrvVal = if (hrv > 0) "$hrv ms" else "--"
             Text(
                 text = stringResource(R.string.stress_hrv_label, hrvVal),
                 color = Color.White,
-                fontSize = 12.sp,
+                fontSize = TextLabel,
+                style = TabularNums,
                 fontWeight = FontWeight.SemiBold
             )
 
@@ -573,8 +574,8 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
             Text(
                 text = explanation,
                 color = Color(0xFFB0BEC5),
-                fontSize = 11.sp,
-                lineHeight = 15.sp
+                fontSize = TextLabel,
+                lineHeight = TextBody
             )
         }
     }
@@ -602,14 +603,15 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
             Text(
                 text = label,
                 color = if (isActive) Color.White else Color(0xFFB0BEC5),
-                fontSize = 12.sp,
+                fontSize = TextLabel,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
         }
         Text(
             text = range,
             color = if (isActive) color else Color(0xFF78909C),
-            fontSize = 11.5.sp,
+            fontSize = TextLabel,
+            style = TabularNums,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }

@@ -24,7 +24,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -166,7 +165,7 @@ fun WearAppContent(
             ) {
                 Text(
                     text = "RingConn Health",
-                    fontSize = 15.sp,
+                    fontSize = TextBody,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
@@ -187,7 +186,8 @@ fun WearAppContent(
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = stringResource(R.string.ring_battery, vitals.ringBattery),
-                            fontSize = 11.sp,
+                            fontSize = TextLabel,
+                            style = TabularNums,
                             color = LabelSilver,
                             fontWeight = FontWeight.Medium
                         )
@@ -219,7 +219,7 @@ fun WearAppContent(
                     Column {
                         Text(
                             text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.heart_rate),
-                            fontSize = 12.sp,
+                            fontSize = TextLabel,
                             color = HrSubtitlePink,
                             fontWeight = FontWeight.Medium
                         )
@@ -228,13 +228,14 @@ fun WearAppContent(
                             val hrText = if (hasHr) "${vitals.lastHeartRate}" else "--"
                             Text(
                                 text = hrText,
-                                fontSize = 21.sp,
+                                fontSize = TextBig,
+                                style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = " ${stringResource(R.string.bpm_unit)}  ",
-                                fontSize = 11.sp,
+                                fontSize = TextLabel,
                                 color = HrSubtitlePink,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
@@ -242,7 +243,8 @@ fun WearAppContent(
                             val spo2Text = if (hasSpo2) "SpO2 ${vitals.lastSpo2}%" else "SpO2 --"
                             Text(
                                 text = spo2Text,
-                                fontSize = 12.sp,
+                                fontSize = TextLabel,
+                                style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(bottom = 2.dp)
@@ -275,29 +277,30 @@ fun WearAppContent(
                     Column {
                         Text(
                             text = stringResource(R.string.tile_summary_title),
-                            fontSize = 12.5.sp,
+                            fontSize = TextLabel,
                             color = LabelSilver,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = buildAnnotatedString {
-                                withStyle(SpanStyle(color = LimeSteps, fontWeight = FontWeight.Bold, fontSize = 16.sp)) {
+                                withStyle(SpanStyle(color = LimeSteps, fontWeight = FontWeight.Bold, fontSize = TextBody)) {
                                     append(stepsFormatted)
                                 }
-                                withStyle(SpanStyle(color = PipeGray, fontSize = 13.sp)) {
+                                withStyle(SpanStyle(color = PipeGray, fontSize = TextBody)) {
                                     append(" | ")
                                 }
-                                withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold, fontSize = 16.sp)) {
+                                withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold, fontSize = TextBody)) {
                                     val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
                                     append(if (activeMins > 0) "${activeMins}m" else "--")
                                 }
-                                withStyle(SpanStyle(color = PipeGray, fontSize = 13.sp)) {
+                                withStyle(SpanStyle(color = PipeGray, fontSize = TextBody)) {
                                     append(" | ")
                                 }
-                                withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold, fontSize = 16.sp)) {
+                                withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold, fontSize = TextBody)) {
                                     append("${vitals.liveCalorie}")
                                 }
-                            }
+                            },
+                            style = TabularNums
                         )
                     }
                 }
@@ -334,7 +337,7 @@ fun WearAppContent(
                     Column {
                         Text(
                             text = stringResource(R.string.sleep_score),
-                            fontSize = 12.5.sp,
+                            fontSize = TextLabel,
                             color = SleepPeriwinkle,
                             fontWeight = FontWeight.Medium
                         )
@@ -343,7 +346,8 @@ fun WearAppContent(
                             val sleepText = if (hasSleep) "${vitals.sleepScore} ${stringResource(R.string.pts_unit)}" else "--"
                             Text(
                                 text = sleepText,
-                                fontSize = 17.sp,
+                                fontSize = TextBody,
+                                style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -351,7 +355,8 @@ fun WearAppContent(
                             val hrvText = if (hasHrv) "  ·  HRV ${vitals.lastHrv} ms" else "  ·  HRV --"
                             Text(
                                 text = hrvText,
-                                fontSize = 12.sp,
+                                fontSize = TextLabel,
+                                style = TabularNums,
                                 color = CyanActive,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(bottom = 1.dp)
@@ -392,7 +397,7 @@ fun WearAppContent(
                     Column {
                         Text(
                             text = stringResource(R.string.stress_title),
-                            fontSize = 12.5.sp,
+                            fontSize = TextLabel,
                             color = StressLilac,
                             fontWeight = FontWeight.Medium
                         )
@@ -406,7 +411,8 @@ fun WearAppContent(
                         }
                         Text(
                             text = if (hasStress) "${vitals.stressScore} / 100  ·  $stressStatus" else "--",
-                            fontSize = 15.sp,
+                            fontSize = TextBody,
+                            style = TabularNums,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
@@ -457,13 +463,14 @@ fun WearAppContent(
                     Column {
                         Text(
                             text = stringResource(R.string.skin_temp),
-                            fontSize = 12.5.sp,
+                            fontSize = TextLabel,
                             color = LabelSilver,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = if (hasTemp) "$tempFormatted  ·  $tempStatus" else "--",
-                            fontSize = 15.sp,
+                            fontSize = TextBody,
+                            style = TabularNums,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )

@@ -156,7 +156,7 @@ class HeartRateTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -169,7 +169,7 @@ class HeartRateTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(subtitlePinkColor)
                         .build()
@@ -188,7 +188,7 @@ class HeartRateTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(26f))
+                        .setSize(sp(TileType.HERO))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -200,7 +200,7 @@ class HeartRateTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(bpmUnitWarmColor)
                         .build()
@@ -330,7 +330,7 @@ class HeartRateTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()

@@ -177,7 +177,7 @@ class DailySummaryTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(labelSilverColor)
                         .build()
@@ -188,7 +188,7 @@ class DailySummaryTileService : TileService() {
                 .setText(stepsFormatted)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(15.5f))
+                        .setSize(sp(TileType.VALUE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(limeStepsColor)
                         .build()
@@ -199,7 +199,7 @@ class DailySummaryTileService : TileService() {
                 .setText(" | ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13f))
+                        .setSize(sp(TileType.TITLE))
                         .setColor(pipeDividerColor)
                         .build()
                 )
@@ -209,7 +209,7 @@ class DailySummaryTileService : TileService() {
                 .setText(activityVal)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(15.5f))
+                        .setSize(sp(TileType.VALUE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
@@ -220,7 +220,7 @@ class DailySummaryTileService : TileService() {
                 .setText(" | ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13f))
+                        .setSize(sp(TileType.TITLE))
                         .setColor(pipeDividerColor)
                         .build()
                 )
@@ -230,7 +230,7 @@ class DailySummaryTileService : TileService() {
                 .setText(calorieVal)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(15.5f))
+                        .setSize(sp(TileType.VALUE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(violetCalorieColor)
                         .build()
@@ -359,7 +359,7 @@ class DailySummaryTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(sleepLabelColor)
                         .build()
@@ -370,7 +370,7 @@ class DailySummaryTileService : TileService() {
                 .setText(sleepVal)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(16f))
+                        .setSize(sp(TileType.VALUE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -381,7 +381,7 @@ class DailySummaryTileService : TileService() {
                 .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)}  ·  " else "  ·  ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(sleepLabelColor)
                         .build()
@@ -392,7 +392,7 @@ class DailySummaryTileService : TileService() {
                 .setText("SpO2 $spo2Val")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13f))
+                        .setSize(sp(TileType.TITLE))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
