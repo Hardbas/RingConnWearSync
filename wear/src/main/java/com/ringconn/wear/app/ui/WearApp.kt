@@ -48,6 +48,10 @@ val HrGradientEnd = Color(0xFF662E43)
 val HrSubtitlePink = Color(0xFFF99BD6)
 val HrMinMaxPink = Color(0xFFFF5D99)
 
+val VitalsGradientStart = Color(0xFF6E5A2F)
+val VitalsGradientEnd   = Color(0xFF2B2514)
+val VitalsGold          = Color(0xFFEDCB8B)
+
 val ActivityGradientStart = Color(0xFF3B434A)
 val ActivityGradientEnd = Color(0xFF181A1D)
 val LimeSteps = Color(0xFFA0F116)
@@ -67,6 +71,7 @@ val LabelSilver = Color(0xFFB7B7BB)
 val PipeGray = Color(0xFF686D73)
 val GlassBlack50 = Color(0x80000000)
 
+private val WearVitalsBrush = Brush.linearGradient(colors = listOf(VitalsGradientStart, VitalsGradientEnd))
 private val WearHrBrush = Brush.linearGradient(colors = listOf(HrGradientStart, HrGradientEnd))
 private val WearActivityBrush = Brush.horizontalGradient(colors = listOf(ActivityGradientStart, ActivityGradientEnd))
 private val WearSleepBrush = Brush.horizontalGradient(colors = listOf(SleepGradientStart, SleepGradientEnd))
@@ -195,13 +200,13 @@ fun WearAppContent(
                 }
             }
 
-            // 2. CAPSULE 1: Heart Rate & SpO2 (One UI Watch 8 Crimson Capsule)
+            // 2. CAPSULE 1: Heart Rate & SpO2 (One UI Watch 8 Vitals Capsule)
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(74.dp)
                     .clip(ShapePill)
-                    .background(WearHrBrush)
+                    .background(WearVitalsBrush)
                     .clickable {
                         context.startActivity(Intent(context, VitalsDetailActivity::class.java))
                     }
@@ -220,7 +225,7 @@ fun WearAppContent(
                         Text(
                             text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.heart_rate),
                             fontSize = TextLabel,
-                            color = HrSubtitlePink,
+                            color = VitalsGold,
                             fontWeight = FontWeight.Medium
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
@@ -236,7 +241,7 @@ fun WearAppContent(
                             Text(
                                 text = " ${stringResource(R.string.bpm_unit)}  ",
                                 fontSize = TextLabel,
-                                color = HrSubtitlePink,
+                                color = VitalsGold,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
                             val hasSpo2 = vitals.lastSpo2 > 0
