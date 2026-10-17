@@ -43,16 +43,18 @@ class TemperatureTileService : TileService() {
         return Futures.immediateFuture(buildResources())
     }
 
-    /**
-     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
-     * that would block touch events when user taps the tile.
-     */
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
+        val now = System.currentTimeMillis()
+        if (now - lastEnterTimestamp > 1200L) {
+            lastEnterTimestamp = now
+            TileService.getUpdater(this).requestUpdate(this.javaClass)
+        }
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-temp-v7"
+        private var lastEnterTimestamp = 0L
+        const val RESOURCES_VERSION = "oneui8-temp-v8"
         private const val RES_BG_TEMP_CAPSULE = "oneui_bg_temp_capsule"
         private const val RES_IC_TEMP = "ic_comp_temp"
 

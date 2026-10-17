@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,6 +14,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -204,7 +207,7 @@ fun WearAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .height(74.dp)
+                    .height(78.dp)
                     .clip(ShapePill)
                     .background(WearVitalsBrush)
                     .clickable {
@@ -255,6 +258,15 @@ fun WearAppContent(
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        val hrProgress = if (vitals.lastHeartRate > 0) ((vitals.lastHeartRate - 40f) / 110f).coerceIn(0.1f, 1f) else 0.5f
+                        AnimatedCapsuleBar(
+                            progress = hrProgress,
+                            color = VitalsGold,
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(3.5.dp)
+                        )
                     }
                 }
             }
@@ -263,7 +275,7 @@ fun WearAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .height(70.dp)
+                    .height(76.dp)
                     .clip(ShapePill)
                     .background(WearActivityBrush)
                     .clickable {
@@ -307,6 +319,15 @@ fun WearAppContent(
                             },
                             style = TabularNums
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        val stepsProgress = (vitals.liveSteps.toFloat() / 8000f).coerceIn(0.08f, 1f)
+                        AnimatedCapsuleBar(
+                            progress = stepsProgress,
+                            color = LimeSteps,
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(3.5.dp)
+                        )
                     }
                 }
             }
@@ -315,7 +336,7 @@ fun WearAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .height(70.dp)
+                    .height(76.dp)
                     .clip(ShapePill)
                     .background(WearSleepBrush)
                     .clickable {
@@ -367,6 +388,15 @@ fun WearAppContent(
                                 modifier = Modifier.padding(bottom = 1.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(3.dp))
+                        val sleepProgress = (vitals.sleepScore.toFloat() / 100f).coerceIn(0.08f, 1f)
+                        AnimatedCapsuleBar(
+                            progress = sleepProgress,
+                            color = SleepPeriwinkle,
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(3.5.dp)
+                        )
                     }
                 }
             }
@@ -375,7 +405,7 @@ fun WearAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .height(68.dp)
+                    .height(74.dp)
                     .clip(ShapePill)
                     .background(WearStressBrush)
                     .clickable {
@@ -421,6 +451,15 @@ fun WearAppContent(
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        val stressProgress = (vitals.stressScore.toFloat() / 100f).coerceIn(0.08f, 1f)
+                        AnimatedCapsuleBar(
+                            progress = stressProgress,
+                            color = StressLilac,
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(3.5.dp)
+                        )
                     }
                 }
             }
@@ -441,7 +480,7 @@ fun WearAppContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .height(68.dp)
+                    .height(74.dp)
                     .clip(ShapePill)
                     .background(Brush.horizontalGradient(listOf(Color(0xFF144238), Color(0xFF0B2822))))
                     .clickable {
@@ -479,9 +518,48 @@ fun WearAppContent(
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        val tempProgress = ((tempOffset + 1.0f) / 2.0f).coerceIn(0.1f, 1f)
+                        AnimatedCapsuleBar(
+                            progress = tempProgress,
+                            color = Color(0xFF68D391),
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .height(3.5.dp)
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * One UI Watch 8 600ms cubic-bezier animated mini progress bar for capsules.
+ */
+@Composable
+private fun AnimatedCapsuleBar(
+    progress: Float,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val anim = remember { Animatable(0f) }
+    LaunchedEffect(progress) {
+        anim.animateTo(
+            targetValue = progress.coerceIn(0.05f, 1f),
+            animationSpec = tween(
+                durationMillis = 600,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = GlassBlack50, size = size, cornerRadius = corner)
+        val barW = size.width * anim.value
+        if (barW > 0f) {
+            drawRoundRect(color = color, size = Size(barW, size.height), cornerRadius = corner)
         }
     }
 }

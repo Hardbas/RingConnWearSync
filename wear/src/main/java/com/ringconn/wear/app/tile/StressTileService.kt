@@ -43,16 +43,18 @@ class StressTileService : TileService() {
         return Futures.immediateFuture(buildResources())
     }
 
-    /**
-     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
-     * that would block touch events when user taps the tile.
-     */
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
+        val now = System.currentTimeMillis()
+        if (now - lastEnterTimestamp > 1200L) {
+            lastEnterTimestamp = now
+            TileService.getUpdater(this).requestUpdate(this.javaClass)
+        }
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-stress-v8"
+        private var lastEnterTimestamp = 0L
+        const val RESOURCES_VERSION = "oneui8-stress-v9"
         private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
         private const val RES_IC_STRESS = "ic_comp_stress"
         private const val RES_GAUGE_RELAXED = "oneui_ic_gauge_relaxed"
