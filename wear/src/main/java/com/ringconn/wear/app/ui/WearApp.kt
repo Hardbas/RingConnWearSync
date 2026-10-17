@@ -60,8 +60,10 @@ val SleepGradientStart = Color(0xFF3D4468)
 val SleepGradientEnd = Color(0xFF181A22)
 val SleepPeriwinkle = Color(0xFFA5AEDE)
 
-val StressGradientStart = Color(0xFF416CBE)
-val StressGradientEnd = Color(0xFF1B324D)
+val StressGradientStart = Color(0xFF543F74)
+val StressGradientMid = Color(0xFF382750)
+val StressGradientEnd = Color(0xFF1E142E)
+val StressLilac = Color(0xFFD8B4FE)
 
 val LabelSilver = Color(0xFFB7B7BB)
 val PipeGray = Color(0xFF686D73)
@@ -71,7 +73,7 @@ private val WearPillShape = RoundedCornerShape(50)
 private val WearHrBrush = Brush.linearGradient(colors = listOf(HrGradientStart, HrGradientEnd))
 private val WearActivityBrush = Brush.horizontalGradient(colors = listOf(ActivityGradientStart, ActivityGradientEnd))
 private val WearSleepBrush = Brush.horizontalGradient(colors = listOf(SleepGradientStart, SleepGradientEnd))
-private val WearStressBrush = Brush.horizontalGradient(colors = listOf(StressGradientStart, StressGradientEnd))
+private val WearStressBrush = Brush.horizontalGradient(colors = listOf(StressGradientStart, StressGradientMid, StressGradientEnd))
 
 @Composable
 fun WearApp(context: Context) {
@@ -393,7 +395,7 @@ fun WearAppContent(
                         Text(
                             text = stringResource(R.string.stress_title),
                             fontSize = 12.5.sp,
-                            color = LabelSilver,
+                            color = StressLilac,
                             fontWeight = FontWeight.Medium
                         )
                         val hasStress = vitals.stressScore > 0
