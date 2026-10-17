@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.DimensionBuilders.sp
@@ -12,6 +13,9 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -39,8 +43,16 @@ class StressTileService : TileService() {
         return Futures.immediateFuture(buildResources())
     }
 
+    /**
+     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
+     * that would block touch events when user taps the tile.
+     */
+    override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
+        super.onTileEnterEvent(tileEnterEvent)
+    }
+
     companion object {
-        const val RESOURCES_VERSION = "oneui8-stress-v7"
+        const val RESOURCES_VERSION = "oneui8-stress-v8"
         private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
         private const val RES_IC_STRESS = "ic_comp_stress"
         private const val RES_GAUGE_RELAXED = "oneui_ic_gauge_relaxed"
@@ -283,12 +295,66 @@ class StressTileService : TileService() {
                 )
                 .build()
 
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(600L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .build()
+                )
+                .build()
+
+            // Dynamic mini progress bar for Stress (0 to 100 mapped across 76dp track)
+            val maxStressBarWidth = 76f
+            val targetStressBarWidth = if (score > 0) {
+                ((score / 100f) * maxStressBarWidth).coerceIn(4f, maxStressBarWidth)
+            } else {
+                4f
+            }
+            val dynamicStressBarWidth = DimensionBuilders.DpProp.Builder(targetStressBarWidth)
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(0.1f, targetStressBarWidth, sweepAnimSpec))
+                .build()
+
+            val stressMiniProgressBar = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(maxStressBarWidth))
+                .setHeight(dp(3.5f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(argb(0x2EFFFFFF.toInt()))
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(
+                    LayoutElementBuilders.Box.Builder()
+                        .setWidth(dynamicStressBarWidth)
+                        .setHeight(dp(3.5f))
+                        .setModifiers(
+                            ModifiersBuilders.Modifiers.Builder()
+                                .setBackground(
+                                    ModifiersBuilders.Background.Builder()
+                                        .setColor(statusColor)
+                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
+                                        .build()
+                                )
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+
             val leftHeroColumn = LayoutElementBuilders.Column.Builder()
                 .setWidth(dp(88f))
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
                 .addContent(scoreNumbersRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
+                .addContent(stressMiniProgressBar)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
                 .addContent(hrvText)
                 .build()
 
@@ -388,7 +454,7 @@ class StressTileService : TileService() {
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
-                .setFreshnessIntervalMillis(60_000L)
+                .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
     }

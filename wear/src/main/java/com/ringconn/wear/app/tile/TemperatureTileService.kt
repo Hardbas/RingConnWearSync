@@ -15,6 +15,7 @@ import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -40,6 +41,14 @@ class TemperatureTileService : TileService() {
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
         return Futures.immediateFuture(buildResources())
+    }
+
+    /**
+     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
+     * that would block touch events when user taps the tile.
+     */
+    override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
+        super.onTileEnterEvent(tileEnterEvent)
     }
 
     companion object {
@@ -398,7 +407,7 @@ class TemperatureTileService : TileService() {
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
-                .setFreshnessIntervalMillis(60_000L)
+                .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
     }
