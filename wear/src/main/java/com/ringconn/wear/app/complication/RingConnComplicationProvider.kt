@@ -293,7 +293,7 @@ class RingBatteryComplicationProvider : SuspendingComplicationDataSourceService(
             title = getString(R.string.ring_short),
             longText = getString(R.string.ring_battery, 85),
             contentDesc = getString(R.string.complication_battery_desc, 85),
-            iconRes = R.drawable.ic_comp_battery,
+            iconRes = R.drawable.ic_ringconn_ring,
             currentValue = 85f,
             minValue = 0f,
             maxValue = 100f
@@ -316,7 +316,7 @@ class RingBatteryComplicationProvider : SuspendingComplicationDataSourceService(
             title = getString(R.string.ring_short),
             longText = if (battery > 0) getString(R.string.ring_battery, battery) else getString(R.string.ring_short),
             contentDesc = getString(R.string.complication_battery_desc, battery),
-            iconRes = R.drawable.ic_comp_battery,
+            iconRes = R.drawable.ic_ringconn_ring,
             currentValue = battery.coerceIn(0, 100).toFloat(),
             minValue = 0f,
             maxValue = 100f,
