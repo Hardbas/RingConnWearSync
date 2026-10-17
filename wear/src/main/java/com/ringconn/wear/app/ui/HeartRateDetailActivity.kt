@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,11 +59,6 @@ private val ZoneFatBurnColor = Color(0xFFFFB703)   // Quema de grasa (120 - 140 
 private val ZoneCardioColor = Color(0xFFFB8500)    // Cardio (140 - 160 bpm)
 private val ZonePeakColor = Color(0xFFFF5D99)      // Pico (> 160 bpm)
 
-private val StadiumShape32 = RoundedCornerShape(32.dp)
-private val StadiumShape26 = RoundedCornerShape(26.dp)
-private val StadiumShape18 = RoundedCornerShape(18.dp)
-private val StadiumShape12 = RoundedCornerShape(12.dp)
-private val PillShape = RoundedCornerShape(50)
 private val VitalsHrBrush = Brush.verticalGradient(listOf(HrGradientStart, HrGradientEnd))
 
 /**
@@ -301,7 +295,7 @@ fun HeartRateDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape32)
+                    .clip(ShapeStadium)
                     .background(VitalsHrBrush)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
@@ -357,7 +351,7 @@ fun HeartRateDetailContent(
                     // "Medir Ahora" pill button
                     Box(
                         modifier = Modifier
-                            .clip(PillShape)
+                            .clip(ShapePill)
                             .background(GlassBlack50)
                             .clickable {
                                 onMeasureClick()
@@ -380,7 +374,7 @@ fun HeartRateDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape26)
+                    .clip(ShapePod)
                     .background(CardBg)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -398,7 +392,7 @@ fun HeartRateDetailContent(
                         )
                         Box(
                             modifier = Modifier
-                                .clip(PillShape)
+                                .clip(ShapePill)
                                 .background(hrStatusColor.copy(alpha = 0.22f))
                                 .padding(horizontal = 10.dp, vertical = 3.dp),
                             contentAlignment = Alignment.Center
@@ -425,7 +419,7 @@ fun HeartRateDetailContent(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(StadiumShape12)
+                                .clip(ShapeChip)
                                 .background(CardBgSubtle)
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         ) {
@@ -443,7 +437,7 @@ fun HeartRateDetailContent(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(StadiumShape12)
+                                .clip(ShapeChip)
                                 .background(CardBgSubtle)
                                 .padding(horizontal = 8.dp, vertical = 7.dp)
                         ) {
@@ -468,7 +462,7 @@ fun HeartRateDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape26)
+                    .clip(ShapePod)
                     .background(CardBg)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -518,7 +512,7 @@ fun HeartRateDetailContent(
 
                         Box(
                             modifier = Modifier
-                                .clip(PillShape)
+                                .clip(ShapePill)
                                 .background(hrvStatusColor.copy(alpha = 0.22f))
                                 .padding(horizontal = 10.dp, vertical = 3.dp),
                             contentAlignment = Alignment.Center
@@ -564,7 +558,7 @@ fun HeartRateDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape26)
+                    .clip(ShapePod)
                     .background(CardBg)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -842,7 +836,7 @@ private fun ZoneItemRow(
             if (isActive) {
                 Box(
                     modifier = Modifier
-                        .clip(PillShape)
+                        .clip(ShapePill)
                         .background(zoneColor)
                         .padding(horizontal = 5.dp, vertical = 1.dp)
                 ) {

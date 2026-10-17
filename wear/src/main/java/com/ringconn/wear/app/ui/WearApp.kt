@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +68,6 @@ val LabelSilver = Color(0xFFB7B7BB)
 val PipeGray = Color(0xFF686D73)
 val GlassBlack50 = Color(0x80000000)
 
-private val WearPillShape = RoundedCornerShape(50)
 private val WearHrBrush = Brush.linearGradient(colors = listOf(HrGradientStart, HrGradientEnd))
 private val WearActivityBrush = Brush.horizontalGradient(colors = listOf(ActivityGradientStart, ActivityGradientEnd))
 private val WearSleepBrush = Brush.horizontalGradient(colors = listOf(SleepGradientStart, SleepGradientEnd))
@@ -175,7 +173,7 @@ fun WearAppContent(
                 Spacer(modifier = Modifier.height(4.dp))
                 Box(
                     modifier = Modifier
-                        .clip(WearPillShape)
+                        .clip(ShapePill)
                         .background(Color(0xFF1F2328))
                         .padding(horizontal = 10.dp, vertical = 2.dp)
                 ) {
@@ -202,7 +200,7 @@ fun WearAppContent(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(74.dp)
-                    .clip(WearPillShape)
+                    .clip(ShapePill)
                     .background(WearHrBrush)
                     .clickable {
                         context.startActivity(Intent(context, VitalsDetailActivity::class.java))
@@ -259,7 +257,7 @@ fun WearAppContent(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(70.dp)
-                    .clip(WearPillShape)
+                    .clip(ShapePill)
                     .background(WearActivityBrush)
                     .clickable {
                         context.startActivity(Intent(context, DailySummaryDetailActivity::class.java))
@@ -310,7 +308,7 @@ fun WearAppContent(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(70.dp)
-                    .clip(WearPillShape)
+                    .clip(ShapePill)
                     .background(WearSleepBrush)
                     .clickable {
                         context.startActivity(Intent(context, SleepDetailActivity::class.java))
@@ -368,7 +366,7 @@ fun WearAppContent(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(68.dp)
-                    .clip(WearPillShape)
+                    .clip(ShapePill)
                     .background(WearStressBrush)
                     .clickable {
                         context.startActivity(Intent(context, StressDetailActivity::class.java))
@@ -433,7 +431,7 @@ fun WearAppContent(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(68.dp)
-                    .clip(WearPillShape)
+                    .clip(ShapePill)
                     .background(Brush.horizontalGradient(listOf(Color(0xFF144238), Color(0xFF0B2822))))
                     .clickable {
                         context.startActivity(Intent(context, TemperatureDetailActivity::class.java))

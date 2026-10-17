@@ -14,7 +14,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,10 +54,6 @@ private val StageLight = Color(0xFFA5AEDE)     // Ligero
 private val StageDeep = Color(0xFF5E72E4)      // Profundo
 private val SleepTrackBg = Color(0x33000000)
 
-private val StadiumShape32 = RoundedCornerShape(32.dp)
-private val StadiumShape30 = RoundedCornerShape(30.dp)
-private val StadiumShape12 = RoundedCornerShape(12.dp)
-private val SleepStagesShape = RoundedCornerShape(4.dp)
 private val SleepHeroBrush = Brush.verticalGradient(listOf(SleepGradientStart, SleepGradientEnd))
 private val NocturnalGradientBrush = Brush.verticalGradient(listOf(Color(0xFF252B42), Color(0xFF141724)))
 private val SleepBarBrush = Brush.horizontalGradient(listOf(StageDeep, SleepPeriwinkle))
@@ -214,7 +209,7 @@ fun SleepDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape32)
+                    .clip(ShapeStadium)
                     .background(SleepHeroBrush)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
@@ -303,7 +298,7 @@ fun SleepDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape30)
+                    .clip(ShapeStadium)
                     .background(SleepHeroBrush)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -345,7 +340,7 @@ fun SleepDetailContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
-                                .clip(SleepStagesShape)
+                                .clip(ShapeBar)
                         )
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -371,7 +366,7 @@ fun SleepDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape30)
+                    .clip(ShapeStadium)
                     .background(NocturnalGradientBrush)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -413,7 +408,7 @@ fun SleepDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape30)
+                    .clip(ShapeStadium)
                     .background(Color(0xFF1E2638))
                     .clickable {
                         if (!isSyncing) {
@@ -574,7 +569,7 @@ private fun NocturnalMetricBox(
     Box(
         modifier = Modifier
             .width(76.dp)
-            .clip(StadiumShape12)
+            .clip(ShapeChip)
             .background(GlassBlack50)
             .padding(horizontal = 6.dp, vertical = 6.dp)
     ) {

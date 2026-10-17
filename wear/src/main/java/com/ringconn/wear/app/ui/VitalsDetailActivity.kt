@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,10 +46,6 @@ import kotlinx.coroutines.launch
 // Specific to HR view
 private val HrBpmWarm = Color(0xFFFBCEB6)
 
-private val StadiumShape32 = RoundedCornerShape(32.dp)
-private val StadiumShape26 = RoundedCornerShape(26.dp)
-private val StadiumShape18 = RoundedCornerShape(18.dp)
-private val MeasureBtnShape = RoundedCornerShape(50)
 private val VitalsHrBrush = Brush.verticalGradient(listOf(HrGradientStart, HrGradientEnd))
 
 class VitalsDetailActivity : ComponentActivity() {
@@ -219,7 +214,7 @@ fun VitalsDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape32)
+                    .clip(ShapeStadium)
                     .background(VitalsHrBrush)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
@@ -273,7 +268,7 @@ fun VitalsDetailContent(
                     // Sync button
                     Box(
                         modifier = Modifier
-                            .clip(MeasureBtnShape)
+                            .clip(ShapePill)
                             .background(GlassBlack50)
                             .clickable {
                                 onMeasureClick()
@@ -294,7 +289,7 @@ fun VitalsDetailContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
-                    .clip(StadiumShape26)
+                    .clip(ShapePod)
                     .background(Color(0xFF1B1E22))
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
@@ -425,7 +420,7 @@ private fun ZoneRow(label: String, isActive: Boolean) {
 private fun MetricMiniCapsule(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .clip(StadiumShape18)
+            .clip(ShapeCard)
             .background(Color(0xFF1B1E22))
             .padding(vertical = 8.dp),
         contentAlignment = Alignment.Center
