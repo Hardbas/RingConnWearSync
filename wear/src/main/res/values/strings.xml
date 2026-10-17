@@ -36,6 +36,8 @@
     <string name="complication_stress_desc">Stress Index: %1$d</string>
     <string name="complication_temp_label">RingConn Temperature</string>
     <string name="complication_temp_desc">Skin Temp: %1$+.1f °C</string>
+    <string name="low_battery_alert_title">Low Ring Battery</string>
+    <string name="low_battery_alert_desc">Ring battery is at %1$d%%. Please charge your smart ring.</string>
     
     <!-- Stress Strings (English Default) -->
     <string name="stress_title">Stress</string>

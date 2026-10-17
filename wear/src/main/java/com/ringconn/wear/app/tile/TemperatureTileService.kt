@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
 import androidx.wear.protolayout.DimensionBuilders.sp
@@ -12,6 +13,8 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.DynamicBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
@@ -193,11 +196,25 @@ class TemperatureTileService : TileService() {
                 .addContent(unitText)
                 .build()
 
-            // 5. One UI 8 Static Deterministic Fluctuation Scale Bar (-1.0°C to +1.0°C, 146dp x 10dp)
+            // 5. One UI 8 Dynamic Animated Fluctuation Scale Bar (-1.0°C to +1.0°C, 146dp x 10dp)
             val barWidthDp = 146f
             val barHeightDp = 10f
             val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
             val dotPosDp = ((normOffset * barWidthDp) - 4f).coerceIn(0f, barWidthDp - 8f)
+            val baselinePosDp = (barWidthDp * 0.5f) - 4f
+
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(600L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .build()
+                )
+                .build()
+
+            val dynamicDotSpacerWidth = DimensionBuilders.DpProp.Builder(dotPosDp)
+                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(baselinePosDp, dotPosDp, sweepAnimSpec))
+                .build()
 
             val barTrackBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(dp(barWidthDp))
@@ -279,7 +296,7 @@ class TemperatureTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Box.Builder()
-                        .setWidth(dp(dotPosDp))
+                        .setWidth(dynamicDotSpacerWidth)
                         .setHeight(dp(barHeightDp))
                         .build()
                 )

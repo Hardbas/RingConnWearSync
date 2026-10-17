@@ -1,8 +1,17 @@
 package com.ringconn.wear.app.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.wearable.DataEvent
@@ -10,6 +19,7 @@ import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
+import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
 import com.ringconn.wear.app.tile.DailySummaryTileService
@@ -146,6 +156,9 @@ class WearDataListenerService : WearableListenerService() {
         RingConnComplicationProvider.saveAndBroadcastVitals(this, vitals)
         Log.i(TAG, "[$source] Fresh RingConn vitals persisted: HR=${vitals.lastHeartRate}, Min=${vitals.minHeartRate}, Max=${vitals.maxHeartRate}, SpO2=${vitals.lastSpo2}, Sleep=${vitals.sleepScore}, Bat=${vitals.ringBattery}%")
 
+        // Check for low ring battery (<20%) and trigger wrist haptic alert
+        checkLowBatteryHapticAlert(vitals)
+
         // Request immediate refresh of Complications
         val complicationRequester = ComplicationDataSourceUpdateRequester.create(
             this,
@@ -161,9 +174,95 @@ class WearDataListenerService : WearableListenerService() {
         TileService.getUpdater(this).requestUpdate(TemperatureTileService::class.java)
     }
 
+    private fun checkLowBatteryHapticAlert(vitals: RingConnVitals) {
+        val battery = vitals.ringBattery
+        if (battery in 1..19 && !vitals.isCharging) {
+            val prefs = getSharedPreferences(PREFS_ALERTS, Context.MODE_PRIVATE)
+            val lastAlertedBattery = prefs.getInt(KEY_LAST_LOW_BAT, -1)
+            val lastAlertTime = prefs.getLong(KEY_LAST_LOW_BAT_TIME, 0L)
+            val now = System.currentTimeMillis()
+
+            if (lastAlertedBattery == -1 || battery < lastAlertedBattery || (now - lastAlertTime > 4 * 3600_000L)) {
+                prefs.edit()
+                    .putInt(KEY_LAST_LOW_BAT, battery)
+                    .putLong(KEY_LAST_LOW_BAT_TIME, now)
+                    .apply()
+
+                triggerHapticNotification(battery)
+            }
+        } else if (battery >= 20 || vitals.isCharging) {
+            getSharedPreferences(PREFS_ALERTS, Context.MODE_PRIVATE)
+                .edit()
+                .remove(KEY_LAST_LOW_BAT)
+                .apply()
+        }
+    }
+
+    private fun triggerHapticNotification(battery: Int) {
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createWaveform(
+                    longArrayOf(0, 200, 150, 300),
+                    intArrayOf(0, 200, 0, 255),
+                    -1
+                )
+                vibrator?.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(longArrayOf(0, 200, 150, 300), -1)
+            }
+
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    CHANNEL_ALERTS_ID,
+                    "RingConn Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Alertas de batería y telemetría de RingConn"
+                    enableVibration(false)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            val pendingIntent = PendingIntent.getActivity(
+                this, 101, launchIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+
+            val notification = NotificationCompat.Builder(this, CHANNEL_ALERTS_ID)
+                .setContentTitle(getString(R.string.low_battery_alert_title))
+                .setContentText(getString(R.string.low_battery_alert_desc, battery))
+                .setSmallIcon(R.drawable.ic_ringconn_ring)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+            notificationManager.notify(NOTIFICATION_LOW_BAT_ID, notification)
+            Log.i(TAG, "Low battery haptic alert triggered: ring battery at $battery%")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error triggering haptic alert", e)
+        }
+    }
+
     companion object {
         private const val TAG = "WearDataListener"
         const val PATH_RINGCONN_VITALS = "/ringconn/vitals"
         const val PATH_RINGCONN_MESSAGE = "/ringconn/vitals_message"
+        const val PREFS_ALERTS = "ring_alerts"
+        const val KEY_LAST_LOW_BAT = "last_low_bat_alert"
+        const val KEY_LAST_LOW_BAT_TIME = "last_low_bat_time"
+        const val CHANNEL_ALERTS_ID = "ringconn_wear_alerts"
+        const val NOTIFICATION_LOW_BAT_ID = 3001
     }
 }
