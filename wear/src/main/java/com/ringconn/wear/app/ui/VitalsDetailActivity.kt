@@ -35,6 +35,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import com.ringconn.wear.app.R
@@ -123,8 +124,41 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
             RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
             isMeasuring = false
         }
-    }
+    VitalsDetailContent(
+        vitals = vitals,
+        isMeasuring = isMeasuring,
+        onMeasureClick = {
+            if (!isMeasuring) {
+                isMeasuring = true
+                scope.launch {
+                    try {
+                        val nodes = Wearable.getNodeClient(context).connectedNodes
+                        nodes.addOnSuccessListener { nodeList ->
+                            nodeList.forEach { node ->
+                                Wearable.getMessageClient(context).sendMessage(
+                                    node.id,
+                                    "/action/sync_ringconn",
+                                    ByteArray(0)
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    delay(5500L)
+                    isMeasuring = false
+                }
+            }
+        }
+    )
+}
 
+@Composable
+fun VitalsDetailContent(
+    vitals: RingConnVitals,
+    isMeasuring: Boolean = false,
+    onMeasureClick: () -> Unit = {}
+) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -240,27 +274,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                             .clip(MeasureBtnShape)
                             .background(GlassBlack50)
                             .clickable {
-                                if (!isMeasuring) {
-                                    isMeasuring = true
-                                    scope.launch {
-                                        try {
-                                            val nodes = Wearable.getNodeClient(context).connectedNodes
-                                            nodes.addOnSuccessListener { nodeList ->
-                                                nodeList.forEach { node ->
-                                                    Wearable.getMessageClient(context).sendMessage(
-                                                        node.id,
-                                                        "/action/sync_ringconn",
-                                                        ByteArray(0)
-                                                    )
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
-                                        }
-                                        delay(5500L)
-                                        isMeasuring = false
-                                    }
-                                }
+                                onMeasureClick()
                             }
                             .padding(horizontal = 24.dp, vertical = 7.dp)
                     ) {
@@ -421,3 +435,25 @@ private fun MetricMiniCapsule(label: String, value: String, color: Color, modifi
         }
     }
 }
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun VitalsDetailPreview() {
+    VitalsDetailContent(
+        vitals = RingConnVitals(
+            lastHeartRate = 74,
+            minHeartRate = 58,
+            maxHeartRate = 124,
+            lastSpo2 = 98,
+            lastHrv = 46,
+            stressScore = 26,
+            isConnected = true
+        ),
+        isMeasuring = false,
+        onMeasureClick = {}
+    )
+}
+

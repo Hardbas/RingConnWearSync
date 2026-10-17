@@ -36,6 +36,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.*
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
@@ -104,6 +105,32 @@ fun SleepDetailScreen(context: Context) {
         }
     }
 
+    SleepDetailContent(
+        vitals = vitals,
+        onSyncClick = {
+            try {
+                val nodes = Wearable.getNodeClient(context).connectedNodes
+                nodes.addOnSuccessListener { nodeList ->
+                    nodeList.forEach { node ->
+                        Wearable.getMessageClient(context).sendMessage(
+                            node.id,
+                            "/action/sync_ringconn",
+                            ByteArray(0)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    )
+}
+
+@Composable
+fun SleepDetailContent(
+    vitals: RingConnVitals,
+    onSyncClick: () -> Unit = {}
+) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -382,7 +409,6 @@ fun SleepDetailScreen(context: Context) {
             // Capsule 4: Sincronizar Anillo via Mobile RPC
             var isSyncing by remember { mutableStateOf(false) }
             val syncScope = rememberCoroutineScope()
-            val context = LocalContext.current
 
             Box(
                 modifier = Modifier
@@ -393,20 +419,7 @@ fun SleepDetailScreen(context: Context) {
                         if (!isSyncing) {
                             isSyncing = true
                             syncScope.launch {
-                                try {
-                                    val nodes = Wearable.getNodeClient(context).connectedNodes
-                                    nodes.addOnSuccessListener { nodeList ->
-                                        nodeList.forEach { node ->
-                                            Wearable.getMessageClient(context).sendMessage(
-                                                node.id,
-                                                "/action/sync_ringconn",
-                                                ByteArray(0)
-                                            )
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
+                                onSyncClick()
                                 delay(4000L)
                                 isSyncing = false
                             }
@@ -590,3 +603,24 @@ private fun formatMins(mins: Int): String {
     val m = mins % 60
     return if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
 }
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun SleepDetailPreview() {
+    SleepDetailContent(
+        vitals = RingConnVitals(
+            sleepScore = 86,
+            sleepDeepMins = 85,
+            sleepRemMins = 110,
+            sleepLightMins = 230,
+            sleepAwakeMins = 25,
+            lastHeartRate = 56,
+            lastSpo2 = 98,
+            isConnected = true
+        )
+    )
+}
+

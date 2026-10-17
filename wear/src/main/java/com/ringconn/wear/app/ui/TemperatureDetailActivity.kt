@@ -54,9 +54,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.Text
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
+import com.ringconn.wear.app.data.RingConnVitals
 import kotlinx.coroutines.launch
 
 private val TempCool = Color(0xFF38BDF8)          // Electric Sky Cyan
@@ -112,6 +114,11 @@ fun TemperatureDetailScreen(context: Context) {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
+    TemperatureDetailContent(vitals = vitals)
+}
+
+@Composable
+fun TemperatureDetailContent(vitals: RingConnVitals) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -591,4 +598,20 @@ private fun TempBandRow(
             modifier = Modifier.padding(start = 14.dp)
         )
     }
+}
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun TemperatureDetailPreview() {
+    TemperatureDetailContent(
+        vitals = RingConnVitals(
+            skinTempOffset = 0.3f,
+            skinTempBaseline = 36.4f,
+            skinTempTime = System.currentTimeMillis(),
+            isConnected = true
+        )
+    )
 }

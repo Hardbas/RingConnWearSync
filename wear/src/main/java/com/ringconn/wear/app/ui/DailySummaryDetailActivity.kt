@@ -39,6 +39,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.*
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
@@ -93,6 +94,11 @@ fun DailySummaryDetailScreen(context: Context) {
         }
     }
 
+    DailySummaryDetailContent(vitals = vitals)
+}
+
+@Composable
+fun DailySummaryDetailContent(vitals: RingConnVitals) {
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -430,4 +436,23 @@ private fun ActivityMetricBar(
             }
         }
     }
+}
+
+@Preview(
+    device = "id:wearos_small_round",
+    showSystemUi = true
+)
+@Composable
+fun DailySummaryDetailPreview() {
+    DailySummaryDetailContent(
+        vitals = RingConnVitals(
+            liveSteps = 6420,
+            targetSteps = 10000,
+            activeMinutes = 42,
+            liveCalorie = 340,
+            targetCalorie = 500,
+            activityScore = 78,
+            isConnected = true
+        )
+    )
 }
