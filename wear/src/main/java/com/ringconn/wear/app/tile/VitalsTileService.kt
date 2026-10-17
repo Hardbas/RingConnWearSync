@@ -46,8 +46,8 @@ class VitalsTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-vitals-v3"
-        private const val RES_BG_HR_CAPSULE = "oneui_bg_hr_capsule"
+        const val RESOURCES_VERSION = "oneui8-vitals-v4"
+        private const val RES_BG_VITALS_CAPSULE = "oneui_bg_vitals_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"
 
@@ -55,11 +55,11 @@ class VitalsTileService : TileService() {
             return ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
                 .addIdToImageMapping(
-                    RES_BG_HR_CAPSULE,
+                    RES_BG_VITALS_CAPSULE,
                     ResourceBuilders.ImageResource.Builder()
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_hr_capsule)
+                                .setResourceId(R.drawable.oneui_bg_vitals_capsule)
                                 .build()
                         ).build()
                 )
@@ -94,11 +94,9 @@ class VitalsTileService : TileService() {
             val spo2Value = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--%"
             val batteryValue = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--%"
 
-            // Exact Samsung Health One UI Watch 8 Heart Rate Tile Colors (ra7.java / cg7.java)
+            // Gold Titanium Palette for Vitals
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val subtitlePinkColor = argb(0xFFF99BD6.toInt())      // heart_rate_tile_subtitle_text_color
-            val bpmUnitWarmColor = argb(0xFFFBCEB6.toInt())       // heart_rate_tile_bpm_text_color
-            val minMaxBarColor = argb(0xFFFF5D99.toInt())         // heart_rate_tile_min_max_progress_color
+            val vitalsGoldColor = argb(0xFFEDCB8B.toInt())        // vitals gold titanium accent
             val translucentGlassBlack = argb(0x80000000.toInt())  // #80000000 (50% black glassmorphism)
 
             // Click 1: Main Stadium Capsule -> VitalsDetailActivity
@@ -129,7 +127,7 @@ class VitalsTileService : TileService() {
 
             // 1. One UI Watch 8 Full-Tile Stadium Capsule Background (195dp x 142dp, radius 71dp)
             val bgImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_HR_CAPSULE)
+                .setResourceId(RES_BG_VITALS_CAPSULE)
                 .setWidth(dp(195f))
                 .setHeight(dp(142f))
                 .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
@@ -156,7 +154,7 @@ class VitalsTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
-                        .setColor(subtitlePinkColor)
+                        .setColor(vitalsGoldColor)
                         .build()
                 )
                 .build()
@@ -187,7 +185,7 @@ class VitalsTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(TileType.LABEL))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(bpmUnitWarmColor)
+                        .setColor(vitalsGoldColor)
                         .build()
                 )
                 .build()
@@ -273,7 +271,7 @@ class VitalsTileService : TileService() {
                             ModifiersBuilders.Modifiers.Builder()
                                 .setBackground(
                                     ModifiersBuilders.Background.Builder()
-                                        .setColor(minMaxBarColor)
+                                        .setColor(vitalsGoldColor)
                                         .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(6.15f)).build())
                                         .build()
                                 )

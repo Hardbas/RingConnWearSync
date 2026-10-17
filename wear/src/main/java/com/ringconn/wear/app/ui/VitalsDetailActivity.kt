@@ -42,10 +42,7 @@ import com.ringconn.wear.app.data.RingConnVitals
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// Specific to HR view
-private val HrBpmWarm = Color(0xFFFBCEB6)
-
-private val VitalsHrBrush = Brush.verticalGradient(listOf(HrGradientStart, HrGradientEnd))
+private val VitalsBrush = Brush.verticalGradient(listOf(VitalsGradientStart, VitalsGradientEnd))
 
 class VitalsDetailActivity : ComponentActivity() {
     private var triggerMeasureOnStart by mutableStateOf(false)
@@ -205,7 +202,7 @@ fun VitalsDetailContent(
                 Text(
                     text = stringResource(R.string.ring_model_subtitle),
                     fontSize = TextLabel,
-                    color = HrSubtitlePink
+                    color = VitalsGold
                 )
             }
 
@@ -214,7 +211,7 @@ fun VitalsDetailContent(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(ShapeStadium)
-                    .background(VitalsHrBrush)
+                    .background(VitalsBrush)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -237,7 +234,7 @@ fun VitalsDetailContent(
                             Text(
                                 text = stringResource(R.string.bpm_unit),
                                 fontSize = TextBody,
-                                color = HrBpmWarm,
+                                color = VitalsGold,
                                 modifier = Modifier.padding(bottom = 6.dp)
                             )
                         }
@@ -251,16 +248,16 @@ fun VitalsDetailContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
                         AnimatedMinMaxBar(
                             progress = 0.68f,
-                            color = HrMinMaxPink,
+                            color = VitalsGold,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(6.dp)
                                 .padding(horizontal = 8.dp)
                         )
-                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -404,7 +401,7 @@ private fun ZoneRow(label: String, isActive: Boolean) {
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(if (isActive) HrMinMaxPink else PipeGray)
+                .background(if (isActive) VitalsGold else PipeGray)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
