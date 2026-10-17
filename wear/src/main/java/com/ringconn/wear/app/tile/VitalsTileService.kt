@@ -37,16 +37,18 @@ class VitalsTileService : TileService() {
         return Futures.immediateFuture(buildResources())
     }
 
-    /**
-     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
-     * that would block touch events when user taps the tile.
-     */
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
+        val now = System.currentTimeMillis()
+        if (now - lastEnterTimestamp > 1200L) {
+            lastEnterTimestamp = now
+            TileService.getUpdater(this).requestUpdate(this.javaClass)
+        }
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-vitals-v4"
+        private var lastEnterTimestamp = 0L
+        const val RESOURCES_VERSION = "oneui8-vitals-v5"
         private const val RES_BG_VITALS_CAPSULE = "oneui_bg_vitals_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"

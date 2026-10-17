@@ -39,16 +39,18 @@ class DailySummaryTileService : TileService() {
         return Futures.immediateFuture(buildResources())
     }
 
-    /**
-     * Handled by Wear OS without triggering an expensive IPC re-inflation storm
-     * that would block touch events when user taps the tile.
-     */
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
+        val now = System.currentTimeMillis()
+        if (now - lastEnterTimestamp > 1200L) {
+            lastEnterTimestamp = now
+            TileService.getUpdater(this).requestUpdate(this.javaClass)
+        }
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-summary-v3"
+        private var lastEnterTimestamp = 0L
+        const val RESOURCES_VERSION = "oneui8-summary-v4"
         private const val RES_BG_ACTIVITY_CAPSULE = "oneui_bg_activity_capsule"
         private const val RES_BG_SLEEP_CAPSULE = "oneui_bg_sleep_capsule"
         private const val RES_IC_ACTIVITY_RINGS = "oneui_ic_activity_rings"
