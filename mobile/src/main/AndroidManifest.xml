@@ -81,11 +81,15 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receiver.WatchdogReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.RingConnForegroundService"
             android:exported="false"
             android:stopWithTask="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="connectedDevice" />
 
         <service
             android:name=".service.PhoneMessageReceiverService"
