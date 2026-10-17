@@ -1,5 +1,6 @@
 package com.ringconn.wear.bridge.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,12 +8,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.ringconn.wear.bridge.PhoneBridgeMainActivity
 import com.ringconn.wear.bridge.data.RingConnVitals
+import com.ringconn.wear.bridge.receiver.WatchdogReceiver
 import kotlinx.coroutines.*
 
 class RingConnForegroundService : Service() {
@@ -69,8 +73,17 @@ class RingConnForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildForegroundNotification("Conectado con Galaxy Watch 8"))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildForegroundNotification("Conectado con Galaxy Watch 8"),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildForegroundNotification("Conectado con Galaxy Watch 8"))
+        }
         registerReceiver(userPresentReceiver, android.content.IntentFilter(Intent.ACTION_USER_PRESENT))
+        scheduleWatchdog(this)
         startPeriodicSync()
     }
 
@@ -93,6 +106,7 @@ class RingConnForegroundService : Service() {
         } catch (_: Exception) {}
         syncJob?.cancel()
         scope.cancel()
+        scheduleWatchdog(this)
         super.onDestroy()
     }
 
@@ -125,6 +139,7 @@ class RingConnForegroundService : Service() {
                 "Buscando Galaxy Watch 8..."
             }
             updateNotification(noteText)
+            scheduleWatchdog(this@RingConnForegroundService)
             Log.d(TAG, "Periodic sync completed: success=$success")
         } catch (e: Exception) {
             Log.e(TAG, "Error in periodic sync", e)
@@ -176,6 +191,8 @@ class RingConnForegroundService : Service() {
         const val CHANNEL_ID = "ringconn_wear_sync_channel"
         const val NOTIFICATION_ID = 2001
         const val ACTION_SYNC_NOW = "com.ringconn.wear.bridge.SYNC_NOW"
+        private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
+        private const val WATCHDOG_REQUEST_CODE = 9001
 
         fun start(context: Context) {
             val intent = Intent(context, RingConnForegroundService::class.java)
@@ -183,6 +200,29 @@ class RingConnForegroundService : Service() {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
+            }
+            scheduleWatchdog(context)
+        }
+
+        fun scheduleWatchdog(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+                val intent = Intent(context, WatchdogReceiver::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    WATCHDOG_REQUEST_CODE,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val triggerAtMs = SystemClock.elapsedRealtime() + WATCHDOG_INTERVAL_MS
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAtMs,
+                    pendingIntent
+                )
+                Log.d(TAG, "Watchdog scheduled in 15 minutes ($triggerAtMs)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to schedule watchdog", e)
             }
         }
     }
