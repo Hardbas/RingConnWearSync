@@ -220,8 +220,10 @@ fun WearAppContent(
                             fontWeight = FontWeight.Medium
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
+                            val hasHr = vitals.lastHeartRate > 0
+                            val hrText = if (hasHr) "${vitals.lastHeartRate}" else "--"
                             Text(
-                                text = "${vitals.lastHeartRate}",
+                                text = hrText,
                                 fontSize = 21.sp,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
@@ -232,8 +234,10 @@ fun WearAppContent(
                                 color = HrSubtitlePink,
                                 modifier = Modifier.padding(bottom = 2.dp)
                             )
+                            val hasSpo2 = vitals.lastSpo2 > 0
+                            val spo2Text = if (hasSpo2) "SpO2 ${vitals.lastSpo2}%" else "SpO2 --"
                             Text(
-                                text = "SpO2 ${vitals.lastSpo2}%",
+                                text = spo2Text,
                                 fontSize = 12.sp,
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold,
@@ -325,14 +329,18 @@ fun WearAppContent(
                             fontWeight = FontWeight.Medium
                         )
                         Row(verticalAlignment = Alignment.Bottom) {
+                            val hasSleep = vitals.sleepScore > 0
+                            val sleepText = if (hasSleep) "${vitals.sleepScore} ${stringResource(R.string.pts_unit)}" else "--"
                             Text(
-                                text = "${vitals.sleepScore} ${stringResource(R.string.pts_unit)}",
+                                text = sleepText,
                                 fontSize = 17.sp,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
+                            val hasHrv = vitals.lastHrv > 0
+                            val hrvText = if (hasHrv) "  ·  HRV ${vitals.lastHrv} ms" else "  ·  HRV --"
                             Text(
-                                text = "  ·  HRV ${vitals.lastHrv} ms",
+                                text = hrvText,
                                 fontSize = 12.sp,
                                 color = CyanActive,
                                 fontWeight = FontWeight.SemiBold,
@@ -378,14 +386,16 @@ fun WearAppContent(
                             color = LabelSilver,
                             fontWeight = FontWeight.Medium
                         )
+                        val hasStress = vitals.stressScore > 0
                         val stressStatus = when {
+                            !hasStress -> "--"
                             vitals.stressScore < 30 -> stringResource(R.string.stress_relaxed)
                             vitals.stressScore < 60 -> stringResource(R.string.stress_balanced)
                             vitals.stressScore < 80 -> stringResource(R.string.stress_moderate)
                             else -> stringResource(R.string.stress_high)
                         }
                         Text(
-                            text = "${vitals.stressScore} / 100  ·  $stressStatus",
+                            text = if (hasStress) "${vitals.stressScore} / 100  ·  $stressStatus" else "--",
                             fontSize = 15.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
@@ -396,11 +406,13 @@ fun WearAppContent(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 6. CAPSULE 5: Skin Temperature (Warmth Gradient)
+            // 6. CAPSULE 5: Skin Temperature (Emerald Mint Gradient - One UI Watch 8 match)
+            val hasTemp = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
             val tempOffset = vitals.skinTempOffset
             val signStr = if (tempOffset > 0f) "+" else ""
-            val tempFormatted = String.format(java.util.Locale.US, "%s%.1f °C", signStr, tempOffset)
+            val tempFormatted = if (hasTemp) String.format(java.util.Locale.US, "%s%.1f °C", signStr, tempOffset) else "--"
             val tempStatus = when {
+                !hasTemp -> "--"
                 tempOffset in -0.5f..0.5f -> stringResource(R.string.temp_in_range)
                 tempOffset > 0.5f -> stringResource(R.string.temp_warm)
                 else -> stringResource(R.string.temp_cool)
@@ -410,7 +422,7 @@ fun WearAppContent(
                     .fillMaxWidth(0.94f)
                     .height(68.dp)
                     .clip(WearPillShape)
-                    .background(Brush.horizontalGradient(listOf(Color(0xFF4E3120), Color(0xFF2A1910))))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFF144238), Color(0xFF0B2822))))
                     .clickable {
                         context.startActivity(Intent(context, TemperatureDetailActivity::class.java))
                     }
@@ -440,7 +452,7 @@ fun WearAppContent(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "$tempFormatted  ·  $tempStatus",
+                            text = if (hasTemp) "$tempFormatted  ·  $tempStatus" else "--",
                             fontSize = 15.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold

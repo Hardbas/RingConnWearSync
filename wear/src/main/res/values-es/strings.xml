@@ -142,4 +142,35 @@
     <string name="syncing_ring">Sincronizando Anillo...</string>
     <string name="blood_oxygen_short">SpO2</string>
     <string name="hrv_short">VFC</string>
+
+    <!-- Stress Chart Strings -->
+    <string name="stress_timeline_title">Línea de tiempo 24h de estrés</string>
+    <string name="stress_calm_pct">Tiempo de calma</string>
+    <string name="stress_demand_pct">Tiempo de demanda</string>
+    <string name="stress_peak_label">Pico de estrés</string>
+    <string name="stress_autonomic_balance_title">Balance autonómico</string>
+    <string name="stress_parasympathetic">Parasimpático</string>
+    <string name="stress_sympathetic">Simpático</string>
+
+    <!-- Temperature Chart Strings -->
+    <string name="temp_circadian_curve_title">Curva térmica circadiana</string>
+    <string name="temp_baseline_label">Línea base 0.0 °C</string>
+    <string name="temp_nadir_label">Nadir (Enfriamiento)</string>
+    <string name="temp_wake_label">Elevación al despertar</string>
+    <string name="temp_min_label">Mín nocturna</string>
+    <string name="temp_max_label">Máx nocturna</string>
+    <string name="temp_stability_label">Estabilidad</string>
+    <string name="calm">Calma</string>
+    <string name="tension">Tensión</string>
+    <string name="peak">Pico</string>
+    <string name="min_stat">Mín</string>
+    <string name="in_range_stat">En rango</string>
+    <string name="sleep_stat">Sueño</string>
+    <string name="baseline_stat">Línea base</string>
+    <string name="calm_vagal">Calma (Vagal)</string>
+    <string name="alert_load">Alerta (Carga)</string>
+    <string name="euthermia_desc">Eutermia normal en reposo</string>
+    <string name="elevated_temp_desc">Metabolismo activo o respuesta inmune</string>
+    <string name="cool_temp_desc">Enfriamiento ambiental o recuperación profunda</string>
+    <string name="just_now">Hace un momento</string>
 </resources>
