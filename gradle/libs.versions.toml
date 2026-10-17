@@ -9,6 +9,7 @@ wearTiles = "1.4.1"
 horologist = "0.7.6-alpha"
 protolayout = "1.2.1"
 coroutines = "1.10.1"
+junit = "4.13.2"
 
 connectClient = "1.1.0-alpha11"
 activityKtx = "1.9.3"
@@ -37,6 +38,7 @@ compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", versi
 compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version = "1.7.6" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "coroutines" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

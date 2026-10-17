@@ -109,7 +109,7 @@
         <service
             android:name=".complication.RingBatteryComplicationProvider"
             android:exported="true"
-            android:icon="@drawable/ic_comp_battery"
+            android:icon="@drawable/ic_ringconn_ring"
             android:label="@string/complication_battery_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
