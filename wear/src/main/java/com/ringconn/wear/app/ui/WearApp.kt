@@ -202,7 +202,9 @@ fun WearAppContent(
                     .height(74.dp)
                     .clip(WearPillShape)
                     .background(WearHrBrush)
-                    .clickable { onMeasureClick() }
+                    .clickable {
+                        context.startActivity(Intent(context, VitalsDetailActivity::class.java))
+                    }
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -210,7 +212,9 @@ fun WearAppContent(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    PulsingHeartBadge(isMeasuring = isMeasuring)
+                    Box(modifier = Modifier.clickable { onMeasureClick() }) {
+                        PulsingHeartBadge(isMeasuring = isMeasuring)
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
@@ -255,6 +259,9 @@ fun WearAppContent(
                     .height(70.dp)
                     .clip(WearPillShape)
                     .background(WearActivityBrush)
+                    .clickable {
+                        context.startActivity(Intent(context, DailySummaryDetailActivity::class.java))
+                    }
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -303,6 +310,9 @@ fun WearAppContent(
                     .height(70.dp)
                     .clip(WearPillShape)
                     .background(WearSleepBrush)
+                    .clickable {
+                        context.startActivity(Intent(context, SleepDetailActivity::class.java))
+                    }
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
