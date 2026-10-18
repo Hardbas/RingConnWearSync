@@ -50,6 +50,14 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.service.WearDataListenerService
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
+import java.util.Locale
+import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -108,6 +116,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
     val scope = rememberCoroutineScope()
     var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
     var isMeasuring by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     DisposableEffect(context) {
         val prefs = context.getSharedPreferences("RingConnWearCache", Context.MODE_PRIVATE)
@@ -131,6 +140,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                 refreshTimestamp = System.currentTimeMillis() / 1000L
             )
             RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             isMeasuring = false
         }
     }
@@ -157,8 +167,11 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
-                    withTimeoutOrNull(8500L) {
+                    val syncResult = withTimeoutOrNull(8500L) {
                         WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+                    }
+                    if (syncResult != null) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     isMeasuring = false
                 }
@@ -176,6 +189,7 @@ fun VitalsDetailContent(
     val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -222,12 +236,22 @@ fun VitalsDetailContent(
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
             autoCentering = null,
+            scalingParams = ScalingLazyColumnDefaults.scalingParams(
+                edgeScale = 0.65f,
+                edgeAlpha = 0.40f,
+                minElementHeight = 0.2f,
+                maxElementHeight = 0.65f,
+                minTransitionArea = 0.35f,
+                maxTransitionArea = 0.55f,
+                scaleInterpolator = CubicBezierEasing(0.20f, 0.00f, 0.25f, 1.00f)
+            ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
@@ -254,6 +278,83 @@ fun VitalsDetailContent(
                         color = HrSubtitlePink,
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+
+            // =========================================================================
+            // a2) Readiness / Body Battery Hero Card
+            // =========================================================================
+            item {
+                val readiness = RingConnHistoryStore.computeReadinessScore(vitals)
+                val readinessClamped = readiness.coerceIn(0, 100)
+                val hasReadiness = readiness > 0
+
+                val (readinessLabel, readinessColor, cardGradient) = when {
+                    !hasReadiness -> Triple(
+                        "Syncing Telemetry",
+                        LabelSilver,
+                        Brush.verticalGradient(listOf(Color(0xFF22262C), Color(0xFF16191D)))
+                    )
+                    readinessClamped >= 75 -> Triple(
+                        "Optimal Recovery",
+                        Color(0xFF00E676),
+                        Brush.verticalGradient(listOf(Color(0xFF103327), Color(0xFF0A1F18)))
+                    )
+                    readinessClamped in 45..74 -> Triple(
+                        "Balanced Charge",
+                        Color(0xFFFFB703),
+                        Brush.verticalGradient(listOf(Color(0xFF33260A), Color(0xFF1E1706)))
+                    )
+                    else -> Triple(
+                        "Recovery Needed",
+                        Color(0xFFFF5D99),
+                        Brush.verticalGradient(listOf(Color(0xFF331420), Color(0xFF1E0C13)))
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(cardGradient)
+                        .border(BorderStroke(1.dp, readinessColor.copy(alpha = 0.35f)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LiquidReadinessOrb(
+                            score = readinessClamped,
+                            sizeDp = 58.dp,
+                            showScoreText = true
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "BODY BATTERY",
+                                fontSize = TextCaption,
+                                fontWeight = FontWeight.Bold,
+                                color = readinessColor
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = readinessLabel,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            val hrvStr = if (vitals.lastHrv > 0) "${vitals.lastHrv}ms" else "--"
+                            val sleepStr = if (vitals.sleepScore > 0) "${vitals.sleepScore}pts" else "--"
+                            Text(
+                                text = "HRV $hrvStr  ·  Sleep $sleepStr",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = LabelSilver
+                            )
+                        }
+                    }
                 }
             }
 
@@ -520,7 +621,14 @@ fun VitalsDetailContent(
             }
 
             // =========================================================================
-            // d) Telemetry Mini Cards: HRV & Battery (Centered)
+            // d2) Physiological Biomarker Strain Radar Card
+            // =========================================================================
+            item {
+                PhysiologicalStrainRadarCard(vitals = vitals)
+            }
+
+            // =========================================================================
+            // e) Telemetry Mini Cards: HRV & Battery (Centered)
             // =========================================================================
             item {
                 Row(
@@ -672,6 +780,29 @@ fun VitalsDetailContent(
                         )
                     }
                 }
+            }
+
+            // =========================================================================
+            // g) 7-Day Trend Cards: Readiness & HRV Recovery
+            // =========================================================================
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = "Readiness Trend",
+                    unit = "pts",
+                    accentColor = Color(0xFF00E676),
+                    selector = { it.readinessScore.toFloat() },
+                    currentFallback = RingConnHistoryStore.computeReadinessScore(vitals).toFloat()
+                )
+            }
+
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = "HRV Recovery Trend",
+                    unit = "ms",
+                    accentColor = CyanActive,
+                    selector = { it.hrv.toFloat() },
+                    currentFallback = vitals.lastHrv.toFloat()
+                )
             }
         }
     }
@@ -848,6 +979,263 @@ private fun HeartDialGauge(
                 topLeft = topLeft,
                 size = arcSize,
                 style = arcStroke
+            )
+        }
+    }
+}
+
+/**
+ * Physiological Biomarker Strain Radar Card.
+ * Cross-checks 4 real biomarkers:
+ * 1) HRV (lastHrv vs avgHrv or >= 40ms)
+ * 2) Heart Rate (lastHeartRate vs avgHeartRate)
+ * 3) SpO2 (lastSpo2 >= 95%)
+ * 4) Skin Temp (abs(skinTempOffset) <= 0.5f)
+ * Shows a 4-node status grid + overall status (Optimal Recovery / Moderate Strain / Recovery Alert)
+ * and an animated 4-point diamond radar visual.
+ */
+@Composable
+fun PhysiologicalStrainRadarCard(
+    vitals: RingConnVitals,
+    modifier: Modifier = Modifier
+) {
+    val hrvOptimal = if (vitals.avgHrv > 0) vitals.lastHrv >= vitals.avgHrv else vitals.lastHrv >= 40
+    val hrOptimal = if (vitals.avgHeartRate > 0) {
+        vitals.lastHeartRate <= (vitals.avgHeartRate + 5)
+    } else {
+        vitals.lastHeartRate in 45..85 || vitals.lastHeartRate == 0
+    }
+    val spo2Optimal = vitals.lastSpo2 >= 95 || vitals.lastSpo2 == 0
+    val tempOptimal = abs(vitals.skinTempOffset) <= 0.5f
+
+    val optimalScore = (if (hrvOptimal) 1 else 0) +
+                       (if (hrOptimal) 1 else 0) +
+                       (if (spo2Optimal) 1 else 0) +
+                       (if (tempOptimal) 1 else 0)
+
+    val (radarStatus, radarColor, radarBg) = when {
+        optimalScore >= 3 -> Triple("Optimal Recovery", Color(0xFF00E676), Color(0x2200E676))
+        optimalScore == 2 -> Triple("Moderate Strain", Color(0xFFFFB703), Color(0x22FFB703))
+        else -> Triple("Recovery Alert", Color(0xFFFF5D99), Color(0x22FF5D99))
+    }
+
+    val density = LocalDensity.current
+    val radarStroke = remember(density) { Stroke(width = with(density) { 1.5.dp.toPx() }) }
+    val axisStroke = remember(density) { Stroke(width = with(density) { 0.75.dp.toPx() }) }
+    val radarBrush = remember(radarColor) { SolidColor(radarColor) }
+    val radarFillBrush = remember(radarColor) { SolidColor(radarColor.copy(alpha = 0.25f)) }
+    val radarPath = remember { androidx.compose.ui.graphics.Path() }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(BorderStroke(1.dp, radarColor.copy(alpha = 0.25f)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            // Header Row: Dot + Title & Overall Status Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(radarColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Strain Radar",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(radarBg)
+                        .border(BorderStroke(1.dp, radarColor.copy(alpha = 0.35f)), ShapeChip)
+                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = radarStatus.uppercase(),
+                        fontSize = TextCaption,
+                        color = radarColor,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Center: Visual 4-Point Radar Polygon + 4-Node Grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Mini 4-Axis Diamond Radar Visual
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x14FFFFFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+                        val maxR = (size.minDimension / 2f) - 4.dp.toPx()
+
+                        // Background Cross Axes
+                        drawLine(Color(0x22FFFFFF), Offset(cx, cy - maxR), Offset(cx, cy + maxR), axisStroke.width)
+                        drawLine(Color(0x22FFFFFF), Offset(cx - maxR, cy), Offset(cx + maxR, cy), axisStroke.width)
+                        drawCircle(Color(0x18FFFFFF), radius = maxR * 0.5f, style = axisStroke)
+
+                        // 4 Normalized Coordinates (Top: HRV, Right: HR, Bottom: SpO2, Left: Temp)
+                        val rHrv = if (hrvOptimal) maxR * 0.90f else maxR * 0.40f
+                        val rHr = if (hrOptimal) maxR * 0.88f else maxR * 0.38f
+                        val rSpo2 = if (spo2Optimal) maxR * 0.92f else maxR * 0.42f
+                        val rTemp = if (tempOptimal) maxR * 0.86f else maxR * 0.36f
+
+                        val pTop = Offset(cx, cy - rHrv)
+                        val pRight = Offset(cx + rHr, cy)
+                        val pBottom = Offset(cx, cy + rSpo2)
+                        val pLeft = Offset(cx - rTemp, cy)
+
+                        radarPath.reset()
+                        radarPath.moveTo(pTop.x, pTop.y)
+                        radarPath.lineTo(pRight.x, pRight.y)
+                        radarPath.lineTo(pBottom.x, pBottom.y)
+                        radarPath.lineTo(pLeft.x, pLeft.y)
+                        radarPath.close()
+
+                        drawPath(path = radarPath, brush = radarFillBrush)
+                        drawPath(path = radarPath, brush = radarBrush, style = radarStroke)
+
+                        // Vertex dots
+                        drawCircle(radarColor, radius = 2.dp.toPx(), center = pTop)
+                        drawCircle(radarColor, radius = 2.dp.toPx(), center = pRight)
+                        drawCircle(radarColor, radius = 2.dp.toPx(), center = pBottom)
+                        drawCircle(radarColor, radius = 2.dp.toPx(), center = pLeft)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // 4-Node Status Grid (2x2)
+                Column(modifier = Modifier.weight(1f)) {
+                    // Row 1: HRV & Heart Rate
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = "HRV",
+                            value = if (vitals.lastHrv > 0) "${vitals.lastHrv}ms" else "--",
+                            status = if (hrvOptimal) "Optimal" else "Strained",
+                            color = if (hrvOptimal) LimeSteps else HrMinMaxPink
+                        )
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = "HEART",
+                            value = if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate}bpm" else "--",
+                            status = if (hrOptimal) "Resting" else "Elevated",
+                            color = if (hrOptimal) ZoneRestColor else HrMinMaxPink
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Row 2: SpO2 & Skin Temp
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = "SpO2",
+                            value = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--",
+                            status = if (spo2Optimal) "Normal" else "Low",
+                            color = if (spo2Optimal) CyanActive else HrMinMaxPink
+                        )
+                        val hasTemp = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
+                        val signStr = if (vitals.skinTempOffset > 0f) "+" else ""
+                        val tempVal = if (hasTemp) String.format(Locale.US, "%s%.1f°", signStr, vitals.skinTempOffset) else "--"
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = "TEMP",
+                            value = tempVal,
+                            status = if (!hasTemp) "--" else if (tempOptimal) "In Range" else "Offset",
+                            color = if (tempOptimal) Color(0xFF68D391) else ZoneFatBurnColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarNodeCell(
+    label: String,
+    value: String,
+    status: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(ShapeChip)
+            .background(Color(0xFF22262C))
+            .padding(horizontal = 6.dp, vertical = 4.dp)
+    ) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 9.sp,
+                    color = LabelSilver,
+                    fontWeight = FontWeight.Medium
+                )
+                Box(
+                    modifier = Modifier
+                        .size(4.5.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                )
+            }
+            Text(
+                text = value,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                style = TabularNums,
+                maxLines = 1
+            )
+            Text(
+                text = status,
+                fontSize = 8.sp,
+                color = color,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
             )
         }
     }

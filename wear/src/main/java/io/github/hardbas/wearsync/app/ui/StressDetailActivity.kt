@@ -10,8 +10,12 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -23,6 +27,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -38,7 +44,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,12 +58,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.wear.compose.material.*
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import java.util.Locale
 
 private val StressRelaxed = Color(0xFF00E676)
 private val StressBalanced = Color(0xFF00E5FF)
@@ -189,13 +205,40 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val auraCycleMs = remember(score) {
+                        (3200 - (score.coerceIn(0, 100) * 18)).coerceIn(1200, 3200)
+                    }
+                    val auraPulse = rememberBiometricAuraPulse(cycleDurationMs = auraCycleMs)
+                    val auraBrush = remember(statusColor) {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                statusColor.copy(alpha = 0.28f),
+                                statusColor.copy(alpha = 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    }
+
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(122.dp)
+                        modifier = Modifier.size(126.dp)
                     ) {
+                        // Lifecycle-gated Biometric Reactive Aura breathing behind hero dial
+                        Box(
+                            modifier = Modifier
+                                .size(126.dp)
+                                .graphicsLayer {
+                                    val scale = auraPulse.value
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = (0.40f + (scale - 0.92f) * 1.5f).coerceIn(0f, 1f)
+                                }
+                                .background(auraBrush, CircleShape)
+                        )
+
                         StressDialGauge(
                             score = score,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.size(122.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -333,6 +376,19 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     }
                 }
             }
+
+            // =========================================================================
+            // g) 7-Day Trend Sparkline Card
+            // =========================================================================
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.stress_title),
+                    unit = stringResource(R.string.pts_unit),
+                    accentColor = Color(0xFFD8B4FE),
+                    selector = { it.stressScore.toFloat() },
+                    currentFallback = score.toFloat()
+                )
+            }
         }
     }
 }
@@ -340,6 +396,15 @@ fun StressDetailContent(vitals: RingConnVitals) {
 @Composable
 private fun StressTimelineCard(score: Int) {
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    var selectedBarIndex by remember { mutableStateOf<Int?>(null) }
+    val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(selectedBarIndex) {
+        if (selectedBarIndex != null) {
+            delay(2500L)
+            selectedBarIndex = null
+        }
+    }
 
     val epochValues = remember(score, currentHour) {
         val baseScore = if (score > 0) score else 25
@@ -404,15 +469,93 @@ private fun StressTimelineCard(score: Int) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 24-Hour Timeline Bar Chart
+            // Sleek floating pill HUD above the chart showing exact hour + stress value
+            val inspected = selectedBarIndex
+            if (inspected != null) {
+                val hourText = String.format(Locale.US, "%02d:00", inspected)
+                val valScore = epochValues[inspected]
+                val statusAtIdx = when {
+                    valScore < 30 -> stringResource(R.string.stress_relaxed)
+                    valScore < 60 -> stringResource(R.string.stress_balanced)
+                    valScore < 80 -> stringResource(R.string.stress_moderate)
+                    else -> stringResource(R.string.stress_high)
+                }
+                val colorAtIdx = when {
+                    valScore < 30 -> StressRelaxed
+                    valScore < 60 -> StressBalanced
+                    valScore < 80 -> StressModerate
+                    else -> StressHigh
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(colorAtIdx.copy(alpha = 0.22f))
+                            .border(BorderStroke(1.dp, colorAtIdx.copy(alpha = 0.5f)), ShapePill)
+                            .padding(horizontal = 10.dp, vertical = 2.5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(colorAtIdx)
+                        )
+                        Text(
+                            text = "$hourText · $valScore pts · $statusAtIdx",
+                            color = Color.White,
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            style = TabularNums
+                        )
+                    }
+                }
+            }
+
+            // 24-Hour Timeline Bar Chart with interactive Touch/Bezel Time-Scrubber
             val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f) }
 
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(72.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures { offset ->
+                            val idx = ((offset.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                            if (idx != selectedBarIndex) {
+                                selectedBarIndex = idx
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                val idx = ((offset.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                                if (idx != selectedBarIndex) {
+                                    selectedBarIndex = idx
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                change.consume()
+                                val idx = ((change.position.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                                if (idx != selectedBarIndex) {
+                                    selectedBarIndex = idx
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            }
+                        )
+                    }
             ) {
                 val totalW = size.width
                 val totalH = size.height - 12.dp.toPx()
@@ -461,12 +604,30 @@ private fun StressTimelineCard(score: Int) {
                         else -> StressHigh
                     }
 
+                    val isSelected = (i == selectedBarIndex)
+                    val alpha = when {
+                        isSelected -> 1.0f
+                        selectedBarIndex != null -> 0.35f
+                        i <= currentHour -> 0.95f
+                        else -> 0.35f
+                    }
+
                     drawRoundRect(
-                        color = barColor.copy(alpha = if (i <= currentHour) 0.95f else 0.35f),
+                        color = barColor.copy(alpha = alpha),
                         topLeft = Offset(x, y),
                         size = Size(barWidth, barH.coerceAtLeast(3.dp.toPx())),
                         cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
                     )
+
+                    if (isSelected) {
+                        drawRoundRect(
+                            color = Color.White,
+                            topLeft = Offset(x - 0.5.dp.toPx(), y - 0.5.dp.toPx()),
+                            size = Size(barWidth + 1.dp.toPx(), barH.coerceAtLeast(3.dp.toPx()) + 1.dp.toPx()),
+                            cornerRadius = CornerRadius((barWidth + 1.dp.toPx()) / 2f, (barWidth + 1.dp.toPx()) / 2f),
+                            style = Stroke(width = 1.dp.toPx())
+                        )
+                    }
 
                     if (i == currentHour) {
                         drawCircle(
@@ -475,6 +636,39 @@ private fun StressTimelineCard(score: Int) {
                             center = Offset(x + (barWidth / 2f), y - 3.dp.toPx())
                         )
                     }
+                }
+
+                // Vertical glowing scrubber line + indicator dot
+                if (selectedBarIndex != null) {
+                    val selIdx = selectedBarIndex!!
+                    val scrubberX = (selIdx * barSlotWidth) + (barSlotWidth / 2f)
+                    val valScore = epochValues[selIdx]
+                    val barH = (valScore / 100f) * totalH
+                    val scrubberY = totalH - barH
+
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.75f),
+                        start = Offset(scrubberX, 0f),
+                        end = Offset(scrubberX, totalH),
+                        strokeWidth = 1.5.dp.toPx()
+                    )
+
+                    val selColor = when {
+                        valScore < 30 -> StressRelaxed
+                        valScore < 60 -> StressBalanced
+                        valScore < 80 -> StressModerate
+                        else -> StressHigh
+                    }
+                    drawCircle(
+                        color = selColor.copy(alpha = 0.35f),
+                        radius = 6.dp.toPx(),
+                        center = Offset(scrubberX, scrubberY)
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 2.5.dp.toPx(),
+                        center = Offset(scrubberX, scrubberY)
+                    )
                 }
             }
 
@@ -741,6 +935,42 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
             style = TabularNums,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+/**
+ * Lifecycle-gated biometric aura breathing pulse.
+ * Speed is proportional to the metric and paused automatically when not Lifecycle.State.RESUMED (0% AOD battery drain).
+ */
+@Composable
+private fun rememberBiometricAuraPulse(cycleDurationMs: Int): State<Float> {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isResumed = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    return if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "stress_aura_pulse")
+        infiniteTransition.animateFloat(
+            initialValue = 0.92f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = cycleDurationMs / 2, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "auraScale"
+        )
+    } else {
+        remember { mutableFloatStateOf(1.0f) }
     }
 }
 

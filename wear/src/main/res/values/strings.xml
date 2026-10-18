@@ -203,4 +203,12 @@
     <string name="vitals_insight_stable">Cardiovascular markers and oxygen saturation within optimal resting ranges.</string>
     <string name="vitals_insight_elevated">Elevated autonomic activity detected. Monitor resting heart rate trends.</string>
     <string name="vitals_insight_no_data">Continuous vitals monitoring active. Synchronize to view latest telemetry.</string>
+
+    <!-- Readiness / Body Battery & Trends -->
+    <string name="readiness_title">Readiness</string>
+    <string name="readiness_optimal">Optimal · Prime recovery state</string>
+    <string name="readiness_moderate">Moderate · Pace your day</string>
+    <string name="readiness_low">Low · Prioritize rest &amp; recovery</string>
+    <string name="biomarker_radar_title">Biomarker Radar</string>
+    <string name="trend_7day_title">7-Day Trend</string>
 </resources>

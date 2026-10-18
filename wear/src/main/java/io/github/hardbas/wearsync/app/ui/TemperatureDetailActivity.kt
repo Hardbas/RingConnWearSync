@@ -10,7 +10,11 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -18,6 +22,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -37,9 +43,14 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,12 +59,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.wear.compose.material.*
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private val TempCool = Color(0xFF38BDF8)          // Electric Sky Cyan
 private val TempOptimal = Color(0xFF00E676)       // Clinical Mint
@@ -202,14 +219,41 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val auraCycleMs = remember(offset) {
+                        (3400 - (abs(offset).coerceIn(0f, 1.5f) * 1200)).toInt().coerceIn(1600, 3400)
+                    }
+                    val auraPulse = rememberBiometricAuraPulse(cycleDurationMs = auraCycleMs)
+                    val auraBrush = remember(statusColor) {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                statusColor.copy(alpha = 0.28f),
+                                statusColor.copy(alpha = 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    }
+
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(122.dp)
+                        modifier = Modifier.size(126.dp)
                     ) {
+                        // Lifecycle-gated Biometric Reactive Aura breathing behind hero dial
+                        Box(
+                            modifier = Modifier
+                                .size(126.dp)
+                                .graphicsLayer {
+                                    val scale = auraPulse.value
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = (0.40f + (scale - 0.92f) * 1.5f).coerceIn(0f, 1f)
+                                }
+                                .background(auraBrush, CircleShape)
+                        )
+
                         TempDialGauge(
                             offset = offset,
                             hasData = hasData,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.size(122.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -541,6 +585,19 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     }
                 }
             }
+
+            // =========================================================================
+            // g) 7-Day Trend Sparkline Card
+            // =========================================================================
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.skin_temp),
+                    unit = "°C",
+                    accentColor = TempEmeraldSoft,
+                    selector = { it.skinTempOffset },
+                    currentFallback = offset
+                )
+            }
         }
     }
 }
@@ -550,6 +607,18 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
     val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
     val offset = vitals.skinTempOffset
     val curveProgress = remember { Animatable(0f) }
+
+    var scrubFraction by remember { mutableStateOf<Float?>(null) }
+    var lastStep by remember { mutableStateOf<Int?>(null) }
+    val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(scrubFraction) {
+        if (scrubFraction != null) {
+            delay(2500L)
+            scrubFraction = null
+            lastStep = null
+        }
+    }
 
     LaunchedEffect(vitals.skinTempOffset) {
         curveProgress.snapTo(0f)
@@ -597,21 +666,95 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = stringResource(R.string.sleep_stat),
-                    color = TempEmeraldSoft,
-                    fontSize = TextCaption,
-                    fontWeight = FontWeight.SemiBold
-                )
+
+                if (scrubFraction != null) {
+                    val frac = scrubFraction!!
+                    val scrubMinutes = (frac * 480f).roundToInt()
+                    val totalMin = (23 * 60 + scrubMinutes) % (24 * 60)
+                    val scrubHour = totalMin / 60
+                    val scrubMin = totalMin % 60
+                    val timeStr = String.format(Locale.US, "%02d:%02d", scrubHour, scrubMin)
+
+                    // Estimate interpolated thermal deviation across nocturnal curve
+                    val coolingNadir = -0.4f
+                    val scrubOffsetVal = if (frac <= 0.5f) {
+                        offset + (coolingNadir - offset) * (frac / 0.5f)
+                    } else {
+                        coolingNadir + (offset - coolingNadir) * ((frac - 0.5f) / 0.5f)
+                    }
+                    val offsetStr = if (scrubOffsetVal >= 0f) {
+                        String.format(Locale.US, "+%.1f°C", scrubOffsetVal)
+                    } else {
+                        String.format(Locale.US, "%.1f°C", scrubOffsetVal)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(TempEmeraldSoft.copy(alpha = 0.22f))
+                            .border(BorderStroke(1.dp, TempEmeraldSoft.copy(alpha = 0.5f)), ShapePill)
+                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$timeStr · $offsetStr",
+                            color = TempEmeraldSoft,
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            style = TabularNums
+                        )
+                    }
+                } else {
+                    Text(
+                        text = stringResource(R.string.sleep_stat),
+                        color = TempEmeraldSoft,
+                        fontSize = TextCaption,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Nocturnal Circadian Spline Canvas
+            // Nocturnal Circadian Spline Canvas with interactive touch/drag scrubber
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(76.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures { offsetPos ->
+                            val frac = (offsetPos.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            scrubFraction = frac
+                            val step = (frac * 16).toInt().coerceIn(0, 15)
+                            if (step != lastStep) {
+                                lastStep = step
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offsetPos ->
+                                val frac = (offsetPos.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                scrubFraction = frac
+                                val step = (frac * 16).toInt().coerceIn(0, 15)
+                                if (step != lastStep) {
+                                    lastStep = step
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                change.consume()
+                                val frac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                scrubFraction = frac
+                                val step = (frac * 16).toInt().coerceIn(0, 15)
+                                if (step != lastStep) {
+                                    lastStep = step
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            }
+                        )
+                    }
             ) {
                 val totalW = size.width
                 val totalH = size.height - 12.dp.toPx()
@@ -697,7 +840,7 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                 }
 
                 // Subtle glowing indicator dot riding the tip of the curve
-                if (curveProgress.value > 0.01f) {
+                if (curveProgress.value > 0.01f && scrubFraction == null) {
                     val tip = sampleCircadianSpline(
                         t = curveProgress.value,
                         totalW = totalW,
@@ -718,6 +861,46 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                         color = Color.White,
                         radius = 2.dp.toPx(),
                         center = tip
+                    )
+                }
+
+                // Interactive scrubber: vertical laser cursor line + glowing dot at sampled position
+                if (scrubFraction != null) {
+                    val scrubPt = sampleCircadianSpline(
+                        t = scrubFraction!!,
+                        totalW = totalW,
+                        p0 = p0,
+                        p1 = p1,
+                        p2 = p2,
+                        p3 = p3,
+                        p4 = p4,
+                        c1_2_offset = 8.dp.toPx(),
+                        c3_2_offset = 6.dp.toPx()
+                    )
+
+                    // Vertical laser cursor line
+                    drawLine(
+                        color = TempEmeraldSoft.copy(alpha = 0.85f),
+                        start = Offset(scrubPt.x, 0f),
+                        end = Offset(scrubPt.x, totalH),
+                        strokeWidth = 1.5.dp.toPx()
+                    )
+
+                    // Glowing dot
+                    drawCircle(
+                        color = TempEmeraldSoft.copy(alpha = 0.35f),
+                        radius = 7.dp.toPx(),
+                        center = scrubPt
+                    )
+                    drawCircle(
+                        color = TempEmeraldSoft,
+                        radius = 3.5.dp.toPx(),
+                        center = scrubPt
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 1.8.dp.toPx(),
+                        center = scrubPt
                     )
                 }
             }
@@ -946,6 +1129,42 @@ private fun TempBandRow(
             lineHeight = TextBody,
             modifier = Modifier.padding(start = 14.dp)
         )
+    }
+}
+
+/**
+ * Lifecycle-gated biometric aura breathing pulse.
+ * Speed is proportional to the metric and paused automatically when not Lifecycle.State.RESUMED (0% AOD battery drain).
+ */
+@Composable
+private fun rememberBiometricAuraPulse(cycleDurationMs: Int): State<Float> {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isResumed = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    return if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "temp_aura_pulse")
+        infiniteTransition.animateFloat(
+            initialValue = 0.92f,
+            targetValue = 1.08f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = cycleDurationMs / 2, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "auraScale"
+        )
+    } else {
+        remember { mutableFloatStateOf(1.0f) }
     }
 }
 

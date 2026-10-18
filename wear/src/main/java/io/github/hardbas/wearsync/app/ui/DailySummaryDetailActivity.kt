@@ -9,11 +9,19 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -52,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.wear.compose.material.*
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
@@ -137,6 +146,8 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
     val timeProgress = (activeMins.toFloat() / targetActiveMins).coerceIn(0f, 1.2f)
     val calProgress = (calories.toFloat() / targetCalories).coerceIn(0f, 1.2f)
 
+    val density = LocalDensity.current
+
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
@@ -155,6 +166,12 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
+            scalingParams = ScalingLazyColumnDefaults.scalingParams(
+                edgeScale = 0.65f,
+                edgeAlpha = 0.40f,
+                minTransitionArea = 0.20f,
+                maxTransitionArea = 0.80f
+            ),
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -183,7 +200,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 1. Hero: Center Concentric Rings Dial (120dp) with score in center and status pill
+            // 1. Hero: Center Concentric Rings Dial with Biometric Reactive Aura and 3D depth
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -191,13 +208,21 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(122.dp)
+                        modifier = Modifier
+                            .size(134.dp)
+                            .graphicsLayer {
+                                cameraDistance = 12f * density.density
+                            }
                     ) {
+                        BiometricHeroAura(
+                            color = LimeSteps,
+                            modifier = Modifier.size(134.dp)
+                        )
                         ConcentricActivityRings(
                             stepsProgress = stepsProgress,
                             timeProgress = timeProgress,
                             calProgress = calProgress,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.size(122.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -536,8 +561,86 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     )
                 }
             }
+
+            // 6. 7-Day Trend Sparkline Cards (Steps & Activity Score)
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.steps),
+                    unit = stringResource(R.string.steps_short),
+                    accentColor = LimeSteps,
+                    selector = { it.steps.toFloat() },
+                    currentFallback = liveSteps.toFloat()
+                )
+            }
+
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.daily_activity_title),
+                    unit = stringResource(R.string.pts_unit),
+                    accentColor = CyanActive,
+                    selector = { it.activityScore.toFloat() },
+                    currentFallback = activityScore.toFloat()
+                )
+            }
         }
     }
+}
+
+/**
+ * Biometric reactive breathing radial aura placed behind the hero gauge.
+ * Uses Modifier.graphicsLayer draw phase animation strictly gated on Lifecycle.State.RESUMED
+ * to ensure zero recompositions and zero battery drain when in Ambient Mode or screen-off.
+ */
+@Composable
+private fun BiometricHeroAura(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val infiniteTransition = rememberInfiniteTransition(label = "heroAura")
+    val auraScale by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "heroAuraScale"
+    )
+    val auraAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.16f,
+        targetValue = 0.36f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "heroAuraAlpha"
+    )
+
+    val auraBrush = remember(color) {
+        Brush.radialGradient(
+            colors = listOf(
+                color.copy(alpha = 0.50f),
+                color.copy(alpha = 0.16f),
+                Color.Transparent
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                val scale = if (isResumed) auraScale else 1.0f
+                val alpha = if (isResumed) auraAlpha else 0.12f
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .background(auraBrush, CircleShape)
+    )
 }
 
 /**

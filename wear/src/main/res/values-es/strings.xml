@@ -203,4 +203,12 @@
     <string name="vitals_insight_stable">Marcadores cardiovasculares y oxigenación dentro de rangos óptimos de reposo.</string>
     <string name="vitals_insight_elevated">Actividad autonómica elevada detectada. Monitoreá la tendencia de frecuencia en reposo.</string>
     <string name="vitals_insight_no_data">Monitoreo continuo de signos vitales activo. Sincronizá para ver la telemetría más reciente.</string>
+
+    <!-- Readiness / Body Battery & Trends -->
+    <string name="readiness_title">Disponibilidad</string>
+    <string name="readiness_optimal">Óptimo · Estado de recuperación ideal</string>
+    <string name="readiness_moderate">Moderado · Regulá tu esfuerzo</string>
+    <string name="readiness_low">Bajo · Priorizá el descanso</string>
+    <string name="biomarker_radar_title">Radar de Biomarcadores</string>
+    <string name="trend_7day_title">Tendencia 7 Días</string>
 </resources>

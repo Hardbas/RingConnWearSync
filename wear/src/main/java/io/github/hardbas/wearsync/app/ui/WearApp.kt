@@ -47,6 +47,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.sp
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -90,6 +100,7 @@ fun WearApp(context: Context) {
     val scope = rememberCoroutineScope()
     var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
     var isMeasuring by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     // Listen to live SharedPreferences updates when phone or ADB pushes new telemetry
     DisposableEffect(context) {
@@ -124,8 +135,11 @@ fun WearApp(context: Context) {
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
-                withTimeoutOrNull(8500L) {
+                val syncResult = withTimeoutOrNull(8500L) {
                     WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+                }
+                if (syncResult != null) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
                 isMeasuring = false
             }
@@ -143,6 +157,7 @@ fun WearAppContent(
     val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -165,12 +180,22 @@ fun WearAppContent(
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
             autoCentering = null,
+            scalingParams = ScalingLazyColumnDefaults.scalingParams(
+                edgeScale = 0.65f,
+                edgeAlpha = 0.40f,
+                minElementHeight = 0.2f,
+                maxElementHeight = 0.65f,
+                minTransitionArea = 0.35f,
+                maxTransitionArea = 0.55f,
+                scaleInterpolator = CubicBezierEasing(0.20f, 0.00f, 0.25f, 1.00f)
+            ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
@@ -211,6 +236,87 @@ fun WearAppContent(
                                 style = TabularNums,
                                 color = LabelSilver,
                                 fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
+            // 1b. PRIME CAPSULE: Liquid Readiness / Body Battery Orb
+            // =========================================================================
+            item {
+                val readiness = RingConnHistoryStore.computeReadinessScore(vitals)
+                val readinessClamped = readiness.coerceIn(0, 100)
+                val hasReadiness = readiness > 0
+
+                val (statusLabel, statusColor, cardBgBrush) = when {
+                    !hasReadiness -> Triple(
+                        "Syncing Vitals...",
+                        LabelSilver,
+                        Brush.horizontalGradient(listOf(Color(0xFF22262C), Color(0xFF181A1D)))
+                    )
+                    readinessClamped >= 75 -> Triple(
+                        "Optimal Energy",
+                        Color(0xFF00E676),
+                        Brush.horizontalGradient(listOf(Color(0xFF0F3025), Color(0xFF071C15)))
+                    )
+                    readinessClamped in 45..74 -> Triple(
+                        "Balanced Charge",
+                        Color(0xFFFFB703),
+                        Brush.horizontalGradient(listOf(Color(0xFF33260A), Color(0xFF1C1505)))
+                    )
+                    else -> Triple(
+                        "Depleted · Rest",
+                        Color(0xFFFF5D99),
+                        Brush.horizontalGradient(listOf(Color(0xFF331420), Color(0xFF1C0A12)))
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(78.dp)
+                        .clip(ShapePill)
+                        .background(cardBgBrush)
+                        .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), ShapePill)
+                        .clickable {
+                            context.startActivity(Intent(context, VitalsDetailActivity::class.java))
+                        }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        LiquidReadinessOrb(
+                            score = readinessClamped,
+                            sizeDp = 48.dp,
+                            showScoreText = true
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "BODY BATTERY",
+                                fontSize = TextCaption,
+                                color = statusColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = statusLabel,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val hrvText = if (vitals.lastHrv > 0) "HRV ${vitals.lastHrv}ms" else "HRV --"
+                            val sleepText = if (vitals.sleepScore > 0) "Sleep ${vitals.sleepScore}" else "Sleep --"
+                            Text(
+                                text = "$hrvText  ·  $sleepText",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = LabelSilver
                             )
                         }
                     }
@@ -649,6 +755,186 @@ private fun PulsingHeartBadge(isMeasuring: Boolean) {
             contentDescription = stringResource(R.string.heart_rate),
             modifier = Modifier.size(22.dp)
         )
+    }
+}
+
+/**
+ * Liquid Body Battery / Readiness Orb.
+ * Renders a circular orb with a dual sine-wave liquid fill gently undulating at the fill level
+ * corresponding to readiness / 100f.
+ *
+ * ZERO IDLE BATTERY DRAIN:
+ * - Wave phase animation is strictly gated on Lifecycle.State.RESUMED, pausing the wave phase
+ *   when in Ambient Mode or background.
+ * - Path, Brush, and Stroke objects are hoisted with remember outside Canvas for zero per-frame heap allocations.
+ * - Color shifts dynamically: emerald-cyan (>= 75), amber-gold (45..74), coral-rose (< 45).
+ */
+@Composable
+fun LiquidReadinessOrb(
+    score: Int,
+    modifier: Modifier = Modifier,
+    sizeDp: androidx.compose.ui.unit.Dp = 52.dp,
+    showScoreText: Boolean = true
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val clampedScore = score.coerceIn(0, 100)
+    val hasData = score > 0
+    val fillLevel = if (hasData) (clampedScore / 100f).coerceIn(0.08f, 0.94f) else 0.06f
+
+    val animatedFill = remember { Animatable(fillLevel) }
+    LaunchedEffect(fillLevel) {
+        animatedFill.animateTo(
+            targetValue = fillLevel,
+            animationSpec = tween(
+                durationMillis = 800,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+            )
+        )
+    }
+
+    val phaseAnim = remember { Animatable(0f) }
+    LaunchedEffect(isResumed) {
+        if (isResumed) {
+            val twoPi = (2.0 * Math.PI).toFloat()
+            while (true) {
+                phaseAnim.animateTo(
+                    targetValue = phaseAnim.value + twoPi,
+                    animationSpec = tween(durationMillis = 2800, easing = LinearEasing)
+                )
+                phaseAnim.snapTo(phaseAnim.value % twoPi)
+            }
+        }
+    }
+
+    val (colorWaveBack, colorWaveFront, accentColor, bgTint) = remember(clampedScore >= 75, clampedScore in 45..74, hasData) {
+        when {
+            !hasData -> listOf(
+                Color(0x664A5568),
+                Color(0x99718096),
+                Color(0xFF718096),
+                Color(0x1F718096)
+            )
+            clampedScore >= 75 -> listOf(
+                Color(0x9900B0FF), // wave back (cyan)
+                Color(0xDD00E676), // wave front (emerald)
+                Color(0xFF00E676), // accent / border
+                Color(0x1F00E676)  // bg tint
+            )
+            clampedScore in 45..74 -> listOf(
+                Color(0x99FFD166), // wave back (gold)
+                Color(0xDDFFB703), // wave front (amber)
+                Color(0xFFFFB703), // accent / border
+                Color(0x1FFFB703)  // bg tint
+            )
+            else -> listOf(
+                Color(0x99FF6B6B), // wave back (coral)
+                Color(0xDDFF5D99), // wave front (rose)
+                Color(0xFFFF5D99), // accent / border
+                Color(0x1FFF5D99)  // bg tint
+            )
+        }
+    }
+
+    val wavePath1 = remember { androidx.compose.ui.graphics.Path() }
+    val wavePath2 = remember { androidx.compose.ui.graphics.Path() }
+    val circleClipPath = remember { androidx.compose.ui.graphics.Path() }
+
+    val density = LocalDensity.current
+    val strokeWidthPx = remember(density) { with(density) { 2.dp.toPx() } }
+    val orbBorderStroke = remember(strokeWidthPx) {
+        Stroke(width = strokeWidthPx)
+    }
+
+    val wave1Brush = remember(colorWaveFront) { SolidColor(colorWaveFront) }
+    val wave2Brush = remember(colorWaveBack) { SolidColor(colorWaveBack) }
+    val borderBrush = remember(accentColor) { SolidColor(accentColor) }
+
+    Box(
+        modifier = modifier
+            .size(sizeDp)
+            .clip(CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val currentPhase = phaseAnim.value
+            val currentFill = animatedFill.value
+            val baseWaterY = h * (1f - currentFill)
+            val amplitude = h * 0.055f
+            val waveFreq = (2f * Math.PI.toFloat()) / w
+
+            circleClipPath.reset()
+            circleClipPath.addOval(Rect(0f, 0f, w, h))
+
+            // Wave 1: sin(x * freq + phase)
+            wavePath1.reset()
+            wavePath1.moveTo(0f, h)
+            wavePath1.lineTo(0f, baseWaterY)
+            var x1 = 0f
+            val stepPx = 4f
+            while (x1 <= w) {
+                val y1 = baseWaterY + amplitude * kotlin.math.sin(x1 * waveFreq + currentPhase)
+                wavePath1.lineTo(x1, y1)
+                x1 += stepPx
+            }
+            wavePath1.lineTo(w, h)
+            wavePath1.close()
+
+            // Wave 2: cos(x * freq - phase * 1.3f)
+            wavePath2.reset()
+            wavePath2.moveTo(0f, h)
+            wavePath2.lineTo(0f, baseWaterY)
+            var x2 = 0f
+            while (x2 <= w) {
+                val y2 = baseWaterY + (amplitude * 0.85f) * kotlin.math.cos(x2 * waveFreq - currentPhase * 1.3f)
+                wavePath2.lineTo(x2, y2)
+                x2 += stepPx
+            }
+            wavePath2.lineTo(w, h)
+            wavePath2.close()
+
+            clipPath(circleClipPath) {
+                drawCircle(color = bgTint)
+                drawPath(path = wavePath2, brush = wave2Brush)
+                drawPath(path = wavePath1, brush = wave1Brush)
+            }
+
+            val radius = (w - strokeWidthPx) / 2f
+            val centerOffset = Offset(w / 2f, h / 2f)
+            drawCircle(
+                brush = borderBrush,
+                radius = radius,
+                center = centerOffset,
+                style = orbBorderStroke
+            )
+        }
+
+        if (showScoreText) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = if (hasData) "$clampedScore" else "--",
+                    fontSize = if (sizeDp > 70.dp) TextHero else if (sizeDp > 46.dp) TextBig else TextBody,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    style = TabularNums
+                )
+                if (sizeDp > 70.dp) {
+                    Text(
+                        text = "READY",
+                        fontSize = TextCaption,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor
+                    )
+                }
+            }
+        }
     }
 }
 

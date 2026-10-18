@@ -23,6 +23,7 @@ import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUp
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import io.github.hardbas.wearsync.app.R
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.DailySummaryTileService
 import io.github.hardbas.wearsync.app.tile.HeartRateTileService
@@ -269,6 +270,12 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putString("activity_insight", vitals.activityInsight)
                 putString("vitals_insight", vitals.vitalsInsight)
                 apply()
+            }
+
+            try {
+                RingConnHistoryStore.recordDailySnapshot(context, vitals)
+            } catch (e: Exception) {
+                Log.e("RingConnComplication", "Failed to record daily history snapshot", e)
             }
 
             val complicationProviders = listOf(

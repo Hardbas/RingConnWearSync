@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -37,12 +38,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.Lifecycle
@@ -51,6 +56,7 @@ import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import kotlin.math.roundToInt
@@ -324,13 +330,36 @@ fun HeartRateDetailContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val auraBrush = remember(hrStatusColor) {
+                        Brush.radialGradient(
+                            colors = listOf(
+                                hrStatusColor.copy(alpha = 0.28f),
+                                hrStatusColor.copy(alpha = 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    }
+
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(122.dp)
+                        modifier = Modifier.size(126.dp)
                     ) {
+                        // Lifecycle-gated Biometric Reactive Aura breathing behind hero dial in sync with BPM pulse
+                        Box(
+                            modifier = Modifier
+                                .size(126.dp)
+                                .graphicsLayer {
+                                    val scale = pulseState.value
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = (0.40f + (scale - 1.0f) * 2.5f).coerceIn(0f, 1f)
+                                }
+                                .background(auraBrush, CircleShape)
+                        )
+
                         HeartDialGauge(
                             bpm = currentHr,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.size(122.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -832,24 +861,172 @@ fun HeartRateDetailContent(
                     val z4Pct = if (totalZoneMins > 0) vitals.zone4Mins.toFloat() / totalZoneMins.toFloat() else 0f
                     val z5Pct = if (totalZoneMins > 0) vitals.zone5Mins.toFloat() / totalZoneMins.toFloat() else 0f
 
+                    var inspectedZoneIndex by remember { mutableStateOf<Int?>(null) }
+                    val haptic = LocalHapticFeedback.current
+
+                    LaunchedEffect(inspectedZoneIndex) {
+                        if (inspectedZoneIndex != null) {
+                            delay(2500L)
+                            inspectedZoneIndex = null
+                        }
+                    }
+
+                    val zoneColors = listOf(ZoneRestColor, ZoneWarmupColor, ZoneFatBurnColor, ZoneCardioColor, ZonePeakColor)
+                    val zonePcts = listOf(z1Pct, z2Pct, z3Pct, z4Pct, z5Pct)
+                    val zoneMinsList = listOf(vitals.zone1Mins, vitals.zone2Mins, vitals.zone3Mins, vitals.zone4Mins, vitals.zone5Mins)
+                    val zoneNames = listOf(
+                        stringResource(R.string.zone_rest),
+                        stringResource(R.string.zone_warmup),
+                        stringResource(R.string.zone_fat_burn),
+                        stringResource(R.string.zone_cardio),
+                        stringResource(R.string.zone_peak)
+                    )
+
+                    fun resolveZoneFromOffset(offsetX: Float, width: Float) {
+                        val fraction = (offsetX / width).coerceIn(0f, 1f)
+                        var cumulative = 0f
+                        var targetZone = 4
+                        if (totalZoneMins > 0) {
+                            for (z in 0 until 5) {
+                                cumulative += zonePcts[z]
+                                if (fraction <= cumulative || z == 4) {
+                                    targetZone = z
+                                    break
+                                }
+                            }
+                        } else {
+                            targetZone = (fraction * 5).toInt().coerceIn(0, 4)
+                        }
+                        if (targetZone != inspectedZoneIndex) {
+                            inspectedZoneIndex = targetZone
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    }
+
                     Column {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(ZoneCardioColor)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.hr_zones_title),
-                                fontSize = TextBody,
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(ZoneCardioColor)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.hr_zones_title),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (inspectedZoneIndex != null) {
+                                val selIdx = inspectedZoneIndex!!
+                                val selName = zoneNames[selIdx]
+                                val selMins = zoneMinsList[selIdx]
+                                val selColor = zoneColors[selIdx]
+                                val selDuration = formatZoneDuration(selMins, totalZoneMins)
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(ShapePill)
+                                        .background(selColor.copy(alpha = 0.22f))
+                                        .border(BorderStroke(1.dp, selColor.copy(alpha = 0.6f)), ShapePill)
+                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "$selName · $selDuration",
+                                        color = selColor,
+                                        fontSize = TextCaption,
+                                        fontWeight = FontWeight.Bold,
+                                        style = TabularNums
+                                    )
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Interactive 5-Zone Distribution Scrubber Bar with tap & drag haptics
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures { offsetPos ->
+                                        resolveZoneFromOffset(offsetPos.x, size.width.toFloat())
+                                    }
+                                }
+                                .pointerInput(Unit) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { offsetPos ->
+                                            resolveZoneFromOffset(offsetPos.x, size.width.toFloat())
+                                        },
+                                        onHorizontalDrag = { change, _ ->
+                                            change.consume()
+                                            resolveZoneFromOffset(change.position.x, size.width.toFloat())
+                                        }
+                                    )
+                                }
+                        ) {
+                            val totalW = size.width
+                            val h = size.height
+                            val corner = CornerRadius(h / 2f, h / 2f)
+
+                            drawRoundRect(color = TrackDark, size = size, cornerRadius = corner)
+
+                            var startX = 0f
+                            val effectivePcts = if (totalZoneMins > 0) zonePcts else listOf(0.2f, 0.2f, 0.2f, 0.2f, 0.2f)
+
+                            for (z in 0 until 5) {
+                                val segW = totalW * effectivePcts[z]
+                                val isInspected = (z == inspectedZoneIndex)
+                                val color = zoneColors[z]
+
+                                if (segW > 0.5f) {
+                                    drawRoundRect(
+                                        color = if (isInspected) color else color.copy(alpha = 0.70f),
+                                        topLeft = Offset(startX, 0f),
+                                        size = Size(segW, h)
+                                    )
+                                }
+                                startX += segW
+                            }
+
+                            if (inspectedZoneIndex != null) {
+                                var cursorX = 0f
+                                for (z in 0..inspectedZoneIndex!!) {
+                                    val segW = totalW * effectivePcts[z]
+                                    if (z == inspectedZoneIndex) {
+                                        cursorX += segW / 2f
+                                    } else {
+                                        cursorX += segW
+                                    }
+                                }
+                                drawCircle(
+                                    color = Color.White,
+                                    radius = (h / 2f) + 1.dp.toPx(),
+                                    center = Offset(cursorX.coerceIn(h / 2f, totalW - h / 2f), h / 2f)
+                                )
+                                drawCircle(
+                                    color = zoneColors[inspectedZoneIndex!!],
+                                    radius = (h / 2f) - 1.dp.toPx(),
+                                    center = Offset(cursorX.coerceIn(h / 2f, totalW - h / 2f), h / 2f)
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(10.dp))
 
                         val bpmUnit = stringResource(R.string.bpm_unit)
@@ -861,7 +1038,12 @@ fun HeartRateDetailContent(
                             durationText = formatZoneDuration(vitals.zone1Mins, totalZoneMins),
                             zoneColor = ZoneRestColor,
                             distributionPct = z1Pct,
-                            isActive = hasHr && currentHr < 100
+                            isActive = hasHr && currentHr < 100,
+                            isInspected = (inspectedZoneIndex == 0),
+                            onClick = {
+                                inspectedZoneIndex = 0
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         )
 
                         // Zone 2: Calentamiento (100 - 120 bpm)
@@ -871,7 +1053,12 @@ fun HeartRateDetailContent(
                             durationText = formatZoneDuration(vitals.zone2Mins, totalZoneMins),
                             zoneColor = ZoneWarmupColor,
                             distributionPct = z2Pct,
-                            isActive = hasHr && currentHr in 100..120
+                            isActive = hasHr && currentHr in 100..120,
+                            isInspected = (inspectedZoneIndex == 1),
+                            onClick = {
+                                inspectedZoneIndex = 1
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         )
 
                         // Zone 3: Quema de grasa (120 - 140 bpm)
@@ -881,7 +1068,12 @@ fun HeartRateDetailContent(
                             durationText = formatZoneDuration(vitals.zone3Mins, totalZoneMins),
                             zoneColor = ZoneFatBurnColor,
                             distributionPct = z3Pct,
-                            isActive = hasHr && currentHr in 121..140
+                            isActive = hasHr && currentHr in 121..140,
+                            isInspected = (inspectedZoneIndex == 2),
+                            onClick = {
+                                inspectedZoneIndex = 2
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         )
 
                         // Zone 4: Cardio (140 - 160 bpm)
@@ -891,7 +1083,12 @@ fun HeartRateDetailContent(
                             durationText = formatZoneDuration(vitals.zone4Mins, totalZoneMins),
                             zoneColor = ZoneCardioColor,
                             distributionPct = z4Pct,
-                            isActive = hasHr && currentHr in 141..160
+                            isActive = hasHr && currentHr in 141..160,
+                            isInspected = (inspectedZoneIndex == 3),
+                            onClick = {
+                                inspectedZoneIndex = 3
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         )
 
                         // Zone 5: Pico (> 160 bpm)
@@ -901,10 +1098,28 @@ fun HeartRateDetailContent(
                             durationText = formatZoneDuration(vitals.zone5Mins, totalZoneMins),
                             zoneColor = ZonePeakColor,
                             distributionPct = z5Pct,
-                            isActive = hasHr && currentHr > 160
+                            isActive = hasHr && currentHr > 160,
+                            isInspected = (inspectedZoneIndex == 4),
+                            onClick = {
+                                inspectedZoneIndex = 4
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
                         )
                     }
                 }
+            }
+
+            // =========================================================================
+            // f) 7-Day Trend Sparkline Card (Resting Heart Rate)
+            // =========================================================================
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.avg_resting_hr),
+                    unit = stringResource(R.string.bpm_unit),
+                    accentColor = HrMinMaxPink,
+                    selector = { it.rhr.toFloat() },
+                    currentFallback = (if (vitals.minHeartRate > 0) vitals.minHeartRate else if (vitals.avgHeartRate > 0) vitals.avgHeartRate else vitals.lastHeartRate).toFloat()
+                )
             }
         }
     }
@@ -1008,6 +1223,16 @@ private fun AnimatedMinMaxBar(
     modifier: Modifier = Modifier
 ) {
     val anim = remember { Animatable(0f) }
+    var scrubPos by remember { mutableStateOf<Float?>(null) }
+    val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(scrubPos) {
+        if (scrubPos != null) {
+            delay(2500L)
+            scrubPos = null
+        }
+    }
+
     LaunchedEffect(progress) {
         anim.animateTo(
             targetValue = progress.coerceIn(0f, 1f),
@@ -1018,12 +1243,53 @@ private fun AnimatedMinMaxBar(
         )
     }
 
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    val frac = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                    scrubPos = frac
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        val frac = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                        scrubPos = frac
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        val frac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                        val prevStep = (scrubPos?.times(20))?.toInt()
+                        val curStep = (frac * 20).toInt()
+                        if (prevStep != curStep) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        scrubPos = frac
+                    }
+                )
+            }
+    ) {
         val corner = CornerRadius(size.height / 2f, size.height / 2f)
         drawRoundRect(color = GlassBlack50, size = size, cornerRadius = corner)
-        val barW = size.width * anim.value
+        val barW = size.width * (scrubPos ?: anim.value)
         if (barW > 0f) {
             drawRoundRect(color = color, size = Size(barW, size.height), cornerRadius = corner)
+        }
+        if (scrubPos != null) {
+            val cx = size.width * scrubPos!!
+            drawCircle(
+                color = Color.White,
+                radius = size.height / 2f + 2.dp.toPx(),
+                center = Offset(cx, size.height / 2f)
+            )
+            drawCircle(
+                color = color,
+                radius = size.height / 2f,
+                center = Offset(cx, size.height / 2f)
+            )
         }
     }
 }
@@ -1116,20 +1382,26 @@ private fun ZoneItemRow(
     durationText: String,
     zoneColor: Color,
     distributionPct: Float,
-    isActive: Boolean
+    isActive: Boolean,
+    isInspected: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     val textColor by animateColorAsState(
-        targetValue = if (isActive) Color.White else LabelSilver,
+        targetValue = if (isActive || isInspected) Color.White else LabelSilver,
         animationSpec = tween(350),
         label = "zoneTextColor"
     )
     val rangeColor by animateColorAsState(
-        targetValue = if (isActive) zoneColor else PipeGray,
+        targetValue = if (isActive || isInspected) zoneColor else PipeGray,
         animationSpec = tween(350),
         label = "zoneRangeColor"
     )
     val rowBgColor by animateColorAsState(
-        targetValue = if (isActive) zoneColor.copy(alpha = 0.14f) else Color.Transparent,
+        targetValue = when {
+            isInspected -> zoneColor.copy(alpha = 0.28f)
+            isActive -> zoneColor.copy(alpha = 0.14f)
+            else -> Color.Transparent
+        },
         animationSpec = tween(350),
         label = "zoneRowBgColor"
     )
@@ -1139,6 +1411,14 @@ private fun ZoneItemRow(
             .fillMaxWidth()
             .clip(ShapeChip)
             .background(rowBgColor)
+            .then(
+                if (isInspected) Modifier.border(BorderStroke(1.dp, zoneColor.copy(alpha = 0.65f)), ShapeChip)
+                else Modifier
+            )
+            .then(
+                if (onClick != null) Modifier.clickable { onClick() }
+                else Modifier
+            )
             .padding(horizontal = 6.dp, vertical = 3.5.dp)
     ) {
         Row(
@@ -1161,7 +1441,7 @@ private fun ZoneItemRow(
                     text = zoneName,
                     fontSize = TextLabel,
                     color = textColor,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    fontWeight = if (isActive || isInspected) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1171,7 +1451,7 @@ private fun ZoneItemRow(
                 fontSize = TextCaption,
                 style = TabularNums,
                 color = textColor,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+                fontWeight = if (isActive || isInspected) FontWeight.Bold else FontWeight.Normal
             )
         }
 
@@ -1187,7 +1467,7 @@ private fun ZoneItemRow(
                 fontSize = TextCaption,
                 style = TabularNums,
                 color = rangeColor,
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
+                fontWeight = if (isActive || isInspected) FontWeight.SemiBold else FontWeight.Normal
             )
             if (isActive) {
                 Box(
@@ -1232,7 +1512,7 @@ private fun ZoneItemRow(
             val w = size.width * animBar.value
             if (w > 0f) {
                 drawRoundRect(
-                    color = if (isActive) zoneColor else zoneColor.copy(alpha = 0.5f),
+                    color = if (isActive || isInspected) zoneColor else zoneColor.copy(alpha = 0.5f),
                     size = Size(w, size.height),
                     cornerRadius = corner
                 )

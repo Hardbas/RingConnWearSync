@@ -9,9 +9,22 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -49,6 +62,7 @@ import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import kotlinx.coroutines.delay
@@ -181,6 +195,17 @@ fun SleepDetailContent(
     val minHr = if (vitals.minHeartRate > 0) "${vitals.minHeartRate} $bpmUnit" else if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate} $bpmUnit" else "--"
     val stressVal = if (vitals.stressScore > 0) "${vitals.stressScore}" else "--"
 
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+    var selectedStageIndex by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(selectedStageIndex) {
+        if (selectedStageIndex != null) {
+            delay(4000L)
+            selectedStageIndex = null
+        }
+    }
+
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
@@ -199,6 +224,12 @@ fun SleepDetailContent(
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
+            scalingParams = ScalingLazyColumnDefaults.scalingParams(
+                edgeScale = 0.65f,
+                edgeAlpha = 0.40f,
+                minTransitionArea = 0.20f,
+                maxTransitionArea = 0.80f
+            ),
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -230,7 +261,7 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
-            // b) Hero Dial: 122dp Concentric Sleep Score Gauge & Duration Badge
+            // b) Hero Dial: Concentric Sleep Score Gauge with Biometric Reactive Aura and 3D depth
             // =========================================================================
             item {
                 Column(
@@ -240,12 +271,20 @@ fun SleepDetailContent(
                         .padding(vertical = 4.dp)
                 ) {
                     Box(
-                        modifier = Modifier.size(122.dp),
+                        modifier = Modifier
+                            .size(134.dp)
+                            .graphicsLayer {
+                                cameraDistance = 12f * density.density
+                            },
                         contentAlignment = Alignment.Center
                     ) {
+                        BiometricHeroAura(
+                            color = StageDeep,
+                            modifier = Modifier.size(134.dp)
+                        )
                         SleepDialGauge(
                             score = if (hasSleepData) sleepScore else 0,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.size(122.dp)
                         )
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -377,25 +416,169 @@ fun SleepDetailContent(
                             val lightPct = vitals.sleepLightMins.toFloat() / totalStagesMins.toFloat()
                             val deepPct = vitals.sleepDeepMins.toFloat() / totalStagesMins.toFloat()
 
-                            // Stacked multi-color stage bar (Canvas draw animation, zero relayout)
-                            SleepStagesBar(
-                                awakePct = awakePct,
-                                remPct = remPct,
-                                lightPct = lightPct,
-                                deepPct = deepPct,
+                            val awakeName = stringResource(R.string.stage_awake)
+                            val remName = stringResource(R.string.stage_rem)
+                            val lightName = stringResource(R.string.stage_light)
+                            val deepName = stringResource(R.string.stage_deep)
+
+                            val stages = remember(vitals, totalStagesMins, awakeName, remName, lightName, deepName) {
+                                listOf(
+                                    SleepStageSegment(0, awakeName, vitals.sleepAwakeMins, awakePct, StageAwake),
+                                    SleepStageSegment(1, remName, vitals.sleepRemMins, remPct, StageRem),
+                                    SleepStageSegment(2, lightName, vitals.sleepLightMins, lightPct, StageLight),
+                                    SleepStageSegment(3, deepName, vitals.sleepDeepMins, deepPct, StageDeep)
+                                )
+                            }
+
+                            val resolveStageIndex: (Float, Float) -> Int? = { touchX, width ->
+                                if (width <= 0f) null
+                                else {
+                                    val fraction = (touchX / width).coerceIn(0f, 0.999f)
+                                    var cumulative = 0f
+                                    var resolved: Int? = null
+                                    for (stage in stages) {
+                                        if (stage.pct <= 0f) continue
+                                        if (fraction < cumulative + stage.pct) {
+                                            resolved = stage.index
+                                            break
+                                        }
+                                        cumulative += stage.pct
+                                    }
+                                    resolved ?: stages.lastOrNull { it.pct > 0f }?.index
+                                }
+                            }
+
+                            val selectedStage = stages.find { it.index == selectedStageIndex }
+
+                            // Crisp inline pill badge showing selected stage name, duration, and percentage
+                            if (selectedStage != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(ShapePill)
+                                        .background(selectedStage.color.copy(alpha = 0.22f))
+                                        .border(BorderStroke(1.dp, selectedStage.color.copy(alpha = 0.65f)), ShapePill)
+                                        .padding(horizontal = 10.dp, vertical = 3.5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(selectedStage.color)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = selectedStage.name.uppercase(),
+                                            fontSize = TextCaption,
+                                            fontWeight = FontWeight.Bold,
+                                            color = selectedStage.color
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "·  ${formatMins(selectedStage.durationMins)} (${(selectedStage.pct * 100).roundToInt()}%)",
+                                            fontSize = TextCaption,
+                                            style = TabularNums,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            // Interactive multi-stage scrubber bar with haptics
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(ShapeBar)
+                                    .pointerInput(stages) {
+                                        awaitEachGesture {
+                                            val down = awaitFirstDown(requireUnconsumed = false)
+                                            val hit = resolveStageIndex(down.position.x, size.width.toFloat())
+                                            if (hit != null && hit != selectedStageIndex) {
+                                                selectedStageIndex = hit
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                            val pointerId = down.id
+                                            while (true) {
+                                                val event = awaitPointerEvent()
+                                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                                if (!change.pressed) break
+                                                val dragHit = resolveStageIndex(change.position.x, size.width.toFloat())
+                                                if (dragHit != null && dragHit != selectedStageIndex) {
+                                                    selectedStageIndex = dragHit
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                }
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                SleepStagesBar(
+                                    awakePct = awakePct,
+                                    remPct = remPct,
+                                    lightPct = lightPct,
+                                    deepPct = deepPct,
+                                    selectedStageIndex = selectedStageIndex,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(10.dp)
+                                        .clip(ShapeBar)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Detailed stage breakdowns with interactive row tap selection
+                            SleepStageRow(
+                                name = awakeName,
+                                duration = formatMins(vitals.sleepAwakeMins),
+                                percentage = "${(awakePct * 100).roundToInt()}%",
+                                dotColor = StageAwake,
+                                isSelected = (selectedStageIndex == 0),
+                                onClick = {
+                                    selectedStageIndex = if (selectedStageIndex == 0) null else 0
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Detailed stage breakdowns with real duration and percentages
-                            SleepStageRow(stringResource(R.string.stage_awake), formatMins(vitals.sleepAwakeMins), "${(awakePct * 100).roundToInt()}%", StageAwake)
-                            SleepStageRow(stringResource(R.string.stage_rem), formatMins(vitals.sleepRemMins), "${(remPct * 100).roundToInt()}%", StageRem)
-                            SleepStageRow(stringResource(R.string.stage_light), formatMins(vitals.sleepLightMins), "${(lightPct * 100).roundToInt()}%", StageLight)
-                            SleepStageRow(stringResource(R.string.stage_deep), formatMins(vitals.sleepDeepMins), "${(deepPct * 100).roundToInt()}%", StageDeep)
+                            SleepStageRow(
+                                name = remName,
+                                duration = formatMins(vitals.sleepRemMins),
+                                percentage = "${(remPct * 100).roundToInt()}%",
+                                dotColor = StageRem,
+                                isSelected = (selectedStageIndex == 1),
+                                onClick = {
+                                    selectedStageIndex = if (selectedStageIndex == 1) null else 1
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            )
+                            SleepStageRow(
+                                name = lightName,
+                                duration = formatMins(vitals.sleepLightMins),
+                                percentage = "${(lightPct * 100).roundToInt()}%",
+                                dotColor = StageLight,
+                                isSelected = (selectedStageIndex == 2),
+                                onClick = {
+                                    selectedStageIndex = if (selectedStageIndex == 2) null else 2
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            )
+                            SleepStageRow(
+                                name = deepName,
+                                duration = formatMins(vitals.sleepDeepMins),
+                                percentage = "${(deepPct * 100).roundToInt()}%",
+                                dotColor = StageDeep,
+                                isSelected = (selectedStageIndex == 3),
+                                onClick = {
+                                    selectedStageIndex = if (selectedStageIndex == 3) null else 3
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            )
                         } else {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
@@ -528,7 +711,20 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
-            // f) Card: Sincronizar Anillo via Mobile RPC
+            // f) Card: 7-Day Trend Sparkline for Sleep Score
+            // =========================================================================
+            item {
+                RingConnHistoryStore.SevenDayTrendCard(
+                    metricTitle = stringResource(R.string.sleep_score),
+                    unit = stringResource(R.string.pts_unit),
+                    accentColor = StageDeep,
+                    selector = { it.sleepScore.toFloat() },
+                    currentFallback = sleepScore.toFloat()
+                )
+            }
+
+            // =========================================================================
+            // g) Card: Sincronizar Anillo via Mobile RPC
             // =========================================================================
             item {
                 var isSyncing by remember { mutableStateOf(false) }
@@ -639,7 +835,8 @@ private fun SleepDialGauge(
 
 /**
  * Multi-stage sleep bar drawn in Canvas with zero weight layout recomputations.
- * Features sequential reveal animation with subtle glowing divider ticks.
+ * Features sequential reveal animation with subtle glowing divider ticks and
+ * segment highlight when inspected.
  */
 @Composable
 private fun SleepStagesBar(
@@ -647,6 +844,7 @@ private fun SleepStagesBar(
     remPct: Float,
     lightPct: Float,
     deepPct: Float,
+    selectedStageIndex: Int? = null,
     modifier: Modifier = Modifier
 ) {
     val anim = remember { Animatable(0f) }
@@ -672,26 +870,46 @@ private fun SleepStagesBar(
         val totalAnimW = size.width * anim.value
         var curX = 0f
 
-        val stages = listOf(
-            StageAwake to awakePct,
-            StageRem to remPct,
-            StageLight to lightPct,
-            StageDeep to deepPct
+        val stagesWithIndex = listOf(
+            Triple(0, StageAwake, awakePct),
+            Triple(1, StageRem, remPct),
+            Triple(2, StageLight, lightPct),
+            Triple(3, StageDeep, deepPct)
         )
 
-        for (i in stages.indices) {
-            val (color, pct) = stages[i]
+        val isAnySelected = selectedStageIndex != null
+
+        for (i in stagesWithIndex.indices) {
+            val (stageIdx, color, pct) = stagesWithIndex[i]
             val w = totalAnimW * pct
             if (w > 0f) {
+                val isSelected = (selectedStageIndex == stageIdx)
+                val alpha = if (!isAnySelected || isSelected) 1.0f else 0.35f
+
                 drawRect(
-                    color = color,
+                    color = color.copy(alpha = alpha),
                     topLeft = Offset(curX, 0f),
                     size = Size(w, size.height)
                 )
+
+                if (isSelected) {
+                    drawRect(
+                        color = Color.White.copy(alpha = 0.32f),
+                        topLeft = Offset(curX, 0f),
+                        size = Size(w, size.height)
+                    )
+                    drawLine(
+                        color = Color.White,
+                        start = Offset(curX, 0f),
+                        end = Offset(curX + w, 0f),
+                        strokeWidth = 2.dp.toPx()
+                    )
+                }
+
                 curX += w
 
                 // Subtle glowing divider tick between stages if reached by animation sweep
-                if (i < stages.size - 1 && curX < totalAnimW && curX > 0f) {
+                if (i < stagesWithIndex.size - 1 && curX < totalAnimW && curX > 0f) {
                     drawLine(
                         color = dividerColor,
                         start = Offset(curX, 0f),
@@ -709,12 +927,20 @@ private fun SleepStageRow(
     name: String,
     duration: String,
     percentage: String,
-    dotColor: Color
+    dotColor: Color,
+    isSelected: Boolean = false,
+    onClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .clip(ShapeChip)
+            .then(
+                if (isSelected) Modifier.background(dotColor.copy(alpha = 0.20f))
+                else Modifier
+            )
+            .clickable { onClick() }
+            .padding(horizontal = if (isSelected) 8.dp else 2.dp, vertical = 2.5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -729,7 +955,8 @@ private fun SleepStageRow(
             Text(
                 text = name,
                 fontSize = TextLabel,
-                color = Color.White
+                color = if (isSelected) dotColor else Color.White,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
             )
         }
         Row {
@@ -737,19 +964,84 @@ private fun SleepStageRow(
                 text = duration,
                 fontSize = TextLabel,
                 style = TabularNums,
-                color = SleepPeriwinkle
+                color = if (isSelected) Color.White else SleepPeriwinkle
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = percentage,
                 fontSize = TextLabel,
                 style = TabularNums,
-                color = Color.White,
+                color = if (isSelected) dotColor else Color.White,
                 fontWeight = FontWeight.Bold
             )
         }
     }
 }
+
+/**
+ * Isolated breathing radial aura rendered behind the hero sleep dial.
+ * Evaluated in Modifier.graphicsLayer draw phase strictly gated on Lifecycle.State.RESUMED
+ * for 0 recompositions and 0 AOD battery drain.
+ */
+@Composable
+private fun BiometricHeroAura(
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val infiniteTransition = rememberInfiniteTransition(label = "sleepHeroAura")
+    val auraScale by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sleepAuraScale"
+    )
+    val auraAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.16f,
+        targetValue = 0.38f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "sleepAuraAlpha"
+    )
+
+    val auraBrush = remember(color) {
+        Brush.radialGradient(
+            colors = listOf(
+                color.copy(alpha = 0.50f),
+                color.copy(alpha = 0.16f),
+                Color.Transparent
+            )
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                val scale = if (isResumed) auraScale else 1.0f
+                val alpha = if (isResumed) auraAlpha else 0.12f
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .background(auraBrush, CircleShape)
+    )
+}
+
+private data class SleepStageSegment(
+    val index: Int,
+    val name: String,
+    val durationMins: Int,
+    val pct: Float,
+    val color: Color
+)
 
 @Composable
 private fun NocturnalMetricBox(

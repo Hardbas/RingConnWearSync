@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.app
 
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,5 +99,39 @@ class RingConnVitalsTest {
         val unknownBatVitals = RingConnVitals(ringBattery = 0, isCharging = false)
         val shouldAlertZero = unknownBatVitals.ringBattery in 1..19 && !unknownBatVitals.isCharging
         assertFalse("Unknown/0 battery must not trigger false alert", shouldAlertZero)
+    }
+
+    @Test
+    fun computeReadinessScore_returnsZeroForEmptyVitalsAndValidScoreForPopulatedVitals() {
+        // Zero/empty vitals return 0
+        val emptyVitals = RingConnVitals()
+        val emptyScore = RingConnHistoryStore.computeReadinessScore(emptyVitals)
+        assertEquals(0, emptyScore)
+
+        // Populated standard vitals return valid score in 1..100
+        val populatedVitals = RingConnVitals(
+            lastHeartRate = 72,
+            avgHeartRate = 65,
+            sleepScore = 84,
+            lastHrv = 52,
+            avgHrv = 48,
+            stressScore = 28,
+            skinTempOffset = 0.2f
+        )
+        val populatedScore = RingConnHistoryStore.computeReadinessScore(populatedVitals)
+        assertTrue("Populated score must be between 1 and 100, got: $populatedScore", populatedScore in 1..100)
+
+        // Optimal vitals produce high readiness score
+        val activeVitals = RingConnVitals(
+            lastHeartRate = 60,
+            sleepScore = 92,
+            lastHrv = 65,
+            avgHrv = 50,
+            stressScore = 15,
+            skinTempOffset = -0.1f
+        )
+        val activeScore = RingConnHistoryStore.computeReadinessScore(activeVitals)
+        assertTrue("Active recovery score must be between 1 and 100, got: $activeScore", activeScore in 1..100)
+        assertTrue("High recovery vitals should produce high readiness score", activeScore >= 75)
     }
 }
