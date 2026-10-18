@@ -184,6 +184,46 @@ class RingConnAccessibilityService : AccessibilityService() {
         return initialVitals
     }
 
+    /**
+     * Wakes RingConn app with Accessibility Service context (exempt from Android 14/15 BAL restrictions),
+     * waits 2200ms for UI / BLE sync, gently scrolls to capture all telemetry and insights,
+     * navigates back to Home screen via performGlobalAction(GLOBAL_ACTION_HOME), and returns the scraped vitals.
+     */
+    suspend fun wakeAndScrapeRingConnApp(): RingConnVitals? {
+        try {
+            val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                startActivity(launchIntent)
+                Log.i(TAG, "Launched RingConn via AccessibilityService context (BAL exempt)")
+            } else {
+                Log.w(TAG, "RingConn launch intent was null")
+                return null
+            }
+
+            delay(2200L)
+            val vitals = performGentleScrollAndScrape()
+
+            // Return home cleanly via Accessibility global action with fallback
+            val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
+            if (!homeSuccess) {
+                try {
+                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    startActivity(homeIntent)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Fallback home intent error", e)
+                }
+            }
+            return vitals
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in wakeAndScrapeRingConnApp", e)
+            return null
+        }
+    }
+
     private fun traverseNode(node: AccessibilityNodeInfo?, out: MutableList<String>) {
         if (node == null) return
         val nodePkg = node.packageName?.toString()

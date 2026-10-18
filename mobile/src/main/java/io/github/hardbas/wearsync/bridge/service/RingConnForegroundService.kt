@@ -11,18 +11,19 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.github.hardbas.wearsync.bridge.PhoneBridgeMainActivity
 import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.receiver.WatchdogReceiver
+import java.time.LocalDate
 import kotlinx.coroutines.*
 
 class RingConnForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var syncJob: Job? = null
-    private var lastMorningSyncDay: Int = -1
     private var lastUserPresentSyncMs: Long = 0L
 
     private val userPresentReceiver = object : android.content.BroadcastReceiver() {
@@ -30,12 +31,32 @@ class RingConnForegroundService : Service() {
             if (intent?.action == Intent.ACTION_USER_PRESENT) {
                 val cal = java.util.Calendar.getInstance()
                 val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
-                val day = cal.get(java.util.Calendar.DAY_OF_YEAR)
+                val todayEpochDay = LocalDate.now().toEpochDay()
+                val prefs = getSharedPreferences(RingConnTelemetryReader.PREFS_NAME, Context.MODE_PRIVATE)
+                val lastMorningPeekEpochDay = prefs.getLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, -1L)
+                val currentVitals = RingConnTelemetryReader.readBestAvailableVitals(this@RingConnForegroundService)
 
-                // 1. Morning Sleep Deep Sync
-                if (hour in 6..11 && lastMorningSyncDay != day) {
-                    lastMorningSyncDay = day
-                    Log.i(TAG, "Morning user-present detected: waking RingConn to sync sleep BLE data")
+                // 1. Once-Per-Day Morning Smart Unlock Peek
+                if (RingConnAccessibilityService.isRunning()) {
+                    if (todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore > 0 || currentVitals.skinTempBaseline == 0f)) {
+                        prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
+                        Log.i(TAG, "Morning Smart Unlock Peek triggered on epoch day $todayEpochDay (hour=$hour)")
+                        scope.launch {
+                            try {
+                                val scraped = RingConnAccessibilityService.instance?.wakeAndScrapeRingConnApp()
+                                val finalVitals = scraped ?: RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@RingConnForegroundService)
+                                WearDataSyncService(this@RingConnForegroundService).syncVitalsToWatch(finalVitals, force = true)
+                                Log.i(TAG, "Morning Smart Unlock Peek completed: HR=${finalVitals.lastHeartRate}, Sleep=${finalVitals.sleepScore}, Bat=${finalVitals.ringBattery}%")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error in morning smart peek", e)
+                            }
+                        }
+                        return
+                    }
+                } else if (hour in 5..12 && todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore > 0 || currentVitals.skinTempBaseline == 0f)) {
+                    // Fallback when AccessibilityService is not yet enabled by user
+                    prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
+                    Log.i(TAG, "Morning user-present detected without Accessibility: waking RingConn fallback")
                     scope.launch {
                         try {
                             val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
@@ -51,7 +72,7 @@ class RingConnForegroundService : Service() {
                                 triggerSync(force = true)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error in morning auto-sync", e)
+                            Log.e(TAG, "Error in morning auto-sync fallback", e)
                         }
                     }
                     return
@@ -123,10 +144,13 @@ class RingConnForegroundService : Service() {
     private var lastNotificationText: String = ""
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_SYNC_NOW) {
-            scope.launch {
-                triggerSync(force = true)
-            }
+        scheduleWatchdog(this)
+        if (syncJob?.isActive != true) {
+            startPeriodicSync()
+        }
+        val isForce = intent?.action == ACTION_SYNC_NOW
+        scope.launch {
+            triggerSync(force = isForce)
         }
         return START_STICKY
     }
@@ -153,6 +177,9 @@ class RingConnForegroundService : Service() {
     }
 
     private suspend fun triggerSync(force: Boolean = false) {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RingConnWearSync:SyncWakeLock")
+        wakeLock?.acquire(15_000L)
         try {
             // Poke RingConn Flutter background worker
             try {
@@ -176,6 +203,12 @@ class RingConnForegroundService : Service() {
             Log.d(TAG, "Periodic sync completed: success=$success")
         } catch (e: Exception) {
             Log.e(TAG, "Error in periodic sync", e)
+        } finally {
+            try {
+                if (wakeLock?.isHeld == true) {
+                    wakeLock.release()
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -224,11 +257,14 @@ class RingConnForegroundService : Service() {
         const val CHANNEL_ID = "ringconn_wear_sync_channel"
         const val NOTIFICATION_ID = 2001
         const val ACTION_SYNC_NOW = "io.github.hardbas.wearsync.bridge.SYNC_NOW"
+        const val ACTION_WATCHDOG_TICK = "io.github.hardbas.wearsync.bridge.WATCHDOG_TICK"
         private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
         private const val WATCHDOG_REQUEST_CODE = 9001
 
-        fun start(context: Context) {
-            val intent = Intent(context, RingConnForegroundService::class.java)
+        fun start(context: Context, action: String? = null) {
+            val intent = Intent(context, RingConnForegroundService::class.java).apply {
+                if (action != null) setAction(action)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {

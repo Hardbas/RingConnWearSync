@@ -628,6 +628,51 @@ fun VitalsDetailContent(
                     }
                 }
             }
+
+            // =========================================================================
+            // f) RingConn Insights Card
+            // =========================================================================
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF47CDFF))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.ringconn_insights),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val computedInsight = when {
+                            !hasHr -> stringResource(R.string.vitals_insight_no_data)
+                            currentHr > 100 -> stringResource(R.string.vitals_insight_elevated)
+                            else -> stringResource(R.string.vitals_insight_stable)
+                        }
+                        Text(
+                            text = if (vitals.vitalsInsight.isNotBlank()) vitals.vitalsInsight else computedInsight,
+                            fontSize = TextCaption,
+                            color = Color(0xFFCFD8DC),
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }

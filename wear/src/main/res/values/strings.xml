@@ -194,4 +194,13 @@
     <string name="realtime_caps">REAL-TIME</string>
     <string name="measuring_caps">MEASURING...</string>
     <string name="current_caps">CURRENT</string>
+
+    <!-- RingConn Smart Insights Fallbacks -->
+    <string name="sleep_insight_optimal">Optimal restorative sleep with balanced deep and REM phases.</string>
+    <string name="sleep_insight_good">Consistent rest promoting mental and physical recovery.</string>
+    <string name="sleep_insight_fair">Lighter rest detected. Aim for an earlier bedtime tonight.</string>
+    <string name="sleep_insight_no_data">Wear your ring overnight to analyze sleep architecture and recovery.</string>
+    <string name="vitals_insight_stable">Cardiovascular markers and oxygen saturation within optimal resting ranges.</string>
+    <string name="vitals_insight_elevated">Elevated autonomic activity detected. Monitor resting heart rate trends.</string>
+    <string name="vitals_insight_no_data">Continuous vitals monitoring active. Synchronize to view latest telemetry.</string>
 </resources>

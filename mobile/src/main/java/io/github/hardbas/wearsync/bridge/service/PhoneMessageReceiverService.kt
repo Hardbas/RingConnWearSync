@@ -43,20 +43,22 @@ class PhoneMessageReceiverService : WearableListenerService() {
         scope.launch {
             sendSyncStatusToWatch("START")
             try {
+                if (RingConnAccessibilityService.isRunning()) {
+                    val scraped = RingConnAccessibilityService.instance?.wakeAndScrapeRingConnApp()
+                    val vitals = scraped ?: RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneMessageReceiverService)
+                    WearDataSyncService(this@PhoneMessageReceiverService).syncVitalsToWatch(vitals, force = true)
+                    Log.i(TAG, "Synced RingConn vitals via AccessibilityService: HR=${vitals.lastHeartRate}, SpO2=${vitals.lastSpo2}")
+                    sendSyncStatusToWatch("SUCCESS")
+                    return@launch
+                }
+
                 val intent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
                 if (intent != null) {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
                     startActivity(intent)
                     Log.i(TAG, "Dispatched activation routine to RingConn to sync BLE data")
 
-                    if (RingConnAccessibilityService.isRunning()) {
-                        delay(2000L)
-                        RingConnAccessibilityService.instance?.performGentleScrollAndScrape()
-                        delay(2000L)
-                    } else {
-                        // Wait 4 seconds for RingConn to connect to BLE ring and sync metrics
-                        delay(4000L)
-                    }
+                    delay(4000L)
 
                     // Collapse back to home
                     val homeIntent = Intent(Intent.ACTION_MAIN).apply {

@@ -194,4 +194,13 @@
     <string name="realtime_caps">EN TIEMPO REAL</string>
     <string name="measuring_caps">MIDIENDO...</string>
     <string name="current_caps">ACTUAL</string>
+
+    <!-- RingConn Smart Insights Fallbacks -->
+    <string name="sleep_insight_optimal">Descanso reparador óptimo con fases profunda y REM equilibradas.</string>
+    <string name="sleep_insight_good">Descanso consistente que favorece la recuperación física y mental.</string>
+    <string name="sleep_insight_fair">Sueño ligero detectado. Intentá acostarte más temprano esta noche.</string>
+    <string name="sleep_insight_no_data">Usá tu anillo al dormir para analizar la arquitectura del sueño y recuperación.</string>
+    <string name="vitals_insight_stable">Marcadores cardiovasculares y oxigenación dentro de rangos óptimos de reposo.</string>
+    <string name="vitals_insight_elevated">Actividad autonómica elevada detectada. Monitoreá la tendencia de frecuencia en reposo.</string>
+    <string name="vitals_insight_no_data">Monitoreo continuo de signos vitales activo. Sincronizá para ver la telemetría más reciente.</string>
 </resources>

@@ -523,7 +523,9 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (activityScore >= 80) {
+                        text = if (vitals.activityInsight.isNotBlank()) {
+                            vitals.activityInsight
+                        } else if (activityScore >= 80) {
                             stringResource(R.string.daily_insight_high)
                         } else {
                             stringResource(R.string.daily_insight_low)

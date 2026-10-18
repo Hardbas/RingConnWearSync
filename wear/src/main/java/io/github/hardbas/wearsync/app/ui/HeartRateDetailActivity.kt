@@ -642,6 +642,21 @@ fun HeartRateDetailContent(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    val computedInsight = when {
+                        !hasHr -> stringResource(R.string.vitals_insight_no_data)
+                        currentHr > 100 -> stringResource(R.string.vitals_insight_elevated)
+                        else -> stringResource(R.string.vitals_insight_stable)
+                    }
+
+                    Text(
+                        text = if (vitals.vitalsInsight.isNotBlank()) vitals.vitalsInsight else computedInsight,
+                        fontSize = TextCaption,
+                        color = Color(0xFFCFD8DC),
+                        lineHeight = 14.sp
+                    )
                 }
             }
         }

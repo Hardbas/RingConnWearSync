@@ -482,7 +482,53 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
-            // e) Card 3: Sincronizar Anillo via Mobile RPC
+            // e) Card: RingConn Coaching & Insights
+            // =========================================================================
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(SleepPeriwinkle)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.ringconn_insights),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val computedInsight = when {
+                            !hasSleepData -> stringResource(R.string.sleep_insight_no_data)
+                            sleepScore >= 85 -> stringResource(R.string.sleep_insight_optimal)
+                            sleepScore >= 70 -> stringResource(R.string.sleep_insight_good)
+                            else -> stringResource(R.string.sleep_insight_fair)
+                        }
+                        Text(
+                            text = if (vitals.sleepInsight.isNotBlank()) vitals.sleepInsight else computedInsight,
+                            fontSize = TextCaption,
+                            color = Color(0xFFCFD8DC),
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
+
+            // =========================================================================
+            // f) Card: Sincronizar Anillo via Mobile RPC
             // =========================================================================
             item {
                 var isSyncing by remember { mutableStateOf(false) }

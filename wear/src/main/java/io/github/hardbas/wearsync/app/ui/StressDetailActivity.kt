@@ -249,7 +249,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             // d) Autonomic Balance Card (HRV Sympathetic vs Parasympathetic)
             // =========================================================================
             item {
-                AutonomicBalanceCard(hrv = vitals.lastHrv, score = score)
+                AutonomicBalanceCard(hrv = vitals.lastHrv, score = score, stressInsight = vitals.stressInsight)
             }
 
             // =========================================================================
@@ -563,7 +563,7 @@ private fun StressTimelineCard(score: Int) {
 }
 
 @Composable
-private fun AutonomicBalanceCard(hrv: Int, score: Int) {
+private fun AutonomicBalanceCard(hrv: Int, score: Int, stressInsight: String = "") {
     val targetProgress = (score / 100f).coerceIn(0.05f, 0.95f)
     val animProgress = remember { Animatable(targetProgress) }
     LaunchedEffect(targetProgress) {
@@ -673,7 +673,9 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            val explanation = when {
+            val explanation = if (stressInsight.isNotBlank()) {
+                stressInsight
+            } else when {
                 score < 30 -> stringResource(R.string.stress_desc_relaxed)
                 score < 60 -> stringResource(R.string.stress_desc_balanced)
                 score < 80 -> stringResource(R.string.stress_desc_moderate)

@@ -24,6 +24,7 @@ object RingConnTelemetryParser {
     private val COMPOSITE_BAT_REGEX = Regex("""(?i)^(?:battery|batería|bateria)\s+(?:%)?(\d{1,3})(?:%)?$""")
     private val SIGNED_TEMP_OFFSET_REGEX = Regex("""(?i)^([+-]\d{1,2}(?:\.\d{1,2})?)(?:°C)?$""")
     private val BASELINE_TEMP_REGEX = Regex("""(?i)\b(3[4-9]\.\d{1,2}|40\.0)\s*°?C?\b""")
+    private val REM_REGEX = Regex("""(?i)\brem\b""")
 
     private val IGNORED_TITLES = setOf(
         "health score and battery level",
@@ -54,6 +55,10 @@ object RingConnTelemetryParser {
         var ringBattery = baseVitals.ringBattery
         var skinTempOffset = baseVitals.skinTempOffset
         var skinTempBaseline = baseVitals.skinTempBaseline
+        var sleepInsight = baseVitals.sleepInsight
+        var stressInsight = baseVitals.stressInsight
+        var activityInsight = baseVitals.activityInsight
+        var vitalsInsight = baseVitals.vitalsInsight
 
         // Split multiple lines and clean whitespace
         val cleanTokens = tokens.flatMap { it.split("\n", "\r") }
@@ -81,6 +86,24 @@ object RingConnTelemetryParser {
 
             if (IGNORED_TITLES.contains(lower) || lower.startsWith("unsupported size")) {
                 continue
+            }
+
+            // --- Natural Language Insight Detection ---
+            if (token.length in 28..240 && token.contains(' ') && !lower.startsWith("http")) {
+                val sleepKeywords = listOf("sleep", "sueño", "deep", "rest", "descanso", "bedtime", "recovery", "recuperación")
+                val stressKeywords = listOf("stress", "estrés", "estres", "relax", "relaj", "autonomic", "nervous", "tensión", "calma")
+                val actKeywords = listOf("activity", "actividad", "steps", "pasos", "calori", "exercise", "ejercicio", "move", "movimiento")
+                val vitalsKeywords = listOf("heart", "frecuencia", "spo2", "oxygen", "oxígeno", "hrv", "temp", "vital", "baseline")
+
+                val hasExplicitSleep = listOf("sleep", "sueño", "deep", "descanso", "bedtime", "recovery", "recuperación").any { lower.contains(it) } || REM_REGEX.containsMatchIn(token)
+
+                when {
+                    hasExplicitSleep -> sleepInsight = token
+                    stressKeywords.any { lower.contains(it) } -> stressInsight = token
+                    actKeywords.any { lower.contains(it) } -> activityInsight = token
+                    vitalsKeywords.any { lower.contains(it) } -> vitalsInsight = token
+                    sleepKeywords.any { lower.contains(it) } || REM_REGEX.containsMatchIn(token) -> sleepInsight = token
+                }
             }
 
             // --- Time Token Extraction (e.g. "3:20 PM", "03:20", "3:20 p. m.") ---
@@ -417,10 +440,14 @@ object RingConnTelemetryParser {
             sleepLightMins = baseVitals.sleepLightMins,
             sleepAwakeMins = baseVitals.sleepAwakeMins,
             skinTempOffset = skinTempOffset,
-            skinTempBaseline = skinTempBaseline
+            skinTempBaseline = skinTempBaseline,
+            sleepInsight = sleepInsight,
+            stressInsight = stressInsight,
+            activityInsight = activityInsight,
+            vitalsInsight = vitalsInsight
         )
 
-        Log.d(TAG, "Parsed telemetry from ${cleanTokens.size} tokens: HR=$lastHr, SpO2=$lastSpo2, HRV=$lastHrv, Sleep=$sleepScore, Act=$activityScore, Stress=$stressScore, Steps=$liveSteps, Cal=$liveCalorie, Bat=$ringBattery, TempOffset=$skinTempOffset, TempBase=$skinTempBaseline")
+        Log.d(TAG, "Parsed telemetry from ${cleanTokens.size} tokens: HR=$lastHr, SpO2=$lastSpo2, HRV=$lastHrv, Sleep=$sleepScore, Act=$activityScore, Stress=$stressScore, Steps=$liveSteps, Cal=$liveCalorie, Bat=$ringBattery, TempOffset=$skinTempOffset, TempBase=$skinTempBaseline, Insights=[Sleep=${sleepInsight.isNotBlank()}, Stress=${stressInsight.isNotBlank()}, Act=${activityInsight.isNotBlank()}, Vit=${vitalsInsight.isNotBlank()}]")
         return result
     }
 }

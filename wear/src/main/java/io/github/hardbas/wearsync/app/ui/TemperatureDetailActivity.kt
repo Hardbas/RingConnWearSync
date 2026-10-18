@@ -429,7 +429,13 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = if (hasData) stringResource(R.string.temp_delta_explanation_desc) else stringResource(R.string.temp_no_data_desc),
+                            text = if (vitals.vitalsInsight.isNotBlank()) {
+                                vitals.vitalsInsight
+                            } else if (hasData) {
+                                stringResource(R.string.temp_delta_explanation_desc)
+                            } else {
+                                stringResource(R.string.temp_no_data_desc)
+                            },
                             color = Color(0xFFCFD8DC),
                             fontSize = TextCaption,
                             lineHeight = 14.sp

@@ -63,7 +63,8 @@ class RingConnVitalsMergeTest {
                 "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
                 "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
                 "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
-                "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}"
+                "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
+                "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}"
         }
 
         val base = RingConnVitals(avgSpo2 = 98, avgHrv = 45, isConnected = true, targetSteps = 10000, targetCalorie = 500, refreshTimestamp = 1000L)
@@ -75,6 +76,30 @@ class RingConnVitalsMergeTest {
         assertNotEquals(sigBase, makeSignature(base.copy(targetSteps = 12000)))
         assertNotEquals(sigBase, makeSignature(base.copy(targetCalorie = 600)))
         assertNotEquals(sigBase, makeSignature(base.copy(refreshTimestamp = 2000L)))
+        assertNotEquals(sigBase, makeSignature(base.copy(sleepInsight = "Great sleep")))
+        assertNotEquals(sigBase, makeSignature(base.copy(stressInsight = "Calm")))
+    }
+
+    @Test
+    fun parser_extractsInsightsCorrectly() {
+        val tokens = listOf(
+            "Sleep", "85",
+            "Your sleep was restful with excellent recovery overnight.",
+            "Stress", "28",
+            "Nivel de estrés relajado durante la mayor parte del día.",
+            "Activity", "78",
+            "You reached your daily steps and active movement goal!",
+            "Skin Temperature", "+0.2°C",
+            "Baseline skin temperature remained normal overnight."
+        )
+        val parsed = RingConnTelemetryParser.parseTokens(tokens, RingConnVitals())
+        assertEquals(85, parsed.sleepScore)
+        assertEquals(28, parsed.stressScore)
+        assertEquals(78, parsed.activityScore)
+        assertEquals("Your sleep was restful with excellent recovery overnight.", parsed.sleepInsight)
+        assertEquals("Nivel de estrés relajado durante la mayor parte del día.", parsed.stressInsight)
+        assertEquals("You reached your daily steps and active movement goal!", parsed.activityInsight)
+        assertEquals("Baseline skin temperature remained normal overnight.", parsed.vitalsInsight)
     }
 }
 

@@ -19,7 +19,8 @@ class WearDataSyncService(private val context: Context) {
             "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
             "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
             "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
-            "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}"
+            "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
+            "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}"
         val now = System.currentTimeMillis()
 
         if (!force && signature == lastSyncedSignature && (now - lastSyncedTimeMs) < MIN_HEARTBEAT_INTERVAL_MS) {
@@ -65,6 +66,10 @@ class WearDataSyncService(private val context: Context) {
                 dataMap.putInt(KEY_SLEEP_AWAKE_MINS, vitals.sleepAwakeMins)
                 dataMap.putFloat(KEY_SKIN_TEMP_OFFSET, vitals.skinTempOffset)
                 dataMap.putFloat(KEY_SKIN_TEMP_BASELINE, vitals.skinTempBaseline)
+                dataMap.putString(KEY_SLEEP_INSIGHT, vitals.sleepInsight)
+                dataMap.putString(KEY_STRESS_INSIGHT, vitals.stressInsight)
+                dataMap.putString(KEY_ACTIVITY_INSIGHT, vitals.activityInsight)
+                dataMap.putString(KEY_VITALS_INSIGHT, vitals.vitalsInsight)
             }.asPutDataRequest().setUrgent()
 
             dataClient.putDataItem(request).await()
@@ -107,6 +112,10 @@ class WearDataSyncService(private val context: Context) {
                 put(KEY_SLEEP_AWAKE_MINS, vitals.sleepAwakeMins)
                 put(KEY_SKIN_TEMP_OFFSET, vitals.skinTempOffset.toDouble())
                 put(KEY_SKIN_TEMP_BASELINE, vitals.skinTempBaseline.toDouble())
+                put(KEY_SLEEP_INSIGHT, vitals.sleepInsight)
+                put(KEY_STRESS_INSIGHT, vitals.stressInsight)
+                put(KEY_ACTIVITY_INSIGHT, vitals.activityInsight)
+                put(KEY_VITALS_INSIGHT, vitals.vitalsInsight)
             }.toString().toByteArray(Charsets.UTF_8)
 
             val nodes = nodeClient.connectedNodes.await()
@@ -168,5 +177,9 @@ class WearDataSyncService(private val context: Context) {
         const val KEY_SLEEP_AWAKE_MINS = "sleep_awake_mins"
         const val KEY_SKIN_TEMP_OFFSET = "skin_temp_offset"
         const val KEY_SKIN_TEMP_BASELINE = "skin_temp_baseline"
+        const val KEY_SLEEP_INSIGHT = "sleep_insight"
+        const val KEY_STRESS_INSIGHT = "stress_insight"
+        const val KEY_ACTIVITY_INSIGHT = "activity_insight"
+        const val KEY_VITALS_INSIGHT = "vitals_insight"
     }
 }

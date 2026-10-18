@@ -70,6 +70,11 @@ object RingConnTelemetryReader {
     const val KEY_SLEEP_AWAKE_MINS = "keySleepAwakeMins"
     const val KEY_SKIN_TEMP_OFFSET = "keySkinTempOffset"
     const val KEY_SKIN_TEMP_BASELINE = "keySkinTempBaseline"
+    const val KEY_SLEEP_INSIGHT = "sleep_insight"
+    const val KEY_STRESS_INSIGHT = "stress_insight"
+    const val KEY_ACTIVITY_INSIGHT = "activity_insight"
+    const val KEY_VITALS_INSIGHT = "vitals_insight"
+    const val KEY_LAST_MORNING_PEEK_EPOCH_DAY = "last_morning_peek_epoch_day"
 
     val CORE_HEALTH_PERMISSIONS = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -673,7 +678,11 @@ object RingConnTelemetryReader {
             sleepLightMins = finalLight,
             sleepAwakeMins = finalAwake,
             skinTempOffset = existing.skinTempOffset,
-            skinTempBaseline = existing.skinTempBaseline
+            skinTempBaseline = existing.skinTempBaseline,
+            sleepInsight = existing.sleepInsight,
+            stressInsight = existing.stressInsight,
+            activityInsight = existing.activityInsight,
+            vitalsInsight = existing.vitalsInsight
         )
 
         saveToPreferences(context, vitals, source = sourceLabel)
@@ -782,6 +791,11 @@ object RingConnTelemetryReader {
                 mergedTempBaseline = 36.5f
             }
 
+            val mergedSleepInsight = widgetVitals.sleepInsight.ifBlank { cached.sleepInsight }
+            val mergedStressInsight = widgetVitals.stressInsight.ifBlank { cached.stressInsight }
+            val mergedActivityInsight = widgetVitals.activityInsight.ifBlank { cached.activityInsight }
+            val mergedVitalsInsight = widgetVitals.vitalsInsight.ifBlank { cached.vitalsInsight }
+
             val merged = widgetVitals.copy(
                 lastHeartRate = finalHr,
                 avgHeartRate = finalAvgHr,
@@ -807,7 +821,11 @@ object RingConnTelemetryReader {
                 sleepLightMins = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
                 sleepAwakeMins = if (hcVitals != null && (hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) > 0) hcVitals.sleepAwakeMins else (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
                 skinTempOffset = mergedTempOffset,
-                skinTempBaseline = mergedTempBaseline
+                skinTempBaseline = mergedTempBaseline,
+                sleepInsight = mergedSleepInsight,
+                stressInsight = mergedStressInsight,
+                activityInsight = mergedActivityInsight,
+                vitalsInsight = mergedVitalsInsight
             )
             val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
             saveToPreferences(context, merged, source = sourceLabel)
@@ -817,16 +835,16 @@ object RingConnTelemetryReader {
         // 2. Health Connect API
         if (hcVitals != null && (hcVitals.lastHeartRate > 0 || hcVitals.liveSteps > 0 || hcVitals.lastSpo2 > 0)) {
             val cached = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
-            val finalHcVitals = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) {
-                hcVitals.copy(
-                    sleepDeepMins = cached.sleepDeepMins,
-                    sleepRemMins = cached.sleepRemMins,
-                    sleepLightMins = cached.sleepLightMins,
-                    sleepAwakeMins = cached.sleepAwakeMins
-                )
-            } else {
-                hcVitals
-            }
+            val finalHcVitals = hcVitals.copy(
+                sleepDeepMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepDeepMins else hcVitals.sleepDeepMins,
+                sleepRemMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepRemMins else hcVitals.sleepRemMins,
+                sleepLightMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepLightMins else hcVitals.sleepLightMins,
+                sleepAwakeMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepAwakeMins else hcVitals.sleepAwakeMins,
+                sleepInsight = hcVitals.sleepInsight.ifBlank { cached.sleepInsight },
+                stressInsight = hcVitals.stressInsight.ifBlank { cached.stressInsight },
+                activityInsight = hcVitals.activityInsight.ifBlank { cached.activityInsight },
+                vitalsInsight = hcVitals.vitalsInsight.ifBlank { cached.vitalsInsight }
+            )
             return@coroutineScope finalHcVitals
         }
 
@@ -889,7 +907,8 @@ object RingConnTelemetryReader {
     fun saveToPreferences(context: Context, vitals: RingConnVitals, source: String = "Manual") {
         val timeStr = ZonedDateTime.now(ZoneId.systemDefault())
             .format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().apply {
             putInt(KEY_LASTLY_HR, vitals.lastHeartRate)
             putInt(KEY_AVG_HR, vitals.avgHeartRate)
             putInt(KEY_LASTLY_SPO, vitals.lastSpo2)
@@ -921,6 +940,10 @@ object RingConnTelemetryReader {
             putInt(KEY_SLEEP_AWAKE_MINS, vitals.sleepAwakeMins)
             putFloat(KEY_SKIN_TEMP_OFFSET, vitals.skinTempOffset)
             putFloat(KEY_SKIN_TEMP_BASELINE, vitals.skinTempBaseline)
+            putString(KEY_SLEEP_INSIGHT, vitals.sleepInsight.ifBlank { prefs.getString(KEY_SLEEP_INSIGHT, "") ?: "" })
+            putString(KEY_STRESS_INSIGHT, vitals.stressInsight.ifBlank { prefs.getString(KEY_STRESS_INSIGHT, "") ?: "" })
+            putString(KEY_ACTIVITY_INSIGHT, vitals.activityInsight.ifBlank { prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "" })
+            putString(KEY_VITALS_INSIGHT, vitals.vitalsInsight.ifBlank { prefs.getString(KEY_VITALS_INSIGHT, "") ?: "" })
             putString(KEY_LAST_SYNC_SOURCE, source)
             putString(KEY_LAST_SYNC_TIME_STR, timeStr)
             apply()
@@ -959,7 +982,14 @@ object RingConnTelemetryReader {
             sleepLightMins = prefs.getInt(KEY_SLEEP_LIGHT_MINS, 0),
             sleepAwakeMins = prefs.getInt(KEY_SLEEP_AWAKE_MINS, 0),
             skinTempOffset = prefs.getFloat(KEY_SKIN_TEMP_OFFSET, 0.0f),
-            skinTempBaseline = prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 0.0f)
+            skinTempBaseline = prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 0.0f),
+            sleepInsight = prefs.getString(KEY_SLEEP_INSIGHT, "") ?: "",
+            stressInsight = prefs.getString(KEY_STRESS_INSIGHT, "") ?: "",
+            activityInsight = prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "",
+            vitalsInsight = prefs.getString(KEY_VITALS_INSIGHT, "") ?: ""
         )
     }
+
+    fun readFromPreferences(prefs: SharedPreferences): RingConnVitals = parseFromPreferences(prefs)
+    fun readFromPreferences(context: Context): RingConnVitals = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 }

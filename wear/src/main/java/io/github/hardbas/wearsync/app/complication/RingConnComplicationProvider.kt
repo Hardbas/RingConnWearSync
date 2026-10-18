@@ -179,6 +179,10 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             val battery = prefs.getInt("ring_battery", 0)
             val sleep = prefs.getInt("sleep_score", 0)
             val spo2 = prefs.getInt("spo2_last", 0)
+            val sleepInsight = prefs.getString("sleep_insight", "") ?: ""
+            val stressInsight = prefs.getString("stress_insight", "") ?: ""
+            val activityInsight = prefs.getString("activity_insight", "") ?: ""
+            val vitalsInsight = prefs.getString("vitals_insight", "") ?: ""
 
             return RingConnVitals(
                 lastHeartRate = hr,
@@ -211,9 +215,21 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 sleepLightMins = prefs.getInt("sleep_light_mins", 0),
                 sleepAwakeMins = prefs.getInt("sleep_awake_mins", 0),
                 skinTempOffset = prefs.getFloat("skin_temp_offset", 0.0f),
-                skinTempBaseline = prefs.getFloat("skin_temp_baseline", 0.0f)
+                skinTempBaseline = prefs.getFloat("skin_temp_baseline", 0.0f),
+                sleepInsight = sleepInsight,
+                stressInsight = stressInsight,
+                activityInsight = activityInsight,
+                vitalsInsight = vitalsInsight
             )
         }
+
+        fun getVitals(context: Context): RingConnVitals = getLatestVitals(context)
+
+        fun parseVitalsFromDataMap(dataMap: com.google.android.gms.wearable.DataMap): RingConnVitals =
+            io.github.hardbas.wearsync.app.service.WearDataListenerService.parseVitalsFromDataMap(dataMap)
+
+        fun parseVitalsFromJson(json: org.json.JSONObject): RingConnVitals =
+            io.github.hardbas.wearsync.app.service.WearDataListenerService.parseVitalsFromJson(json)
 
         fun saveAndBroadcastVitals(context: Context, vitals: RingConnVitals) {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
@@ -248,6 +264,10 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putInt("sleep_awake_mins", vitals.sleepAwakeMins)
                 putFloat("skin_temp_offset", vitals.skinTempOffset)
                 putFloat("skin_temp_baseline", vitals.skinTempBaseline)
+                putString("sleep_insight", vitals.sleepInsight)
+                putString("stress_insight", vitals.stressInsight)
+                putString("activity_insight", vitals.activityInsight)
+                putString("vitals_insight", vitals.vitalsInsight)
                 apply()
             }
 
