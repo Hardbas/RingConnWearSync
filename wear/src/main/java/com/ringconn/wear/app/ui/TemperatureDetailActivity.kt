@@ -179,8 +179,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF143026), Color(0xFF0C1D17))))
-                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -189,7 +188,6 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             modifier = Modifier
                                 .clip(ShapePill)
                                 .background(statusColor.copy(alpha = 0.22f))
-                                .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), ShapePill)
                                 .padding(horizontal = 14.dp, vertical = 3.5.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -280,43 +278,38 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // d) Card: Perspectiva Fisiológica Samsung Health
+            // d) Perspectiva Fisiológica Samsung Health (Floating Typography)
             // =========================================================================
             item {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_comp_temp),
-                                contentDescription = stringResource(R.string.temp_delta_explanation_title),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                            Text(
-                                text = stringResource(R.string.temp_delta_explanation_title),
-                                color = TempEmeraldSoft,
-                                fontSize = TextBody,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f, fill = false),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_comp_temp),
+                            contentDescription = stringResource(R.string.temp_delta_explanation_title),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(7.dp))
                         Text(
-                            text = stringResource(R.string.temp_delta_explanation_desc),
-                            color = Color(0xFFCFD8DC),
-                            fontSize = TextLabel,
-                            lineHeight = TextBody
+                            text = stringResource(R.string.temp_delta_explanation_title),
+                            color = TempEmeraldSoft,
+                            fontSize = TextBody,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.temp_delta_explanation_desc),
+                        color = Color(0xFFCFD8DC),
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
+                    )
                 }
             }
 
@@ -328,8 +321,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -369,32 +361,27 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // f) Card: Alerta Inmune Temprana
+            // f) Alerta Inmune Temprana (Floating Typography)
             // =========================================================================
             item {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF12241D), Color(0xFF0C1713))))
-                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapeCard)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.temp_recovery_title),
-                            color = TempEmeraldSoft,
-                            fontSize = TextBody,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.temp_recovery_desc),
-                            color = Color(0xFFCFD8DC),
-                            fontSize = TextLabel,
-                            lineHeight = TextBody
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.temp_recovery_title),
+                        color = TempEmeraldSoft,
+                        fontSize = TextBody,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.temp_recovery_desc),
+                        color = Color(0xFFCFD8DC),
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
+                    )
                 }
             }
         }
@@ -407,9 +394,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeCard)
-            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .background(CardBg)
     ) {
         Column {
             Row(

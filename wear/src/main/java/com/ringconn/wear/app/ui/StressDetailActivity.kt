@@ -172,8 +172,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF281C38), Color(0xFF160E22))))
-                        .border(BorderStroke(1.dp, Color(0x33A855F7)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -182,7 +181,6 @@ fun StressDetailContent(vitals: RingConnVitals) {
                             modifier = Modifier
                                 .clip(ShapePill)
                                 .background(statusColor.copy(alpha = 0.22f))
-                                .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), ShapePill)
                                 .padding(horizontal = 14.dp, vertical = 3.5.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -271,8 +269,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -296,32 +293,27 @@ fun StressDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // f) Card: Respiración Guiada 4x4
+            // f) Respiración Guiada 4x4 (Floating Typography)
             // =========================================================================
             item {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF12221A), Color(0xFF0C1611))))
-                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapeCard)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.stress_breathing_title),
-                            color = Color(0xFF00E676),
-                            fontSize = TextBody,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.stress_breathing_guide),
-                            color = Color(0xFFCFD8DC),
-                            fontSize = TextLabel,
-                            lineHeight = TextBody
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.stress_breathing_title),
+                        color = Color(0xFF00E676),
+                        fontSize = TextBody,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = stringResource(R.string.stress_breathing_guide),
+                        color = Color(0xFFCFD8DC),
+                        fontSize = TextLabel,
+                        lineHeight = TextBody
+                    )
                 }
             }
         }
@@ -350,8 +342,7 @@ private fun StressTimelineCard(score: Int) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeCard)
-            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+            .background(CardBg)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
@@ -540,8 +531,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeCard)
-            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+            .background(CardBg)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
