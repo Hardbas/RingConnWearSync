@@ -125,7 +125,7 @@ fun SleepDetailContent(
     vitals: RingConnVitals,
     onSyncClick: () -> Unit = {}
 ) {
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
@@ -166,31 +166,33 @@ fun SleepDetailContent(
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        scrollState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
-                .focusable()
-                .verticalScroll(scrollState)
-                .padding(top = 28.dp, bottom = 44.dp),
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // Header: Análisis de Sueño
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
-                Text(
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
                     text = stringResource(R.string.sleep_analysis_title),
                     fontSize = TextBody,
                     color = Color.White,
@@ -203,11 +205,13 @@ fun SleepDetailContent(
                     color = SleepPeriwinkle
                 )
             }
+        }
 
-            // Hero Sleep Score Capsule
+        // Hero Sleep Score Capsule
+        item {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .fillMaxWidth()
                     .clip(ShapeStadium)
                     .background(SleepHeroBrush)
                     .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -294,11 +298,13 @@ fun SleepDetailContent(
                     }
                 }
             }
+        }
 
-            // Capsule 2: Fases del Sueño (Sleep Stages)
+        // Capsule 2: Fases del Sueño (Sleep Stages)
+        item {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .fillMaxWidth()
                     .clip(ShapeStadium)
                     .background(SleepHeroBrush)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
@@ -363,11 +369,13 @@ fun SleepDetailContent(
                     }
                 }
             }
+        }
 
-            // Capsule 3: Biometría Nocturna (Recuperación)
+        // Capsule 3: Biometría Nocturna (Recuperación)
+        item {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .fillMaxWidth()
                     .clip(ShapeStadium)
                     .background(NocturnalGradientBrush)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
@@ -400,16 +408,16 @@ fun SleepDetailContent(
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Capsule 4: Sincronizar Anillo via Mobile RPC
+        // Capsule 4: Sincronizar Anillo via Mobile RPC
+        item {
             var isSyncing by remember { mutableStateOf(false) }
             val syncScope = rememberCoroutineScope()
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .fillMaxWidth()
                     .clip(ShapeStadium)
                     .background(Color(0xFF1E2638))
                     .clickable {
@@ -432,10 +440,9 @@ fun SleepDetailContent(
                     color = if (isSyncing) Color(0xFF70E000) else Color(0xFF8E99F3)
                 )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
 }
 
 /**

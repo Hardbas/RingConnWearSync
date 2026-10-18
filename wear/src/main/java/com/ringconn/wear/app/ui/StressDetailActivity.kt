@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -49,8 +51,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.material.*
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
@@ -115,7 +116,7 @@ fun StressDetailScreen(context: Context) {
 
 @Composable
 fun StressDetailContent(vitals: RingConnVitals) {
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
@@ -138,175 +139,182 @@ fun StressDetailContent(vitals: RingConnVitals) {
         else -> StressHigh
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .onRotaryScrollEvent {
-                coroutineScope.launch {
-                    scrollState.scrollBy(it.verticalScrollPixels * 1.5f)
-                }
-                true
-            }
-            .focusRequester(focusRequester)
-            .focusable()
+    Scaffold(
+        timeText = { TimeText() },
+        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 44.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Color.Black)
+                .onRotaryScrollEvent {
+                    coroutineScope.launch {
+                        listState.scrollBy(it.verticalScrollPixels * 1.5f)
+                    }
+                    true
+                }
+                .focusRequester(focusRequester)
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // Header: Clean title with circular clearance
-            Text(
-                text = stringResource(R.string.stress_title),
-                color = Color.White,
-                fontSize = TextBody,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            item {
+                Text(
+                    text = stringResource(R.string.stress_title),
+                    color = Color.White,
+                    fontSize = TextBody,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
 
             // 1. Hero Stadium Capsule Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapePod)
-                    .background(StressHeroGradient)
-                    .padding(horizontal = 14.dp, vertical = 14.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    // Badge status pill
-                    Box(
-                        modifier = Modifier
-                            .clip(ShapeChip)
-                            .background(statusColor.copy(alpha = 0.22f))
-                            .padding(horizontal = 12.dp, vertical = 3.5.dp)
-                    ) {
-                        Text(
-                            text = statusLabel,
-                            color = statusColor,
-                            fontSize = TextLabel,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    val gaugeResId = when {
-                        score < 30 -> R.drawable.oneui_ic_gauge_relaxed
-                        score < 60 -> R.drawable.oneui_ic_gauge_balanced
-                        score < 80 -> R.drawable.oneui_ic_gauge_moderate
-                        else -> R.drawable.oneui_ic_gauge_high
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.Start
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(StressHeroGradient)
+                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        // Badge status pill
+                        Box(
+                            modifier = Modifier
+                                .clip(ShapeChip)
+                                .background(statusColor.copy(alpha = 0.22f))
+                                .padding(horizontal = 12.dp, vertical = 3.5.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = if (score > 0) "$score" else "--",
-                                    color = Color.White,
-                                    fontSize = TextHero,
-                                    style = TabularNums,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = "/ 100",
-                                    color = Color(0xFFD8B4FE),
-                                    fontSize = TextLabel,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(bottom = 5.dp)
-                                )
-                            }
-                            val hrvVal = if (vitals.lastHrv > 0) "HRV ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
                             Text(
-                                text = hrvVal,
-                                color = Color(0xFF5EEAD4),
+                                text = statusLabel,
+                                color = statusColor,
                                 fontSize = TextLabel,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Image(
-                            painter = painterResource(id = gaugeResId),
-                            contentDescription = statusLabel,
-                            modifier = Modifier.size(64.dp, 48.dp)
-                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val gaugeResId = when {
+                            score < 30 -> R.drawable.oneui_ic_gauge_relaxed
+                            score < 60 -> R.drawable.oneui_ic_gauge_balanced
+                            score < 80 -> R.drawable.oneui_ic_gauge_moderate
+                            else -> R.drawable.oneui_ic_gauge_high
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = if (score > 0) "$score" else "--",
+                                        color = Color.White,
+                                        fontSize = TextHero,
+                                        style = TabularNums,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "/ 100",
+                                        color = Color(0xFFD8B4FE),
+                                        fontSize = TextLabel,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(bottom = 5.dp)
+                                    )
+                                }
+                                val hrvVal = if (vitals.lastHrv > 0) "HRV ${vitals.lastHrv} ms" else stringResource(R.string.stress_resting)
+                                Text(
+                                    text = hrvVal,
+                                    color = Color(0xFF5EEAD4),
+                                    fontSize = TextLabel,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Image(
+                                painter = painterResource(id = gaugeResId),
+                                contentDescription = statusLabel,
+                                modifier = Modifier.size(64.dp, 48.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             // 2. 24h Stress Timeline Chart with centered stats grid
-            StressTimelineCard(score = score)
-
-            Spacer(modifier = Modifier.height(10.dp))
+            item {
+                StressTimelineCard(score = score)
+            }
 
             // 3. Autonomic Balance Card (HRV Sympathetic vs Parasympathetic)
-            AutonomicBalanceCard(hrv = vitals.lastHrv, score = score)
-
-            Spacer(modifier = Modifier.height(10.dp))
+            item {
+                AutonomicBalanceCard(hrv = vitals.lastHrv, score = score)
+            }
 
             // 4. Card: Zonas Fisiológicas de Estrés
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapeCard)
-                    .background(CardGradient)
-                    .padding(14.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.stress_zones_title),
-                        color = Color.White,
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardGradient)
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.stress_zones_title),
+                            color = Color.White,
+                            fontSize = TextBody,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    StressZoneRow(stringResource(R.string.stress_relaxed), stringResource(R.string.stress_zone_relaxed_desc), StressRelaxed, score < 30)
-                    Spacer(modifier = Modifier.height(5.dp))
-                    StressZoneRow(stringResource(R.string.stress_balanced), stringResource(R.string.stress_zone_balanced_desc), StressBalanced, score in 30..59)
-                    Spacer(modifier = Modifier.height(5.dp))
-                    StressZoneRow(stringResource(R.string.stress_moderate), stringResource(R.string.stress_zone_moderate_desc), StressModerate, score in 60..79)
-                    Spacer(modifier = Modifier.height(5.dp))
-                    StressZoneRow(stringResource(R.string.stress_high), stringResource(R.string.stress_zone_high_desc), StressHigh, score >= 80)
+                        StressZoneRow(stringResource(R.string.stress_relaxed), stringResource(R.string.stress_zone_relaxed_desc), StressRelaxed, score < 30)
+                        Spacer(modifier = Modifier.height(5.dp))
+                        StressZoneRow(stringResource(R.string.stress_balanced), stringResource(R.string.stress_zone_balanced_desc), StressBalanced, score in 30..59)
+                        Spacer(modifier = Modifier.height(5.dp))
+                        StressZoneRow(stringResource(R.string.stress_moderate), stringResource(R.string.stress_zone_moderate_desc), StressModerate, score in 60..79)
+                        Spacer(modifier = Modifier.height(5.dp))
+                        StressZoneRow(stringResource(R.string.stress_high), stringResource(R.string.stress_zone_high_desc), StressHigh, score >= 80)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             // 5. Card: Respiración Guiada 4x4
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapeCard)
-                    .background(Color(0xFF181528))
-                    .padding(14.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.stress_breathing_title),
-                        color = Color(0xFF00E676),
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.stress_breathing_guide),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(Color(0xFF181528))
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.stress_breathing_title),
+                            color = Color(0xFF00E676),
+                            fontSize = TextBody,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.stress_breathing_guide),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextLabel,
+                            lineHeight = TextBody
+                        )
+                    }
                 }
             }
         }

@@ -95,7 +95,7 @@ fun DailySummaryDetailScreen(context: Context) {
 
 @Composable
 fun DailySummaryDetailContent(vitals: RingConnVitals) {
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
@@ -123,155 +123,162 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        scrollState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
-                .focusable()
-                .verticalScroll(scrollState)
-                .padding(top = 28.dp, bottom = 44.dp),
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // Header: Daily Activity
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.daily_activity_title),
-                    fontSize = TextBody,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = TextLabel,
-                    color = LabelSilver
-                )
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.daily_activity_title),
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.ring_model_subtitle),
+                        fontSize = TextLabel,
+                        color = LabelSilver
+                    )
+                }
             }
 
             // Hero Capsule: 3 Concentric Activity Rings (Draw-phase animated) + Activity Score
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapeStadium)
-                    .background(DailyActivityBrush)
-                    .padding(horizontal = 14.dp, vertical = 14.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeStadium)
+                        .background(DailyActivityBrush)
+                        .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
-                    ConcentricActivityRings(
-                        stepsProgress = stepsProgress,
-                        timeProgress = timeProgress,
-                        calProgress = calProgress,
-                        modifier = Modifier.size(68.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ConcentricActivityRings(
+                            stepsProgress = stepsProgress,
+                            timeProgress = timeProgress,
+                            calProgress = calProgress,
+                            modifier = Modifier.size(68.dp)
+                        )
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.Bottom) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = "$activityScore",
+                                    fontSize = TextHero,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.pts_unit),
+                                    fontSize = TextBody,
+                                    color = LabelSilver,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
                             Text(
-                                text = "$activityScore",
-                                fontSize = TextHero,
-                                style = TabularNums,
-                                color = Color.White,
+                                text = stringResource(R.string.excellent),
+                                fontSize = TextLabel,
+                                color = LimeSteps,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = stringResource(R.string.pts_unit),
-                                fontSize = TextBody,
-                                color = LabelSilver,
-                                modifier = Modifier.padding(bottom = 4.dp)
+                                buildAnnotatedString {
+                                    withStyle(SpanStyle(color = LimeSteps, fontWeight = FontWeight.Bold)) {
+                                        append(stepsFormatted)
+                                    }
+                                    withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
+                                    withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold)) {
+                                        append("${activeMins}${stringResource(R.string.min_unit)}")
+                                    }
+                                    withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
+                                    withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold)) {
+                                        append("$calories")
+                                    }
+                                },
+                                fontSize = TextLabel,
+                                style = TabularNums
                             )
                         }
-                        Text(
-                            text = stringResource(R.string.excellent),
-                            fontSize = TextLabel,
-                            color = LimeSteps,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            buildAnnotatedString {
-                                withStyle(SpanStyle(color = LimeSteps, fontWeight = FontWeight.Bold)) {
-                                    append(stepsFormatted)
-                                }
-                                withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
-                                withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold)) {
-                                    append("${activeMins}${stringResource(R.string.min_unit)}")
-                                }
-                                withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
-                                withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold)) {
-                                    append("$calories")
-                                }
-                            },
-                            fontSize = TextLabel,
-                            style = TabularNums
-                        )
                     }
                 }
             }
 
             // Capsule 2: Metrics Breakdown Capsule (Draw-phase animated Canvas bars)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapeStadium)
-                    .background(DailyActivityBrush)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.daily_goals_title),
-                        fontSize = TextBody,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeStadium)
+                        .background(DailyActivityBrush)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.daily_goals_title),
+                            fontSize = TextBody,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    ActivityMetricBar(
-                        title = stringResource(R.string.steps),
-                        current = stepsFormatted,
-                        target = "8,000",
-                        color = LimeSteps,
-                        targetProgress = stepsProgress
-                    )
+                        ActivityMetricBar(
+                            title = stringResource(R.string.steps),
+                            current = stepsFormatted,
+                            target = "8,000",
+                            color = LimeSteps,
+                            targetProgress = stepsProgress
+                        )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    ActivityMetricBar(
-                        title = stringResource(R.string.active_time),
-                        current = "${activeMins}${stringResource(R.string.min_unit)}",
-                        target = "${targetActiveMins}${stringResource(R.string.min_unit)}",
-                        color = CyanActive,
-                        targetProgress = timeProgress
-                    )
+                        ActivityMetricBar(
+                            title = stringResource(R.string.active_time),
+                            current = "${activeMins}${stringResource(R.string.min_unit)}",
+                            target = "${targetActiveMins}${stringResource(R.string.min_unit)}",
+                            color = CyanActive,
+                            targetProgress = timeProgress
+                        )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    ActivityMetricBar(
-                        title = stringResource(R.string.active_calories),
-                        current = "$calories kcal",
-                        target = "$targetCalories kcal",
-                        color = VioletCalorie,
-                        targetProgress = calProgress
-                    )
+                        ActivityMetricBar(
+                            title = stringResource(R.string.active_calories),
+                            current = "$calories kcal",
+                            target = "$targetCalories kcal",
+                            color = VioletCalorie,
+                            targetProgress = calProgress
+                        )
+                    }
                 }
             }
         }

@@ -159,7 +159,7 @@ fun VitalsDetailContent(
     isMeasuring: Boolean = false,
     onMeasureClick: () -> Unit = {}
 ) {
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
@@ -176,158 +176,166 @@ fun VitalsDetailContent(
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        scrollState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
-                .focusable()
-                .verticalScroll(scrollState)
-                .padding(top = 28.dp, bottom = 44.dp),
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // Header: Frecuencia Cardíaca
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.tile_heart_rate_title),
-                    fontSize = TextBody,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = TextLabel,
-                    color = VitalsGold
-                )
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.tile_heart_rate_title),
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.ring_model_subtitle),
+                        fontSize = TextLabel,
+                        color = VitalsGold
+                    )
+                }
             }
 
             // Hero Stadium Capsule (BPM + Pulsating Icon + Measure button)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapeStadium)
-                    .background(VitalsBrush)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        PulsingHeartIcon(isMeasuring = isMeasuring)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = "$currentHr",
-                                fontSize = TextHero,
-                                style = TabularNums,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.bpm_unit),
-                                fontSize = TextBody,
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeStadium)
+                        .background(VitalsBrush)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            PulsingHeartIcon(isMeasuring = isMeasuring)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = "$currentHr",
+                                    fontSize = TextHero,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.bpm_unit),
+                                    fontSize = TextBody,
+                                    color = VitalsGold,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Min-Max range bar with smooth Canvas draw animation
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.min_hr_format, minHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
+                            AnimatedMinMaxBar(
+                                progress = 0.68f,
                                 color = VitalsGold,
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(6.dp)
+                                    .padding(horizontal = 8.dp)
+                            )
+                            Text(stringResource(R.string.max_hr_format, maxHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Sync button
+                        Box(
+                            modifier = Modifier
+                                .clip(ShapePill)
+                                .background(GlassBlack50)
+                                .clickable {
+                                    onMeasureClick()
+                                }
+                                .padding(horizontal = 24.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
+                                fontSize = TextLabel,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Min-Max range bar with smooth Canvas draw animation
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.min_hr_format, minHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
-                        AnimatedMinMaxBar(
-                            progress = 0.68f,
-                            color = VitalsGold,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(6.dp)
-                                .padding(horizontal = 8.dp)
-                        )
-                        Text(stringResource(R.string.max_hr_format, maxHr), fontSize = TextLabel, style = TabularNums, color = VitalsGold)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Sync button
-                    Box(
-                        modifier = Modifier
-                            .clip(ShapePill)
-                            .background(GlassBlack50)
-                            .clickable {
-                                onMeasureClick()
-                            }
-                            .padding(horizontal = 24.dp, vertical = 7.dp)
-                    ) {
-                        Text(
-                            text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
-                            fontSize = TextLabel,
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold
-                        )
                     }
                 }
             }
 
             // One UI Heart Rate Zones Capsule
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapePod)
-                    .background(Color(0xFF1B1E22))
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.hr_zones_title),
-                        fontSize = TextLabel,
-                        color = LabelSilver,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    ZoneRow(stringResource(R.string.zone_rest_range), hasHr && currentHr < 100, ZoneRestColor)
-                    ZoneRow(stringResource(R.string.zone_warmup_range), hasHr && currentHr in 100..120, ZoneWarmupColor)
-                    ZoneRow(stringResource(R.string.zone_fat_burn_range), hasHr && currentHr in 121..140, ZoneFatBurnColor)
-                    ZoneRow(stringResource(R.string.zone_cardio_range), hasHr && currentHr in 141..160, ZoneCardioColor)
-                    ZoneRow(stringResource(R.string.zone_peak_range), hasHr && currentHr > 160, ZonePeakColor)
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(Color(0xFF1B1E22))
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.hr_zones_title),
+                            fontSize = TextLabel,
+                            color = LabelSilver,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ZoneRow(stringResource(R.string.zone_rest_range), hasHr && currentHr < 100, ZoneRestColor)
+                        ZoneRow(stringResource(R.string.zone_warmup_range), hasHr && currentHr in 100..120, ZoneWarmupColor)
+                        ZoneRow(stringResource(R.string.zone_fat_burn_range), hasHr && currentHr in 121..140, ZoneFatBurnColor)
+                        ZoneRow(stringResource(R.string.zone_cardio_range), hasHr && currentHr in 141..160, ZoneCardioColor)
+                        ZoneRow(stringResource(R.string.zone_peak_range), hasHr && currentHr > 160, ZonePeakColor)
+                    }
                 }
-
             }
 
             // Telemetry indicators row (SpO2, HRV, Ring Battery)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                val spo2Text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--%"
-                val hrvText = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "-- ms"
-                val batText = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--%"
-                MetricMiniCapsule(stringResource(R.string.blood_oxygen_short), spo2Text, CyanActive, Modifier.weight(1f))
-                MetricMiniCapsule(stringResource(R.string.hrv_short), hrvText, VioletCalorie, Modifier.weight(1f))
-                MetricMiniCapsule(stringResource(R.string.ring_short), batText, LimeSteps, Modifier.weight(1f))
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val spo2Text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--%"
+                    val hrvText = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "-- ms"
+                    val batText = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--%"
+                    MetricMiniCapsule(stringResource(R.string.blood_oxygen_short), spo2Text, CyanActive, Modifier.weight(1f))
+                    MetricMiniCapsule(stringResource(R.string.hrv_short), hrvText, VioletCalorie, Modifier.weight(1f))
+                    MetricMiniCapsule(stringResource(R.string.ring_short), batText, LimeSteps, Modifier.weight(1f))
+                }
             }
         }
     }
