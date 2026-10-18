@@ -112,6 +112,24 @@ class DesignSystemTokensTest {
             .build()
         org.junit.Assert.assertNotNull(arcLine)
     }
+
+    @Test
+    fun allTiles_buildResources_haveValidVersionsAndMappings() {
+        val hrRes = com.ringconn.wear.app.tile.HeartRateTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-hr-circular-v1", hrRes.version)
+
+        val dailyRes = com.ringconn.wear.app.tile.DailySummaryTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-summary-circular-v1", dailyRes.version)
+
+        val stressRes = com.ringconn.wear.app.tile.StressTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-stress-circular-v1", stressRes.version)
+
+        val tempRes = com.ringconn.wear.app.tile.TemperatureTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-temp-circular-v1", tempRes.version)
+
+        val vitalsRes = com.ringconn.wear.app.tile.VitalsTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-vitals-circular-v1", vitalsRes.version)
+    }
 }
 
 
