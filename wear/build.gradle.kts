@@ -12,8 +12,8 @@ android {
         applicationId = "com.ringconn.wear.app"
         minSdk = 30
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.2.9"
+        versionCode = 8
+        versionName = "1.3.0"
     }
 
     buildTypes {
