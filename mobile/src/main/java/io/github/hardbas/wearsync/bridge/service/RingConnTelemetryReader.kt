@@ -21,6 +21,8 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 private data class RawStageInterval(
     val start: Instant,
@@ -99,17 +101,17 @@ object RingConnTelemetryReader {
         }
     }
 
-    suspend fun readFromHealthConnect(context: Context): RingConnVitals? {
+    suspend fun readFromHealthConnect(context: Context): RingConnVitals? = coroutineScope {
         if (!isHealthConnectAvailable(context)) {
             Log.w(TAG, "Health Connect SDK not available")
-            return null
+            return@coroutineScope null
         }
 
         val client = try {
             HealthConnectClient.getOrCreate(context)
         } catch (e: Exception) {
             Log.e(TAG, "Unable to get HealthConnectClient", e)
-            return null
+            return@coroutineScope null
         }
 
         val granted = try {
@@ -121,11 +123,12 @@ object RingConnTelemetryReader {
 
         if (granted.isEmpty()) {
             Log.w(TAG, "No Health Connect permissions granted")
-            return null
+            return@coroutineScope null
         }
 
         val now = Instant.now()
         val queryStart = now.minus(Duration.ofHours(48))
+        val queryStart6h = now.minus(Duration.ofHours(6))
         val todayStart = ZonedDateTime.now(ZoneId.systemDefault())
             .toLocalDate()
             .atStartOfDay(ZoneId.systemDefault())
@@ -133,6 +136,127 @@ object RingConnTelemetryReader {
 
         // Existing saved values for fallback continuity
         val existing = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
+
+        // Parallelize Health Connect readRecords queries
+        val hrDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(HeartRateRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = HeartRateRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(queryStart6h, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying HeartRateRecord: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val rhrDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(RestingHeartRateRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = RestingHeartRateRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(queryStart, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying RestingHeartRateRecord: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val spo2Deferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(OxygenSaturationRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = OxygenSaturationRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(queryStart6h, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying OxygenSaturationRecord: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val hrvDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = HeartRateVariabilityRmssdRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(queryStart, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying HRV: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val stepsDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = StepsRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(todayStart, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying StepsRecord: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val calDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = TotalCaloriesBurnedRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(todayStart, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying Calories: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val sleepDeferred = async {
+            if (granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class))) {
+                try {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = SleepSessionRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(queryStart, now)
+                        )
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed querying SleepSessionRecord: ${e.message}")
+                    null
+                }
+            } else null
+        }
+
+        val hrResponse = hrDeferred.await()
+        val rhrResponse = rhrDeferred.await()
+        val spo2Response = spo2Deferred.await()
+        val hrvResponse = hrvDeferred.await()
+        val stepsResponse = stepsDeferred.await()
+        val calResponse = calDeferred.await()
+        val sleepResponse = sleepDeferred.await()
 
         var hasRingConnOrigin = false
         var lastBpm = 0
@@ -151,206 +275,145 @@ object RingConnTelemetryReader {
         var latestHrvTimestamp = 0L
 
         // 1. Heart Rate
-        if (granted.contains(HealthPermission.getReadPermission(HeartRateRecord::class))) {
-            try {
-                val hrResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = HeartRateRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
+        if (hrResponse != null) {
+            // Strictly prioritize RingConn smart ring origin over Samsung Health / Watch PPG
+            val ringConnHr = hrResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            val effectiveHrRecords = ringConnHr.ifEmpty { hrResponse.records }
+            if (ringConnHr.isNotEmpty()) {
+                hasRingConnOrigin = true
+            }
 
-                // Strictly prioritize RingConn smart ring origin over Samsung Health / Watch PPG
-                val ringConnHr = hrResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                val effectiveHrRecords = ringConnHr.ifEmpty { hrResponse.records }
-                if (ringConnHr.isNotEmpty()) {
-                    hasRingConnOrigin = true
+            val allSamples = effectiveHrRecords.flatMap { record ->
+                record.samples.map { sample -> sample to record.metadata.dataOrigin.packageName }
+            }
+
+            if (allSamples.isNotEmpty()) {
+                val latestSample = allSamples.maxByOrNull { it.first.time }?.first
+                if (latestSample != null) {
+                    lastBpm = latestSample.beatsPerMinute.toInt()
+                    latestHrTimestamp = latestSample.time.epochSecond
                 }
 
-                val allSamples = effectiveHrRecords.flatMap { record ->
-                    record.samples.map { sample -> sample to record.metadata.dataOrigin.packageName }
+                val todaySamples = allSamples.filter { it.first.time >= todayStart }
+                if (todaySamples.isNotEmpty()) {
+                    avgBpm = todaySamples.map { it.first.beatsPerMinute.toInt() }.average().roundToInt()
+                    minBpm = todaySamples.minOf { it.first.beatsPerMinute.toInt() }
+                    maxBpm = todaySamples.maxOf { it.first.beatsPerMinute.toInt() }
+                    val sampleWindowMins = 5 // RingConn PPG samples in Health Connect span ~5 mins each
+                    z1 = todaySamples.count { it.first.beatsPerMinute < 100 } * sampleWindowMins
+                    z2 = todaySamples.count { it.first.beatsPerMinute in 100..120 } * sampleWindowMins
+                    z3 = todaySamples.count { it.first.beatsPerMinute in 121..140 } * sampleWindowMins
+                    z4 = todaySamples.count { it.first.beatsPerMinute in 141..160 } * sampleWindowMins
+                    z5 = todaySamples.count { it.first.beatsPerMinute > 160 } * sampleWindowMins
+                } else {
+                    avgBpm = lastBpm
+                    minBpm = allSamples.minOf { it.first.beatsPerMinute.toInt() }
+                    maxBpm = allSamples.maxOf { it.first.beatsPerMinute.toInt() }
                 }
-
-                if (allSamples.isNotEmpty()) {
-                    val latestSample = allSamples.maxByOrNull { it.first.time }?.first
-                    if (latestSample != null) {
-                        lastBpm = latestSample.beatsPerMinute.toInt()
-                        latestHrTimestamp = latestSample.time.epochSecond
-                    }
-
-                    val todaySamples = allSamples.filter { it.first.time >= todayStart }
-                    if (todaySamples.isNotEmpty()) {
-                        avgBpm = todaySamples.map { it.first.beatsPerMinute.toInt() }.average().roundToInt()
-                        minBpm = todaySamples.minOf { it.first.beatsPerMinute.toInt() }
-                        maxBpm = todaySamples.maxOf { it.first.beatsPerMinute.toInt() }
-                        val sampleWindowMins = 5 // RingConn PPG samples in Health Connect span ~5 mins each
-                        z1 = todaySamples.count { it.first.beatsPerMinute < 100 } * sampleWindowMins
-                        z2 = todaySamples.count { it.first.beatsPerMinute in 100..120 } * sampleWindowMins
-                        z3 = todaySamples.count { it.first.beatsPerMinute in 121..140 } * sampleWindowMins
-                        z4 = todaySamples.count { it.first.beatsPerMinute in 141..160 } * sampleWindowMins
-                        z5 = todaySamples.count { it.first.beatsPerMinute > 160 } * sampleWindowMins
-                    } else {
-                        avgBpm = lastBpm
-                        minBpm = allSamples.minOf { it.first.beatsPerMinute.toInt() }
-                        maxBpm = allSamples.maxOf { it.first.beatsPerMinute.toInt() }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying HeartRateRecord: ${e.message}")
             }
         }
 
         // Resting Heart Rate (Prioritize RingConn origin)
-        if (granted.contains(HealthPermission.getReadPermission(RestingHeartRateRecord::class))) {
-            try {
-                val rhrResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = RestingHeartRateRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
-                val ringConnRhr = rhrResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                val effectiveRhr = ringConnRhr.ifEmpty { rhrResponse.records }
-                val latestRhr = effectiveRhr.maxByOrNull { it.time }
-                if (latestRhr != null) {
-                    restingBpm = latestRhr.beatsPerMinute.toInt()
-                    if (avgBpm == 0) avgBpm = restingBpm
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying RestingHeartRateRecord: ${e.message}")
+        if (rhrResponse != null) {
+            val ringConnRhr = rhrResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            val effectiveRhr = ringConnRhr.ifEmpty { rhrResponse.records }
+            val latestRhr = effectiveRhr.maxByOrNull { it.time }
+            if (latestRhr != null) {
+                restingBpm = latestRhr.beatsPerMinute.toInt()
+                if (avgBpm == 0) avgBpm = restingBpm
             }
         }
 
         // 2. Oxygen Saturation (SpO2 - Prioritize RingConn origin)
         var lastSpo2 = 0
         var avgSpo2 = 0
-        if (granted.contains(HealthPermission.getReadPermission(OxygenSaturationRecord::class))) {
-            try {
-                val spo2Response = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = OxygenSaturationRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
-                val ringConnSpo2 = spo2Response.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                val effectiveSpo2 = ringConnSpo2.ifEmpty { spo2Response.records }
-                val latestSpo2Record = effectiveSpo2.maxByOrNull { it.time }
-                if (latestSpo2Record != null) {
-                    val rawVal = latestSpo2Record.percentage.value
-                    lastSpo2 = if (rawVal <= 1.0) (rawVal * 100.0).roundToInt() else rawVal.roundToInt()
-                    latestSpo2Timestamp = latestSpo2Record.time.epochSecond
-                }
+        if (spo2Response != null) {
+            val ringConnSpo2 = spo2Response.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            val effectiveSpo2 = ringConnSpo2.ifEmpty { spo2Response.records }
+            val latestSpo2Record = effectiveSpo2.maxByOrNull { it.time }
+            if (latestSpo2Record != null) {
+                val rawVal = latestSpo2Record.percentage.value
+                lastSpo2 = if (rawVal <= 1.0) (rawVal * 100.0).roundToInt() else rawVal.roundToInt()
+                latestSpo2Timestamp = latestSpo2Record.time.epochSecond
+            }
 
-                val todaySpo2 = effectiveSpo2.filter { it.time >= todayStart }
-                if (todaySpo2.isNotEmpty()) {
-                    avgSpo2 = todaySpo2.map {
-                        val v = it.percentage.value
-                        if (v <= 1.0) v * 100.0 else v
-                    }.average().roundToInt()
-                } else {
-                    avgSpo2 = lastSpo2
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying OxygenSaturationRecord: ${e.message}")
+            val todaySpo2 = effectiveSpo2.filter { it.time >= todayStart }
+            if (todaySpo2.isNotEmpty()) {
+                avgSpo2 = todaySpo2.map {
+                    val v = it.percentage.value
+                    if (v <= 1.0) v * 100.0 else v
+                }.average().roundToInt()
+            } else {
+                avgSpo2 = lastSpo2
             }
         }
 
         // 3. Heart Rate Variability (HRV RMSSD - Prioritize RingConn origin)
         var lastHrv = 0
         var avgHrv = 0
-        if (granted.contains(HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class))) {
-            try {
-                val hrvResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = HeartRateVariabilityRmssdRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
-                val ringConnHrv = hrvResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                val effectiveHrv = ringConnHrv.ifEmpty { hrvResponse.records }
-                val latestHrvRecord = effectiveHrv.maxByOrNull { it.time }
-                if (latestHrvRecord != null) {
-                    lastHrv = latestHrvRecord.heartRateVariabilityMillis.roundToInt()
-                    latestHrvTimestamp = latestHrvRecord.time.epochSecond
-                }
+        if (hrvResponse != null) {
+            val ringConnHrv = hrvResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            val effectiveHrv = ringConnHrv.ifEmpty { hrvResponse.records }
+            val latestHrvRecord = effectiveHrv.maxByOrNull { it.time }
+            if (latestHrvRecord != null) {
+                lastHrv = latestHrvRecord.heartRateVariabilityMillis.roundToInt()
+                latestHrvTimestamp = latestHrvRecord.time.epochSecond
+            }
 
-                val todayHrv = effectiveHrv.filter { it.time >= todayStart }
-                if (todayHrv.isNotEmpty()) {
-                    avgHrv = todayHrv.map { it.heartRateVariabilityMillis }.average().roundToInt()
-                } else {
-                    avgHrv = lastHrv
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying HRV: ${e.message}")
+            val todayHrv = effectiveHrv.filter { it.time >= todayStart }
+            if (todayHrv.isNotEmpty()) {
+                avgHrv = todayHrv.map { it.heartRateVariabilityMillis }.average().roundToInt()
+            } else {
+                avgHrv = lastHrv
             }
         }
 
         // 4. Steps Today (Prioritize RingConn data origin)
         var todaySteps = 0
         var activeMinutes = 0
-        if (granted.contains(HealthPermission.getReadPermission(StepsRecord::class))) {
-            try {
-                val stepsResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = StepsRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(todayStart, now)
-                    )
-                )
-                val ringConnSteps = stepsResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                val effectiveSteps = ringConnSteps.ifEmpty { stepsResponse.records }
-                if (ringConnSteps.isNotEmpty()) {
-                    hasRingConnOrigin = true
-                }
-                if (effectiveSteps.isNotEmpty()) {
-                    todaySteps = effectiveSteps.sumOf { it.count }.toInt()
-                    var computedActiveMins = 0L
-                    for (rec in effectiveSteps) {
-                        val durMins = Duration.between(rec.startTime, rec.endTime).toMinutes()
-                        if (durMins >= 1L && (rec.count.toDouble() / durMins) in 20.0..220.0) {
-                            computedActiveMins += durMins
-                        } else if (rec.count > 0) {
-                            computedActiveMins += (rec.count / 100L).coerceAtLeast(1L)
-                        }
+        if (stepsResponse != null) {
+            val ringConnSteps = stepsResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            val effectiveSteps = ringConnSteps.ifEmpty { stepsResponse.records }
+            if (ringConnSteps.isNotEmpty()) {
+                hasRingConnOrigin = true
+            }
+            if (effectiveSteps.isNotEmpty()) {
+                todaySteps = effectiveSteps.sumOf { it.count }.toInt()
+                var computedActiveMins = 0L
+                for (rec in effectiveSteps) {
+                    val durMins = Duration.between(rec.startTime, rec.endTime).toMinutes()
+                    if (durMins >= 1L && (rec.count.toDouble() / durMins) in 20.0..220.0) {
+                        computedActiveMins += durMins
+                    } else if (rec.count > 0) {
+                        computedActiveMins += (rec.count / 100L).coerceAtLeast(1L)
                     }
-                    val stepCadenceMinutes = (todaySteps / 100).coerceAtLeast(if (todaySteps > 0) 1 else 0)
-                    activeMinutes = maxOf(computedActiveMins.toInt(), stepCadenceMinutes)
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying StepsRecord: ${e.message}")
+                val stepCadenceMinutes = (todaySteps / 100).coerceAtLeast(if (todaySteps > 0) 1 else 0)
+                activeMinutes = maxOf(computedActiveMins.toInt(), stepCadenceMinutes)
             }
         }
 
         // 5. Total Calories Burned Today
         var todayCalories = 0
-        if (granted.contains(HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class))) {
-            try {
-                val calResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = TotalCaloriesBurnedRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(todayStart, now)
-                    )
-                )
-                val ringConnCal = calResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }
-                todayCalories = if (ringConnCal.isNotEmpty()) {
-                    hasRingConnOrigin = true
-                    ringConnCal.sumOf { it.energy.inKilocalories }.roundToInt()
-                } else {
-                    calResponse.records.sumOf { it.energy.inKilocalories }.roundToInt()
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying Calories: ${e.message}")
+        if (calResponse != null) {
+            val ringConnCal = calResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }
+            todayCalories = if (ringConnCal.isNotEmpty()) {
+                hasRingConnOrigin = true
+                ringConnCal.sumOf { it.energy.inKilocalories }.roundToInt()
+            } else {
+                calResponse.records.sumOf { it.energy.inKilocalories }.roundToInt()
             }
         }
 
@@ -360,17 +423,10 @@ object RingConnTelemetryReader {
         var remMins = 0L
         var lightMins = 0L
         var awakeMins = 0L
-        if (granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class))) {
-            try {
-                val sleepResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = SleepSessionRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
-                val ringConnSleeps = sleepResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }.ifEmpty { sleepResponse.records }
+        if (sleepResponse != null) {
+            val ringConnSleeps = sleepResponse.records.filter {
+                it.metadata.dataOrigin.packageName == RINGCONN_PKG
+            }.ifEmpty { sleepResponse.records }
 
                 // Only consider sleep sessions concluding today (endTime >= todayStart)
                 val todaySleeps = ringConnSleeps.filter { it.endTime >= todayStart }
@@ -524,68 +580,13 @@ object RingConnTelemetryReader {
                         sleepScore = (durScore + deepScore + remScore - awakePenalty).roundToInt().coerceIn(45, 98)
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed querying SleepSessionRecord: ${e.message}")
             }
-        }
-
-        // 7. Skin Temperature from Health Connect (if available and granted)
-        var hcSkinTempOffset: Float? = null
-        var hcSkinTempBaseline: Float? = null
-        try {
-            val skinTempClass = Class.forName("androidx.health.connect.client.records.SkinTemperatureRecord").asSubclass(androidx.health.connect.client.records.Record::class.java)
-            val perm = HealthPermission.getReadPermission(skinTempClass.kotlin)
-            if (granted.contains(perm)) {
-                val tempResponse = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = skinTempClass.kotlin,
-                        timeRangeFilter = TimeRangeFilter.between(queryStart, now)
-                    )
-                )
-                val ringTemps = tempResponse.records.filter {
-                    it.metadata.dataOrigin.packageName == RINGCONN_PKG
-                }.ifEmpty { tempResponse.records }
-                val latest = ringTemps.maxByOrNull {
-                    try {
-                        val m = it.javaClass.getMethod("getStartTime")
-                        m.invoke(it) as Instant
-                    } catch (_: Exception) { Instant.EPOCH }
-                }
-                if (latest != null) {
-                    try {
-                        val getBaseline = latest.javaClass.getMethod("getBaseline")
-                        val baselineObj = getBaseline.invoke(latest)
-                        if (baselineObj != null) {
-                            val inCelsius = baselineObj.javaClass.getMethod("getInCelsius").invoke(baselineObj) as Double
-                            if (inCelsius in 34.0..40.0) hcSkinTempBaseline = inCelsius.toFloat()
-                        }
-                        val getDeltas = latest.javaClass.getMethod("getDeltas")
-                        val deltas = getDeltas.invoke(latest) as? List<*>
-                        val latestDelta = deltas?.lastOrNull()
-                        if (latestDelta != null) {
-                            val getDelta = latestDelta.javaClass.getMethod("getDelta")
-                            val deltaObj = getDelta.invoke(latestDelta)
-                            if (deltaObj != null) {
-                                val inCelsius = deltaObj.javaClass.getMethod("getInCelsius").invoke(deltaObj) as Double
-                                if (inCelsius in -5.0..5.0) hcSkinTempOffset = inCelsius.toFloat()
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed extracting SkinTemperatureRecord details: ${e.message}")
-                    }
-                }
-            }
-        } catch (_: ClassNotFoundException) {
-            // SkinTemperatureRecord class not available on this API / library level
-        } catch (e: Exception) {
-            Log.w(TAG, "Health Connect skin temp error: ${e.message}")
-        }
 
         // Check if we retrieved any real telemetry from Health Connect
-        val hasRealTelemetry = lastBpm > 0 || todaySteps > 0 || lastSpo2 > 0 || lastHrv > 0 || sleepScore > 0 || hcSkinTempOffset != null
+        val hasRealTelemetry = lastBpm > 0 || todaySteps > 0 || lastSpo2 > 0 || lastHrv > 0 || sleepScore > 0
         if (!hasRealTelemetry) {
             Log.d(TAG, "Health Connect permissions granted but 0 records found in range")
-            return null
+            return@coroutineScope null
         }
 
         // Fill remaining missing metrics from continuity cache
@@ -671,30 +672,39 @@ object RingConnTelemetryReader {
             sleepRemMins = finalRem,
             sleepLightMins = finalLight,
             sleepAwakeMins = finalAwake,
-            skinTempOffset = hcSkinTempOffset ?: existing.skinTempOffset,
-            skinTempBaseline = hcSkinTempBaseline ?: existing.skinTempBaseline
+            skinTempOffset = existing.skinTempOffset,
+            skinTempBaseline = existing.skinTempBaseline
         )
 
         saveToPreferences(context, vitals, source = sourceLabel)
         Log.i(TAG, "[$sourceLabel] Fresh vitals loaded: HR=$finalHr, Min=$finalMinHr, Max=$finalMaxHr, SpO2=$finalSpo2, Steps=$finalSteps, Sleep=$finalSleep, HRV=$finalHrv")
-        return vitals
+        return@coroutineScope vitals
     }
 
-    suspend fun readBestAvailableVitalsSuspend(context: Context): RingConnVitals {
-        // 1. Direct AppWidgetHost extraction (zero credentials, 100% exact from Glance widgets)
-        val widgetVitals = try {
-            RingConnWidgetHostReader.readRingConnWidgets(context)
-        } catch (e: Exception) {
-            Log.d(TAG, "WidgetHost read attempt: ${e.message}")
-            null
-        }
-        if (widgetVitals != null && (widgetVitals.lastHeartRate > 0 || widgetVitals.sleepScore > 0 || widgetVitals.liveSteps > 0)) {
-            val cached = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
-            val hcVitals = try {
-                readFromHealthConnect(context)
+    suspend fun readBestAvailableVitalsSuspend(context: Context): RingConnVitals = coroutineScope {
+        // 1. Direct AppWidgetHost extraction and Health Connect concurrently
+        val widgetDeferred = async {
+            try {
+                RingConnWidgetHostReader.readRingConnWidgets(context)
             } catch (e: Exception) {
+                Log.d(TAG, "WidgetHost read attempt: ${e.message}")
                 null
             }
+        }
+        val hcDeferred = async {
+            try {
+                readFromHealthConnect(context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Health Connect read exception: ${e.message}")
+                null
+            }
+        }
+
+        val widgetVitals = widgetDeferred.await()
+        val hcVitals = hcDeferred.await()
+
+        if (widgetVitals != null && (widgetVitals.lastHeartRate > 0 || widgetVitals.sleepScore > 0 || widgetVitals.liveSteps > 0)) {
+            val cached = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
 
             // Smart Timestamp Merge: Compare widget sample time vs Health Connect sample time
             val hcHrIsFresher = hcVitals != null && hcVitals.lastHeartRate > 0 && hcVitals.refreshTimestamp > widgetVitals.refreshTimestamp
@@ -766,6 +776,12 @@ object RingConnTelemetryReader {
             val finalSleepScore = if (widgetVitals.sleepScore > 0) widgetVitals.sleepScore else (hcVitals?.sleepScore?.takeIf { it > 0 } ?: cached.sleepScore)
             val finalStressScore = if (widgetVitals.stressScore > 0) widgetVitals.stressScore else (hcVitals?.stressScore?.takeIf { it > 0 } ?: cached.stressScore)
 
+            val mergedTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset
+            var mergedTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
+            if (mergedTempOffset != 0.0f && mergedTempBaseline == 0.0f) {
+                mergedTempBaseline = 36.5f
+            }
+
             val merged = widgetVitals.copy(
                 lastHeartRate = finalHr,
                 avgHeartRate = finalAvgHr,
@@ -790,22 +806,15 @@ object RingConnTelemetryReader {
                 sleepRemMins = hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
                 sleepLightMins = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
                 sleepAwakeMins = if (hcVitals != null && (hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) > 0) hcVitals.sleepAwakeMins else (if (widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins),
-                skinTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else (hcVitals?.skinTempOffset?.takeIf { it != 0.0f } ?: cached.skinTempOffset),
-                skinTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else (hcVitals?.skinTempBaseline?.takeIf { it > 0f } ?: cached.skinTempBaseline)
+                skinTempOffset = mergedTempOffset,
+                skinTempBaseline = mergedTempBaseline
             )
             val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
             saveToPreferences(context, merged, source = sourceLabel)
-            return merged
+            return@coroutineScope merged
         }
 
         // 2. Health Connect API
-        val hcVitals = try {
-            readFromHealthConnect(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Health Connect read exception: ${e.message}")
-            null
-        }
-
         if (hcVitals != null && (hcVitals.lastHeartRate > 0 || hcVitals.liveSteps > 0 || hcVitals.lastSpo2 > 0)) {
             val cached = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
             val finalHcVitals = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) {
@@ -818,17 +827,17 @@ object RingConnTelemetryReader {
             } else {
                 hcVitals
             }
-            return finalHcVitals
+            return@coroutineScope finalHcVitals
         }
 
         // 3. Local cache or user calibration
         val localPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (localPrefs.contains(KEY_LASTLY_HR)) {
-            return parseFromPreferences(localPrefs)
+            return@coroutineScope parseFromPreferences(localPrefs)
         }
 
         // Initial default if cache is completely fresh/empty
-        return RingConnVitals(
+        return@coroutineScope RingConnVitals(
             lastHeartRate = 0,
             avgHeartRate = 0,
             lastSpo2 = 0,
@@ -845,7 +854,9 @@ object RingConnTelemetryReader {
             ringBattery = 0,
             isCharging = false,
             isConnected = false,
-            refreshTimestamp = System.currentTimeMillis() / 1000L
+            refreshTimestamp = System.currentTimeMillis() / 1000L,
+            skinTempOffset = 0.0f,
+            skinTempBaseline = 0.0f
         )
     }
 
@@ -948,7 +959,7 @@ object RingConnTelemetryReader {
             sleepLightMins = prefs.getInt(KEY_SLEEP_LIGHT_MINS, 0),
             sleepAwakeMins = prefs.getInt(KEY_SLEEP_AWAKE_MINS, 0),
             skinTempOffset = prefs.getFloat(KEY_SKIN_TEMP_OFFSET, 0.0f),
-            skinTempBaseline = prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 36.1f)
+            skinTempBaseline = prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 0.0f)
         )
     }
 }

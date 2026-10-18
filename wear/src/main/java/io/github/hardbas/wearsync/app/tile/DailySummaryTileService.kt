@@ -17,6 +17,7 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -407,6 +408,10 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("daily_steps_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsSweep)
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()

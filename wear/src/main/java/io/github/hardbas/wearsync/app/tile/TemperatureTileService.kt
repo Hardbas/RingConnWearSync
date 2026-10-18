@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.tile
+package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
 import androidx.wear.protolayout.ActionBuilders
@@ -106,7 +106,11 @@ class TemperatureTileService : TileService() {
                 else -> context.getString(R.string.temp_cool)
             }
 
-            val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
+            val baselineSubtitle = if (hasData && vitals.skinTempBaseline > 0f) {
+                context.getString(R.string.temp_baseline_short, baseline)
+            } else {
+                context.getString(R.string.no_data)
+            }
 
             val mainTileAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(

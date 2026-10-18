@@ -47,8 +47,11 @@ import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
 // Dark Obsidian Sleep Stage Accent Palette
@@ -486,8 +489,11 @@ fun SleepDetailContent(
                             if (!isSyncing) {
                                 isSyncing = true
                                 syncScope.launch {
+                                    val startSync = WearDataListenerService.lastSyncCompletedMs.value
                                     onSyncClick()
-                                    delay(4000L)
+                                    withTimeoutOrNull(8500L) {
+                                        WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+                                    }
                                     isSyncing = false
                                 }
                             }

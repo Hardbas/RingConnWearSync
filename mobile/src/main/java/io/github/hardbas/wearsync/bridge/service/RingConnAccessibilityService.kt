@@ -109,7 +109,8 @@ class RingConnAccessibilityService : AccessibilityService() {
                 parsedVitals.sleepScore > 0 ||
                 parsedVitals.activityScore > 0 ||
                 parsedVitals.liveSteps > 0 ||
-                parsedVitals.lastSpo2 > 0
+                parsedVitals.lastSpo2 > 0 ||
+                parsedVitals.skinTempOffset != 0f
 
         if (hasMeaningfulData) {
             RingConnTelemetryReader.saveToPreferences(
@@ -127,6 +128,60 @@ class RingConnAccessibilityService : AccessibilityService() {
         }
 
         return null
+    }
+
+    /**
+     * Scrapes current window content, optionally performs ACTION_SCROLL_FORWARD on the first scrollable node
+     * in com.gdjztech.ringconn to reveal lower cards (like Skin Temperature), waits 600ms, and scrapes again.
+     */
+    suspend fun performGentleScrollAndScrape(): RingConnVitals? {
+        val initialVitals = scrapeWindowContent()
+        try {
+            var scrollPerformed = false
+            fun findAndScroll(node: AccessibilityNodeInfo?): Boolean {
+                if (node == null) return false
+                val nodePkg = node.packageName?.toString()
+                if (nodePkg != null && nodePkg != "com.gdjztech.ringconn") return false
+                if (node.isScrollable) {
+                    val scrolled = node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+                    if (scrolled) return true
+                }
+                for (i in 0 until node.childCount) {
+                    val child = node.getChild(i) ?: continue
+                    val res = findAndScroll(child)
+                    child.recycle()
+                    if (res) return true
+                }
+                return false
+            }
+
+            rootInActiveWindow?.let { root ->
+                if (root.packageName?.toString() == "com.gdjztech.ringconn") {
+                    scrollPerformed = findAndScroll(root)
+                }
+                root.recycle()
+            }
+
+            if (!scrollPerformed) {
+                for (w in windows) {
+                    val winRoot = w.root ?: continue
+                    if (winRoot.packageName?.toString() == "com.gdjztech.ringconn") {
+                        scrollPerformed = findAndScroll(winRoot)
+                    }
+                    winRoot.recycle()
+                    if (scrollPerformed) break
+                }
+            }
+
+            if (scrollPerformed) {
+                Log.d(TAG, "Performed gentle scroll forward on RingConn UI, waiting 600ms...")
+                delay(600L)
+                return scrapeWindowContent() ?: initialVitals
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error performing gentle scroll and scrape", e)
+        }
+        return initialVitals
     }
 
     private fun traverseNode(node: AccessibilityNodeInfo?, out: MutableList<String>) {

@@ -14,12 +14,12 @@ class WearDataSyncService(private val context: Context) {
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
 
     suspend fun syncVitalsToWatch(vitals: RingConnVitals, force: Boolean = false): Boolean {
-        val signature = "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.lastHrv}_" +
+        val signature = "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.avgSpo2}_${vitals.lastHrv}_${vitals.avgHrv}_" +
             "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
-            "${vitals.liveCalorie}_${vitals.ringBattery}_${vitals.isCharging}_" +
+            "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
             "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
             "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
-            "${vitals.skinTempOffset}_${vitals.skinTempBaseline}"
+            "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}"
         val now = System.currentTimeMillis()
 
         if (!force && signature == lastSyncedSignature && (now - lastSyncedTimeMs) < MIN_HEARTBEAT_INTERVAL_MS) {
@@ -129,7 +129,7 @@ class WearDataSyncService(private val context: Context) {
 
     companion object {
         private const val TAG = "WearDataSyncService"
-        private const val MIN_HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes if data unchanged
+        private const val MIN_HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes if data unchanged
         @Volatile private var lastSyncedSignature: String = ""
         @Volatile private var lastSyncedTimeMs: Long = 0L
 

@@ -3,11 +3,14 @@ package io.github.hardbas.wearsync.bridge.service
 import android.content.Intent
 import android.util.Log
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class PhoneMessageReceiverService : WearableListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -21,8 +24,24 @@ class PhoneMessageReceiverService : WearableListenerService() {
         }
     }
 
+    private suspend fun sendSyncStatusToWatch(status: String) {
+        try {
+            val nodeClient = Wearable.getNodeClient(this)
+            val messageClient = Wearable.getMessageClient(this)
+            val nodes = nodeClient.connectedNodes.await()
+            val data = status.toByteArray(Charsets.UTF_8)
+            for (node in nodes) {
+                messageClient.sendMessage(node.id, PATH_SYNC_STATUS, data).await()
+            }
+            Log.i(TAG, "Sent sync status '$status' to ${nodes.size} watch node(s)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed sending sync status '$status' to watch", e)
+        }
+    }
+
     private fun triggerRingConnSync() {
         scope.launch {
+            sendSyncStatusToWatch("START")
             try {
                 val intent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
                 if (intent != null) {
@@ -30,8 +49,14 @@ class PhoneMessageReceiverService : WearableListenerService() {
                     startActivity(intent)
                     Log.i(TAG, "Dispatched activation routine to RingConn to sync BLE data")
 
-                    // Wait 4 seconds for RingConn to connect to BLE ring and sync metrics
-                    kotlinx.coroutines.delay(4000L)
+                    if (RingConnAccessibilityService.isRunning()) {
+                        delay(2000L)
+                        RingConnAccessibilityService.instance?.performGentleScrollAndScrape()
+                        delay(2000L)
+                    } else {
+                        // Wait 4 seconds for RingConn to connect to BLE ring and sync metrics
+                        delay(4000L)
+                    }
 
                     // Collapse back to home
                     val homeIntent = Intent(Intent.ACTION_MAIN).apply {
@@ -41,7 +66,7 @@ class PhoneMessageReceiverService : WearableListenerService() {
                     startActivity(homeIntent)
 
                     // Brief delay for RingConn widget inflation
-                    kotlinx.coroutines.delay(1000L)
+                    delay(1000L)
 
                     // Read best available vitals (prioritizes direct RingConn Glance widgets)
                     val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneMessageReceiverService)
@@ -49,9 +74,13 @@ class PhoneMessageReceiverService : WearableListenerService() {
                     // Force immediate sync to Watch (bypassing battery throttle)
                     WearDataSyncService(this@PhoneMessageReceiverService).syncVitalsToWatch(vitals, force = true)
                     Log.i(TAG, "Forced fresh RingConn vitals sync to Watch: HR=${vitals.lastHeartRate}, SpO2=${vitals.lastSpo2}")
+                    sendSyncStatusToWatch("SUCCESS")
+                } else {
+                    sendSyncStatusToWatch("ERROR")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error triggering sync on RingConn", e)
+                sendSyncStatusToWatch("ERROR")
             }
         }
     }
@@ -60,5 +89,6 @@ class PhoneMessageReceiverService : WearableListenerService() {
         private const val TAG = "PhoneMsgReceiver"
         const val PATH_ACTION_MEASURE_NOW = "/action/measure_now"
         const val PATH_ACTION_SYNC_RINGCONN = "/action/sync_ringconn"
+        const val PATH_SYNC_STATUS = "/action/sync_status"
     }
 }

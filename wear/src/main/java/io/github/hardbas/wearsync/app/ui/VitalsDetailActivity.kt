@@ -45,8 +45,11 @@ import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 // 5 Standard One UI Heart Rate Zone Colors
 private val ZoneRestColor = Color(0xFF47CDFF)      // Reposo (< 100 bpm)
@@ -135,6 +138,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
             if (!isMeasuring) {
                 isMeasuring = true
                 scope.launch {
+                    val startSync = WearDataListenerService.lastSyncCompletedMs.value
                     try {
                         val nodes = Wearable.getNodeClient(context).connectedNodes
                         nodes.addOnSuccessListener { nodeList ->
@@ -149,7 +153,9 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
-                    delay(5500L)
+                    withTimeoutOrNull(8500L) {
+                        WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+                    }
                     isMeasuring = false
                 }
             }

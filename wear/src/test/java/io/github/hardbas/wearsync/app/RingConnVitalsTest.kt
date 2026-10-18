@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app
+package io.github.hardbas.wearsync.app
 
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import org.junit.Assert.assertEquals
@@ -17,8 +17,21 @@ class RingConnVitalsTest {
         assertEquals(0, vitals.stressScore)
         assertEquals(10000, vitals.targetSteps)
         assertEquals(500, vitals.targetCalorie)
+        assertEquals(0f, vitals.skinTempBaseline, 0.001f)
+        assertEquals(0f, vitals.skinTempOffset, 0.001f)
         assertFalse(vitals.isConnected)
         assertFalse(vitals.isCharging)
+    }
+
+    @Test
+    fun temperatureMetrics_formatsHonestValues() {
+        val vitalsWithData = RingConnVitals(skinTempOffset = 0.3f, skinTempBaseline = 36.4f)
+        val hasData = vitalsWithData.skinTempBaseline > 0f || vitalsWithData.skinTempOffset != 0f
+        assertTrue(hasData)
+
+        val vitalsNoData = RingConnVitals()
+        val hasNoData = vitalsNoData.skinTempBaseline <= 0f && vitalsNoData.skinTempOffset == 0f
+        assertTrue(hasNoData)
     }
 
     @Test

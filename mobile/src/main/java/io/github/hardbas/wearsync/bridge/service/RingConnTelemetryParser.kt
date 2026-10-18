@@ -391,6 +391,10 @@ object RingConnTelemetryParser {
         if (avgSpo2 == 0) avgSpo2 = lastSpo2
         if (avgHrv == 0) avgHrv = lastHrv
 
+        if (skinTempOffset != 0.0f && skinTempBaseline == 0.0f) {
+            skinTempBaseline = 36.5f
+        }
+
         val result = baseVitals.copy(
             lastHeartRate = lastHr,
             avgHeartRate = avgHr,

@@ -204,8 +204,7 @@ object RingConnWidgetHostReader {
                 vitals = parsedVitals,
                 source = "RingConn WidgetHost (100% Exacto)"
             )
-            WearDataSyncService(context).syncVitalsToWatch(parsedVitals)
-            Log.i(TAG, "Successfully extracted and synced RingConn vitals via WidgetHost: $parsedVitals")
+            Log.i(TAG, "Successfully extracted RingConn vitals via WidgetHost: $parsedVitals")
             return@withContext parsedVitals
         }
 

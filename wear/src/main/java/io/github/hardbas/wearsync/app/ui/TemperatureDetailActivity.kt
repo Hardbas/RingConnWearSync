@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.ui
+package io.github.hardbas.wearsync.app.ui
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -47,6 +47,7 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private val TempCool = Color(0xFF38BDF8)          // Electric Sky Cyan
 private val TempOptimal = Color(0xFF00E676)       // Clinical Mint
@@ -106,21 +107,28 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
         focusRequester.requestFocus()
     }
 
+    val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
     val offset = vitals.skinTempOffset
     val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
-    val offsetFormatted = when {
-        offset in -0.05f..0.05f -> "±0.0 °C"
-        offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f °C", offset)
-        else -> String.format(java.util.Locale.US, "%.1f °C", offset)
+    val offsetFormatted = if (hasData) {
+        when {
+            offset in -0.05f..0.05f -> "±0.0 °C"
+            offset > 0.05f -> String.format(Locale.US, "+%.1f °C", offset)
+            else -> String.format(Locale.US, "%.1f °C", offset)
+        }
+    } else {
+        "--.-"
     }
 
     val statusLabel = when {
+        !hasData -> stringResource(R.string.no_data)
         offset in -0.5f..0.5f -> stringResource(R.string.temp_stable_optimal)
         offset > 0.5f -> stringResource(R.string.temp_warm)
         else -> stringResource(R.string.temp_cool)
     }
 
     val statusColor = when {
+        !hasData -> LabelSilver
         offset in -0.5f..0.5f -> TempOptimal
         offset > 0.5f -> TempWarmAlert
         else -> TempCool
@@ -188,6 +196,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                     ) {
                         TempDialGauge(
                             offset = offset,
+                            hasData = hasData,
                             modifier = Modifier.fillMaxSize()
                         )
                         Column(
@@ -290,7 +299,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
 
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = offsetFormatted,
+                                text = if (hasData) offsetFormatted else "--.- °C",
                                 fontSize = TextBig,
                                 style = TabularNums,
                                 color = Color.White,
@@ -298,7 +307,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = stringResource(R.string.temp_baseline_format, baseline),
+                                text = if (vitals.skinTempBaseline > 0f) stringResource(R.string.temp_baseline_format, baseline) else "Baseline: --.- °C",
                                 fontSize = TextLabel,
                                 style = TabularNums,
                                 color = LabelSilver,
@@ -344,7 +353,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             )
 
                             // Marker Indicator Dot
-                            val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
+                            val normOffset = if (hasData) ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f) else 0.5f
                             val markerX = normOffset * totalW
                             drawCircle(
                                 color = Color.White,
@@ -371,7 +380,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             // c) Nocturnal Circadian Thermal Curve Chart
             // =========================================================================
             item {
-                CircadianThermalCurveCard(offset = offset)
+                CircadianThermalCurveCard(vitals = vitals)
             }
 
             // =========================================================================
@@ -393,11 +402,11 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(TempEmeraldSoft)
+                                    .background(if (hasData) TempEmeraldSoft else LabelSilver)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = stringResource(R.string.temp_delta_explanation_title),
+                                text = if (hasData) stringResource(R.string.temp_delta_explanation_title) else stringResource(R.string.skin_temp),
                                 color = Color.White,
                                 fontSize = TextBody,
                                 fontWeight = FontWeight.SemiBold,
@@ -408,7 +417,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = stringResource(R.string.temp_delta_explanation_desc),
+                            text = if (hasData) stringResource(R.string.temp_delta_explanation_desc) else stringResource(R.string.temp_no_data_desc),
                             color = Color(0xFFCFD8DC),
                             fontSize = TextCaption,
                             lineHeight = 14.sp
@@ -519,12 +528,15 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
 }
 
 @Composable
-private fun CircadianThermalCurveCard(offset: Float) {
+private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
+    val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
+    val offset = vitals.skinTempOffset
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
             Row(
@@ -665,20 +677,24 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val col1Value = if (hasData) String.format(Locale.US, "%+.1f°C", vitals.skinTempOffset) else "--.-°C"
+                val col2Value = if (vitals.skinTempBaseline > 0f) String.format(Locale.US, "%.1f°C", vitals.skinTempBaseline) else "--.-°C"
+                val col3Value = if (vitals.skinTempBaseline > 0f) String.format(Locale.US, "%.1f°C", vitals.skinTempBaseline + vitals.skinTempOffset) else "--.-°C"
+
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "-0.4 °C",
-                        color = TempCool,
+                        text = col1Value,
+                        color = if (hasData) TempCool else LabelSilver,
                         fontSize = TextBody,
                         style = TabularNums,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = stringResource(R.string.min_stat),
+                        text = stringResource(R.string.temp_deviation_stat),
                         color = Color(0xFF94A3B8),
                         fontSize = TextCaption,
                         textAlign = TextAlign.Center
@@ -690,28 +706,8 @@ private fun CircadianThermalCurveCard(offset: Float) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "98%",
-                        color = TempOptimal,
-                        fontSize = TextBody,
-                        style = TabularNums,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = stringResource(R.string.in_range_stat),
-                        color = Color(0xFF94A3B8),
-                        fontSize = TextCaption,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "0.0 °C",
-                        color = Color.White,
+                        text = col2Value,
+                        color = if (vitals.skinTempBaseline > 0f) Color.White else LabelSilver,
                         fontSize = TextBody,
                         style = TabularNums,
                         fontWeight = FontWeight.Bold,
@@ -719,6 +715,26 @@ private fun CircadianThermalCurveCard(offset: Float) {
                     )
                     Text(
                         text = stringResource(R.string.baseline_stat),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = col3Value,
+                        color = if (vitals.skinTempBaseline > 0f) TempOptimal else LabelSilver,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.temp_absolute_est),
                         color = Color(0xFF94A3B8),
                         fontSize = TextCaption,
                         textAlign = TextAlign.Center
@@ -794,13 +810,14 @@ private fun TempBandRow(
 @Composable
 private fun TempDialGauge(
     offset: Float,
+    hasData: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    val animProgress = remember { Animatable(0.5f) }
+    val animProgress = remember { Animatable(if (hasData) 0.5f else 0f) }
     // Map -1.0..+1.0°C to 0..1f (0.0°C baseline = 0.5f)
-    val targetProgress = ((offset + 1.0f) / 2.0f).coerceIn(0.05f, 0.95f)
+    val targetProgress = if (hasData) ((offset + 1.0f) / 2.0f).coerceIn(0.05f, 0.95f) else 0f
 
-    LaunchedEffect(targetProgress) {
+    LaunchedEffect(targetProgress, hasData) {
         animProgress.animateTo(
             targetValue = targetProgress,
             animationSpec = tween(
@@ -828,7 +845,7 @@ private fun TempDialGauge(
         )
 
         // Progress Arc
-        if (animProgress.value > 0f) {
+        if (hasData && animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
                 brush = Brush.sweepGradient(

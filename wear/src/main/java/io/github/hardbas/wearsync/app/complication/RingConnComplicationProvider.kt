@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.complication
+package io.github.hardbas.wearsync.app.complication
 
 import android.app.PendingIntent
 import android.content.ComponentName
@@ -211,7 +211,7 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 sleepLightMins = prefs.getInt("sleep_light_mins", 0),
                 sleepAwakeMins = prefs.getInt("sleep_awake_mins", 0),
                 skinTempOffset = prefs.getFloat("skin_temp_offset", 0.0f),
-                skinTempBaseline = prefs.getFloat("skin_temp_baseline", 36.1f)
+                skinTempBaseline = prefs.getFloat("skin_temp_baseline", 0.0f)
             )
         }
 
@@ -555,8 +555,10 @@ class TemperatureComplicationProvider : SuspendingComplicationDataSourceService(
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         val vitals = RingConnComplicationProvider.getLatestVitals(this)
         val offset = vitals.skinTempOffset
-        val textValue = if (offset != 0.0f) String.format("%+.1f°", offset) else "--°"
+        val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
+        val textValue = if (hasData) String.format("%+.1f°", offset) else "--°"
         val status = when {
+            !hasData -> getString(R.string.no_data)
             offset > 0.5f -> getString(R.string.temp_warm)
             offset < -0.5f -> getString(R.string.temp_cool)
             else -> getString(R.string.temp_in_range)
@@ -571,7 +573,7 @@ class TemperatureComplicationProvider : SuspendingComplicationDataSourceService(
             type = request.complicationType,
             shortText = textValue,
             title = getString(R.string.skin_temp),
-            longText = if (offset != 0.0f) String.format("%+.1f °C · %s", offset, status) else getString(R.string.skin_temp),
+            longText = if (hasData) String.format("%+.1f °C · %s", offset, status) else getString(R.string.skin_temp),
             contentDesc = getString(R.string.complication_temp_desc, offset),
             iconRes = R.drawable.ic_comp_temp,
             currentValue = offset.coerceIn(-2.0f, 2.0f),

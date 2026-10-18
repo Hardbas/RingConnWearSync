@@ -168,6 +168,9 @@
     <string name="in_range_stat">In Range</string>
     <string name="sleep_stat">Sleep</string>
     <string name="baseline_stat">Baseline</string>
+    <string name="temp_deviation_stat">Deviation</string>
+    <string name="temp_absolute_est">Abs. Est.</string>
+    <string name="temp_no_data_desc">Skin Temperature is captured from the RingConn app when you tap Sync on the watch or open RingConn on the phone.</string>
     <string name="calm_vagal">Calm (Vagal)</string>
     <string name="alert_load">Alert (Load)</string>
     <string name="euthermia_desc">Normal resting euthermia</string>

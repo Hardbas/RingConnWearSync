@@ -1,9 +1,8 @@
-﻿package io.github.hardbas.wearsync.app.service
+package io.github.hardbas.wearsync.app.service
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -12,8 +11,6 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.wear.tiles.TileService
-import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
@@ -22,18 +19,15 @@ import com.google.android.gms.wearable.WearableListenerService
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
-import io.github.hardbas.wearsync.app.tile.DailySummaryTileService
-import io.github.hardbas.wearsync.app.tile.HeartRateTileService
-import io.github.hardbas.wearsync.app.tile.StressTileService
-import io.github.hardbas.wearsync.app.tile.TemperatureTileService
-import io.github.hardbas.wearsync.app.tile.VitalsTileService
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 
 class WearDataListenerService : WearableListenerService() {
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
-            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == PATH_RINGCONN_VITALS) {
+            val path = event.dataItem.uri.path
+            if (event.type == DataEvent.TYPE_CHANGED && (path == PATH_RINGCONN_VITALS || path == PATH_RINGCONN_VITALS_URGENT)) {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
 
                 val hrLast = dataMap.getInt("hr_last")
@@ -66,7 +60,7 @@ class WearDataListenerService : WearableListenerService() {
                 val sleepLightMins = dataMap.getInt("sleep_light_mins")
                 val sleepAwakeMins = dataMap.getInt("sleep_awake_mins")
                 val skinTempOffset = dataMap.getFloat("skin_temp_offset")
-                val skinTempBaseline = if (dataMap.containsKey("skin_temp_baseline")) dataMap.getFloat("skin_temp_baseline") else 36.1f
+                val skinTempBaseline = if (dataMap.containsKey("skin_temp_baseline")) dataMap.getFloat("skin_temp_baseline") else 0.0f
 
                 val vitals = RingConnVitals(
                     lastHeartRate = hrLast,
@@ -108,70 +102,68 @@ class WearDataListenerService : WearableListenerService() {
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path == PATH_RINGCONN_MESSAGE) {
-            try {
-                val json = JSONObject(String(messageEvent.data, Charsets.UTF_8))
-                val vitals = RingConnVitals(
-                    lastHeartRate = json.optInt("hr_last", 0),
-                    avgHeartRate = json.optInt("hr_avg", 0),
-                    lastSpo2 = json.optInt("spo2_last", 0),
-                    avgSpo2 = json.optInt("spo2_avg", 0),
-                    lastHrv = json.optInt("hrv_last", 0),
-                    avgHrv = json.optInt("hrv_avg", 0),
-                    sleepScore = json.optInt("sleep_score", 0),
-                    activityScore = json.optInt("activity_score", 0),
-                    activeMinutes = json.optInt("active_mins", 0),
-                    stressScore = json.optInt("stress_score", 0),
-                    liveSteps = json.optInt("steps_live", 0),
-                    targetSteps = json.optInt("steps_target", 10000),
-                    liveCalorie = json.optInt("cal_live", 0),
-                    targetCalorie = json.optInt("cal_target", 500),
-                    ringBattery = json.optInt("ring_battery", 0),
-                    isCharging = json.optBoolean("is_charging", false),
-                    isConnected = json.optBoolean("is_connected", true),
-                    refreshTimestamp = json.optLong("timestamp", System.currentTimeMillis() / 1000L),
-                    minHeartRate = json.optInt("min_hr", 0),
-                    maxHeartRate = json.optInt("max_hr", 0),
-                    zone1Mins = json.optInt("zone1_mins", 0),
-                    zone2Mins = json.optInt("zone2_mins", 0),
-                    zone3Mins = json.optInt("zone3_mins", 0),
-                    zone4Mins = json.optInt("zone4_mins", 0),
-                    zone5Mins = json.optInt("zone5_mins", 0),
-                    sleepDeepMins = json.optInt("sleep_deep_mins", 0),
-                    sleepRemMins = json.optInt("sleep_rem_mins", 0),
-                    sleepLightMins = json.optInt("sleep_light_mins", 0),
-                    sleepAwakeMins = json.optInt("sleep_awake_mins", 0),
-                    skinTempOffset = json.optDouble("skin_temp_offset", 0.0).toFloat(),
-                    skinTempBaseline = json.optDouble("skin_temp_baseline", 36.1).toFloat()
-                )
+        when (messageEvent.path) {
+            PATH_ACTION_SYNC_STATUS -> {
+                val status = String(messageEvent.data, Charsets.UTF_8).trim()
+                syncStatusFlow.value = status
+                if (status == "SUCCESS" || status == "ERROR") {
+                    lastSyncCompletedMs.value = System.currentTimeMillis()
+                }
+                Log.i(TAG, "Sync status update received: $status")
+            }
+            PATH_RINGCONN_MESSAGE, PATH_RINGCONN_VITALS, PATH_RINGCONN_VITALS_URGENT -> {
+                try {
+                    lastSyncCompletedMs.value = System.currentTimeMillis()
+                    val json = JSONObject(String(messageEvent.data, Charsets.UTF_8))
+                    val vitals = RingConnVitals(
+                        lastHeartRate = json.optInt("hr_last", 0),
+                        avgHeartRate = json.optInt("hr_avg", 0),
+                        lastSpo2 = json.optInt("spo2_last", 0),
+                        avgSpo2 = json.optInt("spo2_avg", 0),
+                        lastHrv = json.optInt("hrv_last", 0),
+                        avgHrv = json.optInt("hrv_avg", 0),
+                        sleepScore = json.optInt("sleep_score", 0),
+                        activityScore = json.optInt("activity_score", 0),
+                        activeMinutes = json.optInt("active_mins", 0),
+                        stressScore = json.optInt("stress_score", 0),
+                        liveSteps = json.optInt("steps_live", 0),
+                        targetSteps = json.optInt("steps_target", 10000),
+                        liveCalorie = json.optInt("cal_live", 0),
+                        targetCalorie = json.optInt("cal_target", 500),
+                        ringBattery = json.optInt("ring_battery", 0),
+                        isCharging = json.optBoolean("is_charging", false),
+                        isConnected = json.optBoolean("is_connected", true),
+                        refreshTimestamp = json.optLong("timestamp", System.currentTimeMillis() / 1000L),
+                        minHeartRate = json.optInt("min_hr", 0),
+                        maxHeartRate = json.optInt("max_hr", 0),
+                        zone1Mins = json.optInt("zone1_mins", 0),
+                        zone2Mins = json.optInt("zone2_mins", 0),
+                        zone3Mins = json.optInt("zone3_mins", 0),
+                        zone4Mins = json.optInt("zone4_mins", 0),
+                        zone5Mins = json.optInt("zone5_mins", 0),
+                        sleepDeepMins = json.optInt("sleep_deep_mins", 0),
+                        sleepRemMins = json.optInt("sleep_rem_mins", 0),
+                        sleepLightMins = json.optInt("sleep_light_mins", 0),
+                        sleepAwakeMins = json.optInt("sleep_awake_mins", 0),
+                        skinTempOffset = json.optDouble("skin_temp_offset", 0.0).toFloat(),
+                        skinTempBaseline = json.optDouble("skin_temp_baseline", 0.0).toFloat()
+                    )
 
-                persistAndBroadcast(vitals, "MessageClient-RPC")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error parsing message payload", e)
+                    persistAndBroadcast(vitals, "MessageClient-RPC")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error parsing message payload", e)
+                }
             }
         }
     }
 
     private fun persistAndBroadcast(vitals: RingConnVitals, source: String) {
         RingConnComplicationProvider.saveAndBroadcastVitals(this, vitals)
+        lastSyncCompletedMs.value = System.currentTimeMillis()
         Log.i(TAG, "[$source] Fresh RingConn vitals persisted: HR=${vitals.lastHeartRate}, Min=${vitals.minHeartRate}, Max=${vitals.maxHeartRate}, SpO2=${vitals.lastSpo2}, Sleep=${vitals.sleepScore}, Bat=${vitals.ringBattery}%")
 
         // Check for low ring battery (<20%) and trigger wrist haptic alert
         checkLowBatteryHapticAlert(vitals)
-
-        // Request immediate refresh of Complications
-        val complicationRequester = ComplicationDataSourceUpdateRequester.create(
-            this,
-            ComponentName(this, RingConnComplicationProvider::class.java)
-        )
-        complicationRequester.requestUpdateAll()
-
-        // Request immediate refresh of Tiles
-        TileService.getUpdater(this).requestUpdate(VitalsTileService::class.java)
-        TileService.getUpdater(this).requestUpdate(DailySummaryTileService::class.java)
-        TileService.getUpdater(this).requestUpdate(HeartRateTileService::class.java)
-        TileService.getUpdater(this).requestUpdate(StressTileService::class.java)
-        TileService.getUpdater(this).requestUpdate(TemperatureTileService::class.java)
     }
 
     private fun checkLowBatteryHapticAlert(vitals: RingConnVitals) {
@@ -258,11 +250,16 @@ class WearDataListenerService : WearableListenerService() {
     companion object {
         private const val TAG = "WearDataListener"
         const val PATH_RINGCONN_VITALS = "/ringconn/vitals"
+        const val PATH_RINGCONN_VITALS_URGENT = "/ringconn/vitals_urgent"
         const val PATH_RINGCONN_MESSAGE = "/ringconn/vitals_message"
+        const val PATH_ACTION_SYNC_STATUS = "/action/sync_status"
         const val PREFS_ALERTS = "ring_alerts"
         const val KEY_LAST_LOW_BAT = "last_low_bat_alert"
         const val KEY_LAST_LOW_BAT_TIME = "last_low_bat_time"
         const val CHANNEL_ALERTS_ID = "ringconn_wear_alerts"
         const val NOTIFICATION_LOW_BAT_ID = 3001
+
+        val syncStatusFlow = MutableStateFlow("IDLE")
+        val lastSyncCompletedMs = MutableStateFlow(0L)
     }
 }

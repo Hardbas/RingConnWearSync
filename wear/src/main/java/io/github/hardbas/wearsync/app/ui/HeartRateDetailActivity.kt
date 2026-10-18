@@ -47,9 +47,12 @@ import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 // Specific One UI Watch 8 Heart Rate & HRV Palette
 val HrBpmWarm = Color(0xFFFBCEB6)
@@ -159,6 +162,7 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
             if (!isMeasuring) {
                 isMeasuring = true
                 scope.launch {
+                    val startSync = WearDataListenerService.lastSyncCompletedMs.value
                     try {
                         val nodes = Wearable.getNodeClient(context).connectedNodes
                         nodes.addOnSuccessListener { nodeList ->
@@ -173,7 +177,9 @@ fun HeartRateDetailScreen(context: Context, startMeasureDirectly: Boolean = fals
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
-                    delay(5500L)
+                    withTimeoutOrNull(8500L) {
+                        WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+                    }
                     val current = RingConnComplicationProvider.getLatestVitals(context)
                     if (current.lastHeartRate > 0) {
                         val newHr = current.lastHeartRate
