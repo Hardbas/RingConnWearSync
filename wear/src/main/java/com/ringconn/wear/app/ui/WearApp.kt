@@ -164,7 +164,7 @@ fun WearAppContent(
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // 1. One UI Watch 8 Top Header ("RingConn Health" + Ring Battery Pill)

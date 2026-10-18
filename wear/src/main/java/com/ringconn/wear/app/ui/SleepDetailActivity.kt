@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -190,7 +191,7 @@ fun SleepDetailContent(
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // a) Header: Clean title with circular clearance
@@ -204,13 +205,15 @@ fun SleepDetailContent(
                         text = stringResource(R.string.sleep_analysis_title),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = SleepPeriwinkle
+                        color = SleepPeriwinkle,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -241,13 +244,15 @@ fun SleepDetailContent(
                                 fontSize = 38.sp,
                                 style = TabularNums,
                                 color = Color.White,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
                             )
                             Text(
                                 text = stringResource(R.string.pts_unit).uppercase(),
                                 fontSize = TextCaption,
                                 color = SleepPeriwinkle,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -260,13 +265,15 @@ fun SleepDetailContent(
                             .clip(ShapePill)
                             .background(qualityColor.copy(alpha = 0.18f))
                             .border(BorderStroke(1.dp, qualityColor.copy(alpha = 0.35f)), ShapePill)
-                            .padding(horizontal = 14.dp, vertical = 3.5.dp)
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = qualityBadge.uppercase(),
                             fontSize = TextCaption,
                             fontWeight = FontWeight.Bold,
-                            color = qualityColor
+                            color = qualityColor,
+                            textAlign = TextAlign.Center
                         )
                     }
 
@@ -278,9 +285,13 @@ fun SleepDetailContent(
                             .clip(ShapePill)
                             .background(Color(0x221E2638))
                             .border(BorderStroke(1.dp, Color(0x335E72E4)), ShapePill)
-                            .padding(horizontal = 14.dp, vertical = 5.dp)
+                            .padding(horizontal = 14.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
                             Image(
                                 painter = painterResource(id = R.drawable.oneui_sleep_icon),
                                 contentDescription = null,
@@ -647,14 +658,20 @@ private fun NocturnalMetricBox(
         modifier = modifier
             .clip(ShapeChip)
             .background(CardBgSubtle)
-            .padding(horizontal = 8.dp, vertical = 7.dp)
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Column {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(
                 text = label,
                 fontSize = TextCaption,
                 color = LabelSilver,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -663,7 +680,8 @@ private fun NocturnalMetricBox(
                 style = TabularNums,
                 color = valueColor,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                maxLines = 1,
+                textAlign = TextAlign.Center
             )
         }
     }

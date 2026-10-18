@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
@@ -269,7 +270,7 @@ fun HeartRateDetailContent(
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // a) Header: Clean title with circular clearance
@@ -283,13 +284,15 @@ fun HeartRateDetailContent(
                         text = stringResource(R.string.tile_heart_rate_title),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = HrSubtitlePink
+                        color = HrSubtitlePink,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -317,28 +320,36 @@ fun HeartRateDetailContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
                                 PulsingHeartIcon(isMeasuring = isMeasuring)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (isMeasuring) stringResource(R.string.measuring_caps) else stringResource(R.string.realtime_caps),
                                     fontSize = TextCaption,
                                     color = HrSubtitlePink,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(hrStatusColor.copy(alpha = 0.2f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = hrStatusLabel.uppercase(),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = hrStatusColor,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -432,7 +443,10 @@ fun HeartRateDetailContent(
                             text = stringResource(R.string.rhythm_and_rest),
                             fontSize = TextBody,
                             color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Box(
                             modifier = Modifier
@@ -455,7 +469,7 @@ fun HeartRateDetailContent(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // RHR Comparison Mini Tiles
+                    // RHR Comparison Mini Tiles - centered & balanced
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -466,13 +480,31 @@ fun HeartRateDetailContent(
                                 .weight(1f)
                                 .clip(ShapeChip)
                                 .background(CardBgSubtle)
-                                .padding(horizontal = 8.dp, vertical = 7.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column {
-                                Text(stringResource(R.string.avg_resting_hr), fontSize = TextCaption, color = LabelSilver)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.avg_resting_hr),
+                                    fontSize = TextCaption,
+                                    color = LabelSilver,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 val avgHrText = if (avgHr > 0) "$avgHr $bpmUnit" else "--"
-                                Text(avgHrText, fontSize = TextBody, style = TabularNums, color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = avgHrText,
+                                    fontSize = TextBody,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
 
@@ -484,17 +516,29 @@ fun HeartRateDetailContent(
                                 .weight(1f)
                                 .clip(ShapeChip)
                                 .background(CardBgSubtle)
-                                .padding(horizontal = 8.dp, vertical = 7.dp)
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column {
-                                Text(stringResource(R.string.variation), fontSize = TextCaption, color = LabelSilver)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.variation),
+                                    fontSize = TextCaption,
+                                    color = LabelSilver,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    diffText,
+                                    text = diffText,
                                     fontSize = TextBody,
                                     style = TabularNums,
                                     color = diffColor,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -525,7 +569,10 @@ fun HeartRateDetailContent(
                                 text = stringResource(R.string.hrv_title),
                                 fontSize = TextBody,
                                 color = Color.White,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "RMSSD",
@@ -591,14 +638,38 @@ fun HeartRateDetailContent(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        // Gauge legends
+                        // Gauge legends - centered under segments
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("< 40 ms", fontSize = TextCaption, style = TabularNums, color = HrMinMaxPink, fontWeight = FontWeight.Medium)
-                            Text("40 - 60 ms", fontSize = TextCaption, style = TabularNums, color = CyanActive, fontWeight = FontWeight.Medium)
-                            Text("> 60 ms", fontSize = TextCaption, style = TabularNums, color = LimeSteps, fontWeight = FontWeight.Medium)
+                            Text(
+                                text = "< 40 ms",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = HrMinMaxPink,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "40 - 60 ms",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = CyanActive,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "> 60 ms",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = LimeSteps,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -852,7 +923,10 @@ private fun ZoneItemRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
                 Box(
                     modifier = Modifier
                         .size(8.dp)
@@ -864,7 +938,9 @@ private fun ZoneItemRow(
                     text = zoneName,
                     fontSize = TextLabel,
                     color = if (isActive) Color.White else LabelSilver,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
@@ -895,13 +971,15 @@ private fun ZoneItemRow(
                     modifier = Modifier
                         .clip(ShapePill)
                         .background(zoneColor)
-                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                        .padding(horizontal = 6.dp, vertical = 1.5.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "ACTUAL",
+                        text = stringResource(R.string.current_caps),
                         fontSize = TextCaption,
                         color = Color.Black,
-                        fontWeight = FontWeight.ExtraBold
+                        fontWeight = FontWeight.ExtraBold,
+                        textAlign = TextAlign.Center
                     )
                 }
             }

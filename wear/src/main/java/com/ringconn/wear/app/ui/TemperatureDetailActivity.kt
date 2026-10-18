@@ -34,6 +34,8 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -142,7 +144,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // a) Header: Clean title with circular clearance
@@ -156,13 +158,15 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         text = stringResource(R.string.skin_temp),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = TempEmeraldSoft
+                        color = TempEmeraldSoft,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -186,13 +190,15 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 .clip(ShapePill)
                                 .background(statusColor.copy(alpha = 0.22f))
                                 .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), ShapePill)
-                                .padding(horizontal = 14.dp, vertical = 3.5.dp)
+                                .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = statusLabel.uppercase(),
                                 color = statusColor,
                                 fontSize = TextCaption,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
                             )
                         }
 
@@ -297,7 +303,10 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 text = stringResource(R.string.temp_delta_explanation_title),
                                 color = TempEmeraldSoft,
                                 fontSize = TextBody,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
@@ -412,7 +421,10 @@ private fun CircadianThermalCurveCard(offset: Float) {
                     text = stringResource(R.string.temp_circadian_curve_title),
                     color = Color.White,
                     fontSize = TextBody,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = stringResource(R.string.sleep_stat),
@@ -538,19 +550,64 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "-0.4 °C", color = TempCool, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.min_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "-0.4 °C",
+                        color = TempCool,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.min_stat),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "98%", color = TempOptimal, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.in_range_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "98%",
+                        color = TempOptimal,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.in_range_stat),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "0.0 °C", color = Color.White, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.baseline_stat), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "0.0 °C",
+                        color = Color.White,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.baseline_stat),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -577,7 +634,10 @@ private fun TempBandRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
                 Box(
                     modifier = Modifier
                         .size(7.dp)
@@ -589,7 +649,9 @@ private fun TempBandRow(
                     text = label,
                     color = if (isActive) Color.White else Color(0xFFB0BEC5),
                     fontSize = TextLabel,
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
+                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
