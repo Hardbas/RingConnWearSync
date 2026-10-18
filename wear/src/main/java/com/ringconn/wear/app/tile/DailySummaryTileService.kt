@@ -17,7 +17,6 @@ import androidx.wear.protolayout.TimelineBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
-import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -32,12 +31,7 @@ import java.util.Locale
 
 /**
  * Dedicated Circular Bezel Arc Daily Summary Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
- * Features:
- * - 260° sweeping perimeter Neon Lime bezel arc tracking daily step progress towards goal
- * - 34sp Hero step counter typography with tabular numerals
- * - Glanceable Active Time (Cyan) and Active Calories (Violet) chips
- * - Ergonomic frosted glass Sleep Pod with sleep score and SpO2 metrics
- * - 100% full-bleed circular layout with dual contextual tap targets
+ * Ergonomically calibrated for round screens to ensure zero text crowding and maximum glanceability.
  */
 class DailySummaryTileService : TileService() {
 
@@ -168,7 +162,7 @@ class DailySummaryTileService : TileService() {
 
             val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(bezelTrackColor)
                 .build()
 
@@ -181,7 +175,7 @@ class DailySummaryTileService : TileService() {
             val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(dynamicStepsSweep)
                 .setLayoutConstraintsForDynamicLength(angularConstraint)
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(limeStepsColor)
                 .build()
 
@@ -194,15 +188,16 @@ class DailySummaryTileService : TileService() {
             // 2. Activity Header & Hero (Upper Half)
             val ringsIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_ACTIVITY_RINGS)
-                .setWidth(dp(22f))
-                .setHeight(dp(22f))
+                .setWidth(dp(18f))
+                .setHeight(dp(18f))
                 .build()
 
             val stepsNumberText = LayoutElementBuilders.Text.Builder()
                 .setText(stepsFormatted)
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(34f))
+                        .setSize(sp(28f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -211,9 +206,10 @@ class DailySummaryTileService : TileService() {
 
             val stepsLabelText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.steps_short).lowercase())
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(limeStepsColor)
                         .build()
@@ -233,9 +229,10 @@ class DailySummaryTileService : TileService() {
 
             val activityTimeText = LayoutElementBuilders.Text.Builder()
                 .setText(activityVal)
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
@@ -244,9 +241,10 @@ class DailySummaryTileService : TileService() {
 
             val pipeText = LayoutElementBuilders.Text.Builder()
                 .setText(" · ")
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11.5f))
                         .setColor(pipeDividerColor)
                         .build()
                 )
@@ -254,9 +252,10 @@ class DailySummaryTileService : TileService() {
 
             val calorieText = LayoutElementBuilders.Text.Builder()
                 .setText("$calorieVal kcal")
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(violetCalorieColor)
                         .build()
@@ -285,15 +284,16 @@ class DailySummaryTileService : TileService() {
             // 3. Sleep Glassmorphic Pod (Lower Half)
             val sleepIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_SLEEP)
-                .setWidth(dp(18f))
-                .setHeight(dp(18f))
+                .setWidth(dp(14f))
+                .setHeight(dp(14f))
                 .build()
 
             val sleepValueText = LayoutElementBuilders.Text.Builder()
                 .setText(sleepVal)
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(20f))
+                        .setSize(sp(14f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -302,9 +302,10 @@ class DailySummaryTileService : TileService() {
 
             val sleepPtsLabel = LayoutElementBuilders.Text.Builder()
                 .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)} · " else " · ")
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
+                        .setSize(sp(10.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(sleepLabelColor)
                         .build()
@@ -313,9 +314,10 @@ class DailySummaryTileService : TileService() {
 
             val spo2InlineText = LayoutElementBuilders.Text.Builder()
                 .setText("SpO2 $spo2Val")
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
@@ -327,15 +329,15 @@ class DailySummaryTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(sleepIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
                 .addContent(sleepValueText)
                 .addContent(sleepPtsLabel)
                 .addContent(spo2InlineText)
                 .build()
 
             val sleepPodBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(168f))
-                .setHeight(dp(44f))
+                .setWidth(dp(136f))
+                .setHeight(dp(28f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -344,7 +346,7 @@ class DailySummaryTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(frostedPodBg)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(22f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
                                 .build()
                         )
                         .build()
@@ -358,7 +360,7 @@ class DailySummaryTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(labelSilverColor)
                         .build()
@@ -370,9 +372,9 @@ class DailySummaryTileService : TileService() {
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
                 .addContent(activitySection)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).setWidth(dp(1f)).build())
                 .addContent(sleepPodBox)
                 .build()
 
@@ -405,14 +407,13 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("daily_steps_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsSweep))
                 .build()
 
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
                 .setState(tileState)
-                .setFreshnessIntervalMillis(30_000L)
+                .setFreshnessIntervalMillis(60_000L)
                 .build()
         }
     }

@@ -27,17 +27,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
-import com.ringconn.wear.app.ui.TemperatureDetailActivity
 
 /**
  * Dedicated Circular Bezel Arc Skin Temperature Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
- * Features:
- * - 260° sweeping perimeter bezel arc gauge mapped to thermoregulation deviation (-1.5°C to +1.5°C)
- * - 38sp Hero digits with tabular numerals
- * - Color-coded deviation status badge (Stable · Optimal, Warm, Cool)
- * - Personal circadian baseline indicator
- * - Ergonomic frosted glass action button ("Detalles")
- * - 100% full-bleed circular layout with zero wasted borders
+ * Ergonomically calibrated for round screens to ensure zero text crowding and maximum glanceability.
  */
 class TemperatureTileService : TileService() {
 
@@ -79,55 +72,63 @@ class TemperatureTileService : TileService() {
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
         ): TileBuilders.Tile {
+            val whiteColor = argb(0xFFFFFFFF.toInt())
+            val subtitleColor = argb(0xFFD1FAE5.toInt())
+            val unitColor = argb(0xFF68D391.toInt())
+            val frostedGlassPill = argb(0x2BFFFFFF.toInt())
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())
+
             val offset = vitals.skinTempOffset
+            val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
             val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
-            val offsetStr = when {
-                offset in -0.05f..0.05f -> "±0.0"
-                offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f", offset)
-                else -> String.format(java.util.Locale.US, "%.1f", offset)
+
+            val offsetStr = if (hasData) {
+                when {
+                    offset in -0.05f..0.05f -> "±0.0"
+                    offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f", offset)
+                    else -> String.format(java.util.Locale.US, "%.1f", offset)
+                }
+            } else {
+                "--"
+            }
+
+            val statusColor = when {
+                !hasData -> argb(0xFF686D73.toInt())
+                offset in -0.5f..0.5f -> argb(0xFF00E676.toInt())   // Optimal Euthermia (Green)
+                offset > 0.5f -> argb(0xFFFF7043.toInt())           // Warm departure (Amber/Coral)
+                else -> argb(0xFF38BDF8.toInt())                    // Cool departure (Cyan)
             }
 
             val statusText = when {
-                offset in -0.5f..0.5f -> context.getString(R.string.temp_stable_optimal)
+                !hasData -> context.getString(R.string.no_data)
+                offset in -0.5f..0.5f -> context.getString(R.string.temp_in_range)
                 offset > 0.5f -> context.getString(R.string.temp_warm)
                 else -> context.getString(R.string.temp_cool)
             }
 
-            val statusColorInt = when {
-                offset in -0.5f..0.5f -> 0xFF00E676.toInt() // Clinical Mint Emerald Optimal
-                offset > 0.5f -> 0xFFFF7043.toInt()         // Warm Amber Alert
-                else -> 0xFF38BDF8.toInt()                  // Sky Cyan Cooling
-            }
-
             val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
 
-            val whiteColor = argb(0xFFFFFFFF.toInt())
-            val unitColor = argb(0xFF34D399.toInt())
-            val statusColor = argb(statusColorInt)
-            val subtitleColor = argb(0xFFCBD5E1.toInt())        // Slate 300
-            val frostedGlassPill = argb(0x26FFFFFF.toInt())     // 15% Frosted glass
-            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
-
-            val clickAction = ActionBuilders.LaunchAction.Builder()
+            val mainTileAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
                         .setPackageName(context.packageName)
-                        .setClassName(TemperatureDetailActivity::class.java.name)
+                        .setClassName("com.ringconn.wear.app.ui.TemperatureDetailActivity")
                         .build()
                 ).build()
 
             val mainTileClickable = ModifiersBuilders.Clickable.Builder()
-                .setOnClick(clickAction)
-                .setId("open_temperature_detail")
+                .setOnClick(mainTileAction)
                 .build()
 
-            // Dynamic Sweeping Bezel Arc Gauge (260° total span, 140° to 40°)
             val totalArcSpanDegrees = 260f
             val arcStartAngle = 140f
 
-            // Map offset [-1.5°C .. +1.5°C] to sweep degrees
-            val clampedFraction = ((offset.coerceIn(-1.5f, 1.5f) + 1.5f) / 3.0f).coerceIn(0.08f, 1.0f)
-            val targetSweepDegrees = clampedFraction * totalArcSpanDegrees
+            val targetSweepDegrees = if (hasData) {
+                val norm = ((offset + 1.0f) / 2.0f).coerceIn(0.04f, 1.0f)
+                norm * totalArcSpanDegrees
+            } else {
+                14f
+            }
 
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
@@ -150,10 +151,9 @@ class TemperatureTileService : TileService() {
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
                 .build()
 
-            // 1. Outer Bezel Track (Static subtle track)
             val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(bezelTrackColor)
                 .build()
 
@@ -163,11 +163,10 @@ class TemperatureTileService : TileService() {
                 .addContent(bgTrackArcLine)
                 .build()
 
-            // 2. Active Temperature Bezel Arc (Animated dynamic sweep)
             val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(dynamicSweep)
                 .setLayoutConstraintsForDynamicLength(angularConstraint)
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(statusColor)
                 .build()
 
@@ -177,37 +176,37 @@ class TemperatureTileService : TileService() {
                 .addContent(activeArcLine)
                 .build()
 
-            // 3. Title: "Temp. Cutánea" (12.5sp bold white)
+            // 3. Title: "Temp. Cutánea" (11sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.tile_temperature_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            // 4. Subtitle: Baseline indicator
+            // 4. Subtitle: Baseline indicator (10sp)
             val subtitleText = LayoutElementBuilders.Text.Builder()
                 .setText(baselineSubtitle)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
+                        .setSize(sp(10f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(subtitleColor)
                         .build()
                 )
                 .build()
 
-            // 5. Hero Row: Temp Icon + 38sp Bold Number + "°C"
+            // 5. Hero Row: Temp Icon + 30sp Bold Number + "°C"
             val tempIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_TEMP)
-                .setWidth(dp(20f))
-                .setHeight(dp(20f))
+                .setWidth(dp(16f))
+                .setHeight(dp(16f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
                         .setTint(statusColor)
@@ -217,9 +216,10 @@ class TemperatureTileService : TileService() {
 
             val tempNumberText = LayoutElementBuilders.Text.Builder()
                 .setText(offsetStr)
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(38f))
+                        .setSize(sp(30f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -228,9 +228,10 @@ class TemperatureTileService : TileService() {
 
             val tempUnitText = LayoutElementBuilders.Text.Builder()
                 .setText("°C")
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(13f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(unitColor)
                         .build()
@@ -242,19 +243,19 @@ class TemperatureTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(tempIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
                 .addContent(tempNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
                 .addContent(tempUnitText)
                 .build()
 
-            // 6. Status Badge Pill ("Estable · Óptimo", "Templado", etc.)
+            // 6. Status Badge Pill ("En rango", "Cálido", etc.)
             val statusPillText = LayoutElementBuilders.Text.Builder()
                 .setText(statusText)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(statusColor)
                         .build()
@@ -263,7 +264,7 @@ class TemperatureTileService : TileService() {
 
             val statusBadgeBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(wrap())
-                .setHeight(dp(22f))
+                .setHeight(dp(20f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -271,13 +272,13 @@ class TemperatureTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(argb(0x22FFFFFF.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(10f)).build())
                                 .build()
                         )
                         .setPadding(
                             ModifiersBuilders.Padding.Builder()
-                                .setStart(dp(10f))
-                                .setEnd(dp(10f))
+                                .setStart(dp(8f))
+                                .setEnd(dp(8f))
                                 .build()
                         )
                         .build()
@@ -291,7 +292,7 @@ class TemperatureTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -299,8 +300,8 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(96f))
-                .setHeight(dp(28f))
+                .setWidth(dp(88f))
+                .setHeight(dp(26f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -309,7 +310,7 @@ class TemperatureTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(frostedGlassPill)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(13f)).build())
                                 .build()
                         )
                         .build()
@@ -325,11 +326,11 @@ class TemperatureTileService : TileService() {
                 .addContent(titleText)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(subtitleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
-                .addContent(heroTempRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
+                .addContent(heroTempRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
                 .addContent(statusBadgeBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
@@ -354,10 +355,8 @@ class TemperatureTileService : TileService() {
                 .addContent(contentColumn)
                 .build()
 
-            val layout = LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build()
-
             val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(layout)
+                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build())
                 .build()
 
             val timeline = TimelineBuilders.Timeline.Builder()
@@ -372,7 +371,7 @@ class TemperatureTileService : TileService() {
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
                 .setState(tileState)
-                .setFreshnessIntervalMillis(30_000L)
+                .setFreshnessIntervalMillis(60_000L)
                 .build()
         }
     }

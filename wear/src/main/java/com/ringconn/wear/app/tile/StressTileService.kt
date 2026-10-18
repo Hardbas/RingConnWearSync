@@ -27,17 +27,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
-import com.ringconn.wear.app.ui.StressDetailActivity
 
 /**
  * Dedicated Circular Bezel Arc Stress Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
- * Features:
- * - 260° sweeping perimeter bezel arc gauge mapped to physiological stress zones
- * - 38sp Hero digits with tabular numerals
- * - Color-coded stress status pill (Relaxed, Balanced, Moderate, High)
- * - Autonomic HRV tone indicator (ms)
- * - Ergonomic frosted glass action button ("Respirar" / "Detalles")
- * - 100% full-bleed circular layout with zero wasted borders
+ * Ergonomically calibrated for round screens to ensure zero text crowding and maximum glanceability.
  */
 class StressTileService : TileService() {
 
@@ -79,55 +72,55 @@ class StressTileService : TileService() {
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
         ): TileBuilders.Tile {
+            val whiteColor = argb(0xFFFFFFFF.toInt())
+            val subtitleColor = argb(0xFFD8B4FE.toInt())
+            val frostedGlassPill = argb(0x2BFFFFFF.toInt())
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())
+
+            val hasStress = vitals.stressScore > 0
             val score = vitals.stressScore.coerceIn(0, 100)
-            val scoreStr = if (score > 0) "$score" else "--"
+            val scoreStr = if (hasStress) "$score" else "--"
+
+            val statusColor = when {
+                !hasStress -> argb(0xFF686D73.toInt())
+                score < 30 -> argb(0xFF00E676.toInt())     // Relaxed (Green)
+                score < 60 -> argb(0xFF00E5FF.toInt())     // Balanced (Cyan)
+                score < 80 -> argb(0xFFFFD600.toInt())     // Moderate (Yellow)
+                else -> argb(0xFFFF3D00.toInt())           // High (Orange-Red)
+            }
 
             val statusText = when {
+                !hasStress -> context.getString(R.string.no_data)
                 score < 30 -> context.getString(R.string.stress_relaxed)
                 score < 60 -> context.getString(R.string.stress_balanced)
                 score < 80 -> context.getString(R.string.stress_moderate)
                 else -> context.getString(R.string.stress_high)
             }
 
-            val statusColorInt = when {
-                score < 30 -> 0xFF38E1FF.toInt() // Calm Cyan (<30)
-                score < 60 -> 0xFF34D399.toInt() // Balanced Emerald (<60)
-                score < 80 -> 0xFFFBBF24.toInt() // Moderate Amber (<80)
-                else -> 0xFFF87171.toInt()       // High Coral (>=80)
-            }
-
             val hrvSubtitle = if (vitals.lastHrv > 0) {
-                context.getString(R.string.stress_hrv_format, vitals.lastHrv)
+                "${context.getString(R.string.hrv_short)} ${vitals.lastHrv} ms"
             } else {
                 context.getString(R.string.stress_resting)
             }
 
-            val whiteColor = argb(0xFFFFFFFF.toInt())
-            val statusColor = argb(statusColorInt)
-            val subtitleColor = argb(0xFFCBD5E1.toInt())        // Slate 300
-            val frostedGlassPill = argb(0x26FFFFFF.toInt())     // 15% Frosted glass
-            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
-
-            val clickAction = ActionBuilders.LaunchAction.Builder()
+            val mainTileAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
                         .setPackageName(context.packageName)
-                        .setClassName(StressDetailActivity::class.java.name)
+                        .setClassName("com.ringconn.wear.app.ui.StressDetailActivity")
                         .build()
                 ).build()
 
             val mainTileClickable = ModifiersBuilders.Clickable.Builder()
-                .setOnClick(clickAction)
-                .setId("open_stress_detail")
+                .setOnClick(mainTileAction)
                 .build()
 
-            // Dynamic Sweeping Bezel Arc Gauge (260° total span, 140° to 40°)
             val totalArcSpanDegrees = 260f
             val arcStartAngle = 140f
 
-            val targetSweepDegrees = if (score > 0) {
-                val fraction = score / 100f
-                (fraction * totalArcSpanDegrees).coerceIn(14f, totalArcSpanDegrees)
+            val targetSweepDegrees = if (hasStress) {
+                val fraction = (score / 100f).coerceIn(0.04f, 1.0f)
+                fraction * totalArcSpanDegrees
             } else {
                 14f
             }
@@ -153,10 +146,9 @@ class StressTileService : TileService() {
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
                 .build()
 
-            // 1. Outer Bezel Track (Static subtle track)
             val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(bezelTrackColor)
                 .build()
 
@@ -166,11 +158,10 @@ class StressTileService : TileService() {
                 .addContent(bgTrackArcLine)
                 .build()
 
-            // 2. Active Stress Bezel Arc (Animated dynamic sweep)
             val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
                 .setLength(dynamicSweep)
                 .setLayoutConstraintsForDynamicLength(angularConstraint)
-                .setThickness(dp(7f))
+                .setThickness(dp(6.5f))
                 .setColor(statusColor)
                 .build()
 
@@ -180,37 +171,37 @@ class StressTileService : TileService() {
                 .addContent(activeArcLine)
                 .build()
 
-            // 3. Title: "Estrés" (12.5sp bold white)
+            // 3. Title: "Estrés" (11.5sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.stress_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12.5f))
+                        .setSize(sp(11.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            // 4. Subtitle: HRV indicator
+            // 4. Subtitle: HRV indicator (10sp)
             val subtitleText = LayoutElementBuilders.Text.Builder()
                 .setText(hrvSubtitle)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
+                        .setSize(sp(10f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(subtitleColor)
                         .build()
                 )
                 .build()
 
-            // 5. Hero Row: Stress Icon + 38sp Bold Score
+            // 5. Hero Row: Stress Icon + 30sp Bold Score
             val stressIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_STRESS)
-                .setWidth(dp(20f))
-                .setHeight(dp(20f))
+                .setWidth(dp(16f))
+                .setHeight(dp(16f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
                         .setTint(statusColor)
@@ -220,9 +211,10 @@ class StressTileService : TileService() {
 
             val scoreText = LayoutElementBuilders.Text.Builder()
                 .setText(scoreStr)
+                .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(38f))
+                        .setSize(sp(30f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -234,7 +226,7 @@ class StressTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(stressIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
                 .addContent(scoreText)
                 .build()
 
@@ -244,7 +236,7 @@ class StressTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11.5f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(statusColor)
                         .build()
@@ -253,7 +245,7 @@ class StressTileService : TileService() {
 
             val statusBadgeBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(wrap())
-                .setHeight(dp(22f))
+                .setHeight(dp(20f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -261,13 +253,13 @@ class StressTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(argb(0x22FFFFFF.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(10f)).build())
                                 .build()
                         )
                         .setPadding(
                             ModifiersBuilders.Padding.Builder()
-                                .setStart(dp(10f))
-                                .setEnd(dp(10f))
+                                .setStart(dp(8f))
+                                .setEnd(dp(8f))
                                 .build()
                         )
                         .build()
@@ -275,13 +267,13 @@ class StressTileService : TileService() {
                 .addContent(statusPillText)
                 .build()
 
-            // 7. Ergonomic Frosted Glass Action Button ("Respirar" / "Detalles")
+            // 7. Ergonomic Frosted Glass Action Button ("Respirar")
             val actionButtonText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.breathe))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(12f))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -289,8 +281,8 @@ class StressTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(96f))
-                .setHeight(dp(28f))
+                .setWidth(dp(88f))
+                .setHeight(dp(26f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -299,7 +291,7 @@ class StressTileService : TileService() {
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
                                 .setColor(frostedGlassPill)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(13f)).build())
                                 .build()
                         )
                         .build()
@@ -315,11 +307,11 @@ class StressTileService : TileService() {
                 .addContent(titleText)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(subtitleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
-                .addContent(heroRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
+                .addContent(heroRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
                 .addContent(statusBadgeBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
@@ -360,7 +352,7 @@ class StressTileService : TileService() {
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
                 .setState(tileState)
-                .setFreshnessIntervalMillis(30_000L)
+                .setFreshnessIntervalMillis(60_000L)
                 .build()
         }
     }
