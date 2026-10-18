@@ -49,6 +49,8 @@ fun dailySummaryTilePreview(context: Context): TilePreviewData {
 fun heartRateTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         lastHeartRate = 74,
+        minHeartRate = 58,
+        maxHeartRate = 112,
         avgHeartRate = 68,
         lastSpo2 = 98,
         lastHrv = 49,
