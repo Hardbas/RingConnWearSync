@@ -28,7 +28,7 @@
     <string name="tile_heart_rate_title">Heart Rate</string>
     <string name="resting_hr">Resting HR</string>
     <string name="hr_insights_title">Insights &amp; Status</string>
-    <string name="hrv_title">Heart Rate Variability (HRV)</string>
+    <string name="hrv_title">Variability (HRV)</string>
     <string name="hr_zones_title">Heart Rate Zones</string>
     <string name="tile_stress_title">Stress</string>
     <string name="tile_temperature_title">Skin Temperature</string>
@@ -189,4 +189,5 @@
     <!-- Realtime HR -->
     <string name="realtime_caps">REAL-TIME</string>
     <string name="measuring_caps">MEASURING...</string>
+    <string name="current_caps">CURRENT</string>
 </resources>

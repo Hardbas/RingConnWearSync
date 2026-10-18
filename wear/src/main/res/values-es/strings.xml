@@ -28,7 +28,7 @@
     <string name="tile_heart_rate_title">Frecuencia Cardíaca</string>
     <string name="resting_hr">FC en Reposo</string>
     <string name="hr_insights_title">Análisis y Estado</string>
-    <string name="hrv_title">Variabilidad Cardíaca (VFC / HRV)</string>
+    <string name="hrv_title">Variabilidad (VFC)</string>
     <string name="hr_zones_title">Zonas de Frecuencia Cardíaca</string>
     <string name="tile_stress_title">Estrés</string>
     <string name="tile_temperature_title">Temperatura Cutánea</string>
@@ -189,4 +189,5 @@
     <!-- Realtime HR -->
     <string name="realtime_caps">EN TIEMPO REAL</string>
     <string name="measuring_caps">MIDIENDO...</string>
+    <string name="current_caps">ACTUAL</string>
 </resources>

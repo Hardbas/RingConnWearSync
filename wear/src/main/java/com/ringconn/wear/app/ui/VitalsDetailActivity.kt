@@ -32,6 +32,8 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -210,7 +212,7 @@ fun VitalsDetailContent(
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // a) Header: Clean title with circular clearance
@@ -224,13 +226,15 @@ fun VitalsDetailContent(
                         text = stringResource(R.string.tile_vitals_title),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = HrSubtitlePink
+                        color = HrSubtitlePink,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -254,28 +258,36 @@ fun VitalsDetailContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
                                 PulsingHeartIcon(isMeasuring = isMeasuring)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = if (isMeasuring) stringResource(R.string.measuring_caps) else stringResource(R.string.realtime_caps),
                                     fontSize = TextCaption,
                                     color = HrSubtitlePink,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(hrStatusColor.copy(alpha = 0.2f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = hrStatusLabel.uppercase(),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = hrStatusColor,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
                                 )
                             }
                         }
@@ -369,19 +381,24 @@ fun VitalsDetailContent(
                                 text = stringResource(R.string.blood_oxygen),
                                 fontSize = TextBody,
                                 color = Color.White,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(CyanActive.copy(alpha = 0.2f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(R.string.optimal).uppercase(),
                                     fontSize = TextCaption,
                                     color = CyanActive,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -413,7 +430,7 @@ fun VitalsDetailContent(
             }
 
             // =========================================================================
-            // d) Telemetry Mini Cards: HRV & Battery
+            // d) Telemetry Mini Cards: HRV & Battery (Centered)
             // =========================================================================
             item {
                 Row(
@@ -429,12 +446,30 @@ fun VitalsDetailContent(
                             .clip(ShapeCard)
                             .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
                             .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
-                            .padding(horizontal = 10.dp, vertical = 10.dp)
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column {
-                            Text(stringResource(R.string.hrv_short), fontSize = TextCaption, color = LabelSilver)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.hrv_short),
+                                fontSize = TextCaption,
+                                color = LabelSilver,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(hrvVal, fontSize = TextBody, style = TabularNums, color = CyanActive, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = hrvVal,
+                                fontSize = TextBody,
+                                style = TabularNums,
+                                color = CyanActive,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
 
@@ -444,12 +479,30 @@ fun VitalsDetailContent(
                             .clip(ShapeCard)
                             .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
                             .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
-                            .padding(horizontal = 10.dp, vertical = 10.dp)
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column {
-                            Text(stringResource(R.string.ring_short), fontSize = TextCaption, color = LabelSilver)
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.ring_short),
+                                fontSize = TextCaption,
+                                color = LabelSilver,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(batVal, fontSize = TextBody, style = TabularNums, color = LimeSteps, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = batVal,
+                                fontSize = TextBody,
+                                style = TabularNums,
+                                color = LimeSteps,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }

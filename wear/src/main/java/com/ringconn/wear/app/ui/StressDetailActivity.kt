@@ -31,6 +31,8 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -135,7 +137,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // =========================================================================
             // a) Header: Clean title with circular clearance
@@ -149,13 +151,15 @@ fun StressDetailContent(vitals: RingConnVitals) {
                         text = stringResource(R.string.stress_title),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = Color(0xFFD8B4FE)
+                        color = Color(0xFFD8B4FE),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -179,13 +183,15 @@ fun StressDetailContent(vitals: RingConnVitals) {
                                 .clip(ShapePill)
                                 .background(statusColor.copy(alpha = 0.22f))
                                 .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), ShapePill)
-                                .padding(horizontal = 14.dp, vertical = 3.5.dp)
+                                .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = statusLabel.uppercase(),
                                 color = statusColor,
                                 fontSize = TextCaption,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
                             )
                         }
 
@@ -358,7 +364,10 @@ private fun StressTimelineCard(score: Int) {
                     text = stringResource(R.string.stress_timeline_title),
                     color = Color.White,
                     fontSize = TextBody,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "24h",
@@ -461,19 +470,64 @@ private fun StressTimelineCard(score: Int) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "74%", color = StressRelaxed, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.calm), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "74%",
+                        color = StressRelaxed,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.calm),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "26%", color = StressModerate, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.tension), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "26%",
+                        color = StressModerate,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.tension),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
                 Box(modifier = Modifier.width(1.dp).height(18.dp).background(Color(0x22FFFFFF)))
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "64", color = StressHigh, fontSize = TextBody, style = TabularNums, fontWeight = FontWeight.Bold)
-                    Text(text = stringResource(R.string.peak), color = Color(0xFF94A3B8), fontSize = TextCaption)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = "64",
+                        color = StressHigh,
+                        fontSize = TextBody,
+                        style = TabularNums,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = stringResource(R.string.peak),
+                        color = Color(0xFF94A3B8),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -502,7 +556,10 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                     text = stringResource(R.string.stress_autonomic_balance_title),
                     color = Color(0xFF00E5FF),
                     fontSize = TextBody,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 

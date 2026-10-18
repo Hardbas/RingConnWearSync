@@ -29,6 +29,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -144,7 +146,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
             autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 24.dp, start = 8.dp, end = 8.dp)
+            contentPadding = PaddingValues(top = 34.dp, bottom = 32.dp, start = 14.dp, end = 14.dp)
         ) {
             // Header: Clean title with circular clearance
             item {
@@ -156,13 +158,15 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         text = stringResource(R.string.daily_activity_title),
                         fontSize = TextBody,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
                         fontSize = TextCaption,
-                        color = LabelSilver
+                        color = LabelSilver,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -191,13 +195,15 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                 fontSize = TextHero,
                                 style = TabularNums,
                                 color = Color.White,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
                             )
                             Text(
                                 text = stringResource(R.string.pts_unit).uppercase(),
                                 fontSize = TextCaption,
                                 color = LabelSilver,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -219,13 +225,15 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             .clip(ShapePill)
                             .background(statusColor.copy(alpha = 0.18f))
                             .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), ShapePill)
-                            .padding(horizontal = 14.dp, vertical = 3.5.dp)
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = statusLabel.uppercase(),
                             fontSize = TextCaption,
                             fontWeight = FontWeight.Bold,
-                            color = statusColor
+                            color = statusColor,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -247,7 +255,10 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
@@ -259,21 +270,25 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     text = stringResource(R.string.steps),
                                     fontSize = TextBody,
                                     color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(LimeSteps.copy(alpha = 0.18f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "${(stepsProgress * 100).toInt()}%",
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = LimeSteps,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -337,7 +352,10 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
@@ -349,21 +367,25 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     text = stringResource(R.string.active_time),
                                     fontSize = TextBody,
                                     color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(CyanActive.copy(alpha = 0.18f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(R.string.goal_format_min, targetActiveMins),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = CyanActive,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -412,7 +434,10 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(8.dp)
@@ -424,21 +449,25 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     text = stringResource(R.string.active_calories),
                                     fontSize = TextBody,
                                     color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
                                     .background(VioletCalorie.copy(alpha = 0.18f))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = stringResource(R.string.goal_format_cal, targetCalories),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = VioletCalorie,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
