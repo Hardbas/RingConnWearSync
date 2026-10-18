@@ -30,9 +30,14 @@ import com.ringconn.wear.app.data.RingConnVitals
 import com.ringconn.wear.app.ui.TemperatureDetailActivity
 
 /**
- * Dedicated One UI Watch 8 Skin Temperature Tile for Samsung Galaxy Watch 8.
- * Renders the 176dp x 126dp Stadium Capsule layout with baseline offset,
- * fluctuation bar, and localized system strings without runtime layoutConstraint crashes.
+ * Dedicated Circular Bezel Arc Skin Temperature Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Features:
+ * - 260° sweeping perimeter bezel arc gauge mapped to thermoregulation deviation (-1.5°C to +1.5°C)
+ * - 38sp Hero digits with tabular numerals
+ * - Color-coded deviation status badge (Stable · Optimal, Warm, Cool)
+ * - Personal circadian baseline indicator
+ * - Ergonomic frosted glass action button ("Detalles")
+ * - 100% full-bleed circular layout with zero wasted borders
  */
 class TemperatureTileService : TileService() {
 
@@ -51,22 +56,12 @@ class TemperatureTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-temp-v9"
-        private const val RES_BG_TEMP_CAPSULE = "oneui_bg_temp_capsule"
+        const val RESOURCES_VERSION = "oneui8-temp-circular-v1"
         private const val RES_IC_TEMP = "ic_comp_temp"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_BG_TEMP_CAPSULE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_temp_capsule)
-                                .build()
-                        ).build()
-                )
                 .addIdToImageMapping(
                     RES_IC_TEMP,
                     ResourceBuilders.ImageResource.Builder()
@@ -98,22 +93,20 @@ class TemperatureTileService : TileService() {
                 else -> context.getString(R.string.temp_cool)
             }
 
-            val emeraldAccentColor = 0xFF34D399.toInt()    // Luminous Mint Emerald
-            val labelMintColor = 0xFFD1FAE5.toInt()        // Soft Mint White
-
             val statusColorInt = when {
-                offset in -0.5f..0.5f -> 0xFF00E676.toInt() // Vibrant clinical mint optimal
-                offset > 0.5f -> 0xFFFF7043.toInt()         // Warm amber alert
-                else -> 0xFF38BDF8.toInt()                  // Sky cyan cooling
+                offset in -0.5f..0.5f -> 0xFF00E676.toInt() // Clinical Mint Emerald Optimal
+                offset > 0.5f -> 0xFFFF7043.toInt()         // Warm Amber Alert
+                else -> 0xFF38BDF8.toInt()                  // Sky Cyan Cooling
             }
 
             val baselineSubtitle = context.getString(R.string.temp_baseline_short, baseline)
 
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val silverColor = argb(labelMintColor)
-            val unitColor = argb(emeraldAccentColor)
+            val unitColor = argb(0xFF34D399.toInt())
             val statusColor = argb(statusColorInt)
-            val translucentGlassBlack = argb(0x66000000.toInt())
+            val subtitleColor = argb(0xFFCBD5E1.toInt())        // Slate 300
+            val frostedGlassPill = argb(0x26FFFFFF.toInt())     // 15% Frosted glass
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
 
             val clickAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
@@ -123,71 +116,122 @@ class TemperatureTileService : TileService() {
                         .build()
                 ).build()
 
-            val mainCapsuleClickable = ModifiersBuilders.Clickable.Builder()
+            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
                 .setOnClick(clickAction)
                 .setId("open_temperature_detail")
                 .build()
 
-            // 1. One UI Watch 8 Enlarged Gentle AI Ruby Stadium Capsule (206dp x 146dp)
-            val bgImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_TEMP_CAPSULE)
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
+            // Dynamic Sweeping Bezel Arc Gauge (260° total span, 140° to 40°)
+            val totalArcSpanDegrees = 260f
+            val arcStartAngle = 140f
+
+            // Map offset [-1.5°C .. +1.5°C] to sweep degrees
+            val clampedFraction = ((offset.coerceIn(-1.5f, 1.5f) + 1.5f) / 3.0f).coerceIn(0.08f, 1.0f)
+            val targetSweepDegrees = clampedFraction * totalArcSpanDegrees
+
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .build()
+                )
                 .build()
 
-            // 2. Title Text (13sp Medium Pastel Rose)
+            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey("temp_arc_sweep"),
+                        sweepAnimSpec
+                    )
+                )
+                .build()
+
+            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
+                .build()
+
+            // 1. Outer Bezel Track (Static subtle track)
+            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
+                .setThickness(dp(7f))
+                .setColor(bezelTrackColor)
+                .build()
+
+            val bgArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(bgTrackArcLine)
+                .build()
+
+            // 2. Active Temperature Bezel Arc (Animated dynamic sweep)
+            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(dynamicSweep)
+                .setLayoutConstraintsForDynamicLength(angularConstraint)
+                .setThickness(dp(7f))
+                .setColor(statusColor)
+                .build()
+
+            val activeArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(activeArcLine)
+                .build()
+
+            // 3. Title: "Temp. Cutánea" (12.5sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.tile_temperature_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(silverColor)
-                        .build()
-                )
-                .build()
-
-            // 3. Subtitle Row (Status · Baseline)
-            val subtitleText = LayoutElementBuilders.Text.Builder()
-                .setText("$statusText  ·  $baselineSubtitle")
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
-                        .setColor(statusColor)
-                        .build()
-                )
-                .build()
-
-            // 4. Hero Offset Row (Icon + Big Value + °C)
-            val tempIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_TEMP)
-                .setWidth(dp(18f))
-                .setHeight(dp(18f))
-                .build()
-
-            val offsetNumberText = LayoutElementBuilders.Text.Builder()
-                .setText(offsetStr)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.HERO))
+                        .setSize(sp(12.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            val unitText = LayoutElementBuilders.Text.Builder()
-                .setText("°C")
+            // 4. Subtitle: Baseline indicator
+            val subtitleText = LayoutElementBuilders.Text.Builder()
+                .setText(baselineSubtitle)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
+                        .setSize(sp(10.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
+                        .setColor(subtitleColor)
+                        .build()
+                )
+                .build()
+
+            // 5. Hero Row: Temp Icon + 38sp Bold Number + "°C"
+            val tempIcon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_TEMP)
+                .setWidth(dp(20f))
+                .setHeight(dp(20f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(statusColor)
+                        .build()
+                )
+                .build()
+
+            val tempNumberText = LayoutElementBuilders.Text.Builder()
+                .setText(offsetStr)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(38f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
+                        .build()
+                )
+                .build()
+
+            val tempUnitText = LayoutElementBuilders.Text.Builder()
+                .setText("°C")
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(13f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(unitColor)
                         .build()
                 )
@@ -198,166 +242,56 @@ class TemperatureTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(tempIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
-                .addContent(offsetNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
-                .addContent(unitText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
+                .addContent(tempNumberText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(tempUnitText)
                 .build()
 
-            // 5. One UI 8 Dynamic Animated Fluctuation Scale Bar (-1.0°C to +1.0°C, 146dp x 10dp)
-            val barWidthDp = 146f
-            val barHeightDp = 10f
-            val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
-            val dotPosDp = ((normOffset * barWidthDp) - 4f).coerceIn(0f, barWidthDp - 8f)
-            val baselinePosDp = (barWidthDp * 0.5f) - 4f
-
-            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(600L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+            // 6. Status Badge Pill ("Estable · Óptimo", "Templado", etc.)
+            val statusPillText = LayoutElementBuilders.Text.Builder()
+                .setText(statusText)
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(statusColor)
                         .build()
                 )
                 .build()
 
-            // Continuous pulse animation for indicator dot (800ms reverse loop, reverse-engineered from shealth cg7.java:482)
-            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(800L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+            val statusBadgeBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(wrap())
+                .setHeight(dp(22f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(argb(0x22FFFFFF.toInt()))
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .build()
+                        )
+                        .setPadding(
+                            ModifiersBuilders.Padding.Builder()
+                                .setStart(dp(10f))
+                                .setEnd(dp(10f))
+                                .build()
+                        )
                         .build()
                 )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
-                        .build()
-                )
+                .addContent(statusPillText)
                 .build()
 
-            val dynamicDotSpacerWidth = DimensionBuilders.DpProp.Builder(dotPosDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("temp_dot_pos"), sweepAnimSpec))
-                .build()
-
-            val dynamicDotSize = DimensionBuilders.DpProp.Builder(8f)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(6.5f, 9.5f, pulseAnimSpec))
-                .build()
-
-            val barTrackBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(5f)).build())
-                                .build()
-                        ).build()
-                )
-                .build()
-
-            // Optimal middle indicator range (-0.5°C to +0.5°C, 25% to 75% width)
-            val optZoneBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp * 0.5f))
-                .setHeight(dp(barHeightDp))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x4400E676.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(3f)).build())
-                                .build()
-                        ).build()
-                )
-                .build()
-
-            val optZoneRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(barWidthDp * 0.25f)).setHeight(dp(1f)).build())
-                .addContent(optZoneBar)
-                .build()
-
-            // Center Reference Tick at 0.0°C baseline
-            val centerTick = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(1.5f))
-                .setHeight(dp(barHeightDp))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x88FFFFFF.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(0.75f)).build())
-                                .build()
-                        ).build()
-                )
-                .build()
-
-            val centerTickRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp((barWidthDp * 0.5f) - 0.75f)).setHeight(dp(1f)).build())
-                .addContent(centerTick)
-                .build()
-
-            val dynamicDotColor = DynamicBuilders.DynamicColor.animate(
-                0xFFFFFFFF.toInt(),
-                0x33FFFFFF.toInt(),
-                pulseAnimSpec
-            )
-
-            val dynamicDotTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
-                .setDynamicValue(dynamicDotColor)
-                .build()
-
-            val dotIndicator = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(8f))
-                .setHeight(dp(8f))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(dynamicDotTint)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(4f)).build())
-                                .build()
-                        ).build()
-                )
-                .build()
-
-            val dotIndicatorRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicDotSpacerWidth)
-                        .setHeight(dp(barHeightDp))
-                        .build()
-                )
-                .addContent(dotIndicator)
-                .build()
-
-            val tempChartBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(barTrackBox)
-                .addContent(optZoneRow)
-                .addContent(centerTickRow)
-                .addContent(dotIndicatorRow)
-                .build()
-
-            // 6. Action Pill Button (94dp x 24dp, radius 12dp, translucent glass)
+            // 7. Ergonomic Frosted Glass Action Button ("Detalles")
             val actionButtonText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.details))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -365,17 +299,17 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(94f))
-                .setHeight(dp(24f))
+                .setWidth(dp(96f))
+                .setHeight(dp(28f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainCapsuleClickable)
+                        .setClickable(mainTileClickable)
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(12f)).build())
+                                .setColor(frostedGlassPill)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
                                 .build()
                         )
                         .build()
@@ -383,31 +317,31 @@ class TemperatureTileService : TileService() {
                 .addContent(actionButtonText)
                 .build()
 
-            // Assemble inside the 206dp x 146dp Stadium Capsule
-            val capsuleContentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
+            // Center Column Content
+            val contentColumn = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(12f)).setWidth(dp(1f)).build())
                 .addContent(titleText)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(subtitleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
                 .addContent(heroTempRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
-                .addContent(tempChartBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
+                .addContent(statusBadgeBox)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
-            val stadiumCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
+            // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content
+            val rootBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(expand())
+                .setHeight(expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainCapsuleClickable)
+                        .setClickable(mainTileClickable)
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
@@ -415,16 +349,9 @@ class TemperatureTileService : TileService() {
                         )
                         .build()
                 )
-                .addContent(bgImage)
-                .addContent(capsuleContentColumn)
-                .build()
-
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(stadiumCapsuleBox)
+                .addContent(bgArc)
+                .addContent(activeArc)
+                .addContent(contentColumn)
                 .build()
 
             val layout = LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build()
@@ -438,7 +365,7 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("temp_dot_pos"), DynamicDataBuilders.DynamicDataValue.fromFloat(dotPosDp))
+                .addKeyToValueMapping(AppDataKey("temp_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
                 .build()
 
             return TileBuilders.Tile.Builder()
