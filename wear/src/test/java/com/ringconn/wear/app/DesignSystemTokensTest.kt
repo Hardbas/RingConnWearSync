@@ -69,6 +69,52 @@ class DesignSystemTokensTest {
         val dynamicPulse = androidx.wear.protolayout.expression.DynamicBuilders.DynamicFloat.animate(6f, 9f, pulseSpec)
         org.junit.Assert.assertNotNull(dynamicPulse)
     }
+
+    @Test
+    fun arcLine_compilesAndBuildsCorrectly() {
+        val arcLine = androidx.wear.protolayout.LayoutElementBuilders.ArcLine.Builder()
+            .setLength(androidx.wear.protolayout.DimensionBuilders.degrees(180f))
+            .setThickness(androidx.wear.protolayout.DimensionBuilders.dp(8f))
+            .setColor(androidx.wear.protolayout.ColorBuilders.argb(0xFFFF5D99.toInt()))
+            .build()
+        val arc = androidx.wear.protolayout.LayoutElementBuilders.Arc.Builder()
+            .addContent(arcLine)
+            .setAnchorAngle(androidx.wear.protolayout.DimensionBuilders.degrees(180f))
+            .setAnchorType(androidx.wear.protolayout.LayoutElementBuilders.ARC_ANCHOR_START)
+            .build()
+        org.junit.Assert.assertNotNull(arc)
+    }
+
+    @Test
+    fun arcLine_withDynamicLength_compiles() {
+        val sweepAnimSpec = androidx.wear.protolayout.expression.AnimationParameterBuilders.AnimationSpec.Builder()
+            .setAnimationParameters(
+                androidx.wear.protolayout.expression.AnimationParameterBuilders.AnimationParameters.Builder()
+                    .setDurationMillis(600L)
+                    .build()
+            )
+            .build()
+        val dynamicDegrees = androidx.wear.protolayout.DimensionBuilders.DegreesProp.Builder(90f)
+            .setDynamicValue(
+                androidx.wear.protolayout.expression.DynamicBuilders.DynamicFloat.animate(
+                    androidx.wear.protolayout.expression.AppDataKey("hr_arc_sweep"),
+                    sweepAnimSpec
+                )
+            )
+            .build()
+        val angularConstraint = androidx.wear.protolayout.DimensionBuilders.AngularLayoutConstraint.Builder(180f)
+            .build()
+        val arcLine = androidx.wear.protolayout.LayoutElementBuilders.ArcLine.Builder()
+            .setLength(dynamicDegrees)
+            .setLayoutConstraintsForDynamicLength(angularConstraint)
+            .setThickness(androidx.wear.protolayout.DimensionBuilders.dp(8f))
+            .setColor(androidx.wear.protolayout.ColorBuilders.argb(0xFFFF5D99.toInt()))
+            .build()
+        org.junit.Assert.assertNotNull(arcLine)
+    }
 }
+
+
+
 
 
