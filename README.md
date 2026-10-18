@@ -21,7 +21,7 @@ The system consists of two tightly coupled Android modules communicating over th
                                                                                        │ UI Node Inspection
                                                                                        ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Phone Bridge (com.ringconn.wear.app)                                      │
+│                              Phone Bridge (io.github.hardbas.wearsync)                                 │
 │                                                                                                        │
 │  • RingConnForegroundService      24/7 unkillable foreground service (exempt from battery throttling)  │
 │  • RingConnAccessibilityService   Zero-overhead node observer extracting raw ring vitals               │
@@ -31,7 +31,7 @@ The system consists of two tightly coupled Android modules communicating over th
                                                    │ Bluetooth Wearable RPC (<100ms)
                                                    ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Wear OS Suite (com.ringconn.wear.app)                                     │
+│                              Wear OS Suite (io.github.hardbas.wearsync)                                │
 │                                                                                                        │
 │  • WearDataListenerService        Dual RPC listener updating local SharedPreferences cache             │
 │  • ComplicationDataFactory        Universal AndroidX Complication engine supporting all 6 slot types   │
@@ -156,10 +156,11 @@ To ensure total transparency, the following table details the technical origin o
 
 ---
 
-## ⚖️ Independent and Unofficial Project Notice
+## ⚖️ Legal & Trademark Notice
 
-**RingConn Wear Sync** is an independent, unofficial project and is not affiliated with or endorsed by Guangdong JiuZhi Technology Co., Ltd. (RingConn), Samsung Electronics, or Google LLC.
+**WearSync for RingConn** is an independent, unofficial open-source interoperability bridge and is NOT affiliated with, endorsed by, or sponsored by Guangdong JiuZhi Technology Co., Ltd. (RingConn) or Samsung Electronics Co., Ltd.
 
+- **Trademark Attribution**: "RingConn" is a trademark of Guangdong JiuZhi Technology Co., Ltd. "Samsung", "Galaxy Watch", and "One UI" are trademarks of Samsung Electronics Co., Ltd. All trademarks belong to their respective owners and are used strictly under nominative fair use to describe interoperability and device compatibility.
 - **Local-Only Architecture**: The project has no custom cloud backend. It reads health data locally through Health Connect with user-granted permissions and, for selected metrics currently unavailable through that integration, uses an experimental widget-hosting mechanism (`AppWidgetHost`) to access information exposed by the official RingConn widget.
 - **Device & Integrity Safety**: The application does not require root access, bootloader unlocking, or modification of the official RingConn application. It does not directly access RingConn's private application files or process memory.
 - **Widget-Based Extraction**: Data extraction from the widget depends on the layout and implementation of the official RingConn widget and may stop working or require parser updates if RingConn alters its widget design in future app releases. The project does not distribute RingConn's proprietary source code or assets.

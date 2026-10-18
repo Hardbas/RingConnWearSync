@@ -1,16 +1,16 @@
 <resources>
-    <string name="app_name">RingConn Wear</string>
-    <string name="tile_vitals_title">RingConn Vitals</string>
+    <string name="app_name">WearSync</string>
+    <string name="tile_vitals_title">WearSync Vitals</string>
     <string name="tile_summary_title">Daily Summary</string>
-    <string name="complication_label">RingConn Heart Rate</string>
-    <string name="complication_desc">RingConn Heart Rate: %1$s BPM</string>
-    <string name="complication_battery_label">RingConn Ring Battery</string>
+    <string name="complication_label">WearSync Heart Rate</string>
+    <string name="complication_desc">WearSync Heart Rate: %1$s BPM</string>
+    <string name="complication_battery_label">WearSync Ring Battery</string>
     <string name="complication_battery_desc">Ring Battery: %1$d%%</string>
-    <string name="complication_spo2_label">RingConn Blood Oxygen</string>
+    <string name="complication_spo2_label">WearSync Blood Oxygen</string>
     <string name="complication_spo2_desc">Blood Oxygen: %1$d%%</string>
-    <string name="complication_sleep_label">RingConn Sleep</string>
+    <string name="complication_sleep_label">WearSync Sleep</string>
     <string name="complication_sleep_desc">Sleep: %1$s</string>
-    <string name="complication_steps_label">RingConn Steps</string>
+    <string name="complication_steps_label">WearSync Steps</string>
     <string name="complication_steps_desc">Steps: %1$d</string>
     <string name="bpm_unit">BPM</string>
     <string name="heart_rate">Heart Rate</string>
@@ -32,9 +32,9 @@
     <string name="hr_zones_title">Heart Rate Zones</string>
     <string name="tile_stress_title">Stress</string>
     <string name="tile_temperature_title">Skin Temperature</string>
-    <string name="complication_stress_label">RingConn Stress</string>
+    <string name="complication_stress_label">WearSync Stress</string>
     <string name="complication_stress_desc">Stress Index: %1$d</string>
-    <string name="complication_temp_label">RingConn Temperature</string>
+    <string name="complication_temp_label">WearSync Temperature</string>
     <string name="complication_temp_desc">Skin Temp: %1$+.1f °C</string>
     <string name="low_battery_alert_title">Low Ring Battery</string>
     <string name="low_battery_alert_desc">Ring battery is at %1$d%%. Please charge your smart ring.</string>

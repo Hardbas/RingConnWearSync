@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">RingConn Wear Bridge</string>
+    <string name="app_name">WearSync for RingConn (Unofficial)</string>
     <string name="service_running">RingConn Bridge active</string>
     <string name="status_connected">Connected to RingConn</string>
     <string name="status_disconnected">Disconnected</string>

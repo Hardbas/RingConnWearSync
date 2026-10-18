@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.ringconn.wear.bridge"
+    namespace = "io.github.hardbas.wearsync.bridge"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.ringconn.wear.app"
+        applicationId = "io.github.hardbas.wearsync"
         minSdk = 26
         targetSdk = 35
         versionCode = 12

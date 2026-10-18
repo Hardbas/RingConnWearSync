@@ -12,3 +12,6 @@ captures
 .cxx
 *.png
 .opencode/
+*.jks
+*.keystore
+google-services.json

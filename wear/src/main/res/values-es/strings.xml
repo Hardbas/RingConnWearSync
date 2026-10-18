@@ -1,16 +1,16 @@
 <resources>
-    <string name="app_name">RingConn Wear</string>
+    <string name="app_name">WearSync</string>
     <string name="tile_vitals_title">Signos Vitales</string>
     <string name="tile_summary_title">Resumen Diario</string>
-    <string name="complication_label">RingConn Ritmo Cardíaco</string>
-    <string name="complication_desc">RingConn Ritmo Cardíaco: %1$s BPM</string>
-    <string name="complication_battery_label">RingConn Batería Anillo</string>
+    <string name="complication_label">WearSync Ritmo Cardíaco</string>
+    <string name="complication_desc">WearSync Ritmo Cardíaco: %1$s BPM</string>
+    <string name="complication_battery_label">WearSync Batería Anillo</string>
     <string name="complication_battery_desc">Batería Anillo: %1$d%%</string>
-    <string name="complication_spo2_label">RingConn Oxígeno en Sangre</string>
+    <string name="complication_spo2_label">WearSync Oxígeno en Sangre</string>
     <string name="complication_spo2_desc">Oxígeno en Sangre: %1$d%%</string>
-    <string name="complication_sleep_label">RingConn Sueño</string>
+    <string name="complication_sleep_label">WearSync Sueño</string>
     <string name="complication_sleep_desc">Sueño: %1$s</string>
-    <string name="complication_steps_label">RingConn Pasos</string>
+    <string name="complication_steps_label">WearSync Pasos</string>
     <string name="complication_steps_desc">Pasos: %1$d</string>
     <string name="bpm_unit">ppm</string>
     <string name="heart_rate">Frecuencia Cardíaca</string>
@@ -32,9 +32,9 @@
     <string name="hr_zones_title">Zonas de Frecuencia Cardíaca</string>
     <string name="tile_stress_title">Estrés</string>
     <string name="tile_temperature_title">Temperatura Cutánea</string>
-    <string name="complication_stress_label">RingConn Estrés</string>
+    <string name="complication_stress_label">WearSync Estrés</string>
     <string name="complication_stress_desc">Índice de Estrés: %1$d</string>
-    <string name="complication_temp_label">RingConn Temperatura</string>
+    <string name="complication_temp_label">WearSync Temperatura</string>
     <string name="complication_temp_desc">Temp Cutánea: %1$+.1f °C</string>
     <string name="low_battery_alert_title">Batería baja del anillo</string>
     <string name="low_battery_alert_desc">La batería del anillo está al %1$d%%. Por favor cargá tu anillo.</string>
