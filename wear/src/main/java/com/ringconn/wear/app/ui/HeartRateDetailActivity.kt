@@ -7,9 +7,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -28,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -256,40 +259,40 @@ fun HeartRateDetailContent(
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        listState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
-            autoCentering = AutoCenteringParams(itemIndex = 0),
+            autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
         ) {
             // =========================================================================
-            // a) Header: "Frecuencia Cardíaca" + "Anillo RingConn Gen 2"
+            // a) Header: Clean title with circular clearance
             // =========================================================================
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 2.dp)
                 ) {
-                Text(
-                    text = stringResource(R.string.tile_heart_rate_title),
-                    fontSize = TextBody,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = stringResource(R.string.ring_model_subtitle),
-                    fontSize = TextLabel,
-                    color = HrSubtitlePink
-                )
+                    Text(
+                        text = stringResource(R.string.tile_heart_rate_title),
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.ring_model_subtitle),
+                        fontSize = TextCaption,
+                        color = HrSubtitlePink
+                    )
+                }
             }
-        }
 
             // =========================================================================
             // b) Hero Stadium Card: Live BPM, pulsing heart, Min-Max range & Measure button
@@ -298,34 +301,67 @@ fun HeartRateDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeStadium)
-                        .background(VitalsHrBrush)
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .clip(ShapeCard)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFF381525), Color(0xFF1E0A14), Color(0xFF0F040A))
+                            )
+                        )
+                        .border(BorderStroke(1.dp, Color(0x33FF5D99)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Top badge row
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            PulsingHeartIcon(isMeasuring = isMeasuring)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Row(verticalAlignment = Alignment.Bottom) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                PulsingHeartIcon(isMeasuring = isMeasuring)
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = hrDisplay,
-                                    fontSize = TextHero,
-                                    style = TabularNums,
-                                    color = Color.White,
+                                    text = if (isMeasuring) "MIDIENDO..." else "EN TIEMPO REAL",
+                                    fontSize = TextCaption,
+                                    color = HrSubtitlePink,
                                     fontWeight = FontWeight.Bold
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(hrStatusColor.copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
                                 Text(
-                                    text = stringResource(R.string.bpm_unit),
-                                    fontSize = TextBody,
-                                    color = HrBpmWarm,
-                                    modifier = Modifier.padding(bottom = 6.dp)
+                                    text = hrStatusLabel.uppercase(),
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = hrStatusColor,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Large BPM Value
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = hrDisplay,
+                                fontSize = 42.sp,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.bpm_unit),
+                                fontSize = TextBody,
+                                color = HrBpmWarm,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 7.dp)
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
@@ -336,7 +372,7 @@ fun HeartRateDetailContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(minHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                            Text(minHrText, fontSize = TextCaption, style = TabularNums, color = HrSubtitlePink)
                             AnimatedMinMaxBar(
                                 progress = if (hasMinMax && maxHr > minHr && hasHr) {
                                     ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
@@ -344,10 +380,10 @@ fun HeartRateDetailContent(
                                 color = HrMinMaxPink,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(6.dp)
+                                    .height(6.5.dp)
                                     .padding(horizontal = 8.dp)
                             )
-                            Text(maxHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                            Text(maxHrText, fontSize = TextCaption, style = TabularNums, color = HrSubtitlePink)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -356,11 +392,12 @@ fun HeartRateDetailContent(
                         Box(
                             modifier = Modifier
                                 .clip(ShapePill)
-                                .background(GlassBlack50)
+                                .background(Color(0x2BFFFFFF))
+                                .border(BorderStroke(1.dp, Color(0x33FFFFFF)), ShapePill)
                                 .clickable {
                                     onMeasureClick()
                                 }
-                                .padding(horizontal = 24.dp, vertical = 7.dp)
+                                .padding(horizontal = 24.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
@@ -380,8 +417,9 @@ fun HeartRateDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapePod)
-                        .background(CardBg)
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
+                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                 Column {
@@ -472,8 +510,9 @@ fun HeartRateDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapePod)
-                        .background(CardBg)
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF14242A), Color(0xFF0C161B))))
+                        .border(BorderStroke(1.dp, Color(0x3347CDFF)), ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -572,8 +611,9 @@ fun HeartRateDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapePod)
-                        .background(CardBg)
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
+                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins

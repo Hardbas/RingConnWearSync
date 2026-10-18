@@ -9,8 +9,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -131,23 +134,23 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        listState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
-            autoCentering = AutoCenteringParams(itemIndex = 0),
+            autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 24.dp, start = 8.dp, end = 8.dp)
         ) {
-            // Header: Daily Activity
+            // Header: Clean title with circular clearance
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 2.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.daily_activity_title),
@@ -158,125 +161,343 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = stringResource(R.string.ring_model_subtitle),
-                        fontSize = TextLabel,
+                        fontSize = TextCaption,
                         color = LabelSilver
                     )
                 }
             }
 
-            // Hero Capsule: 3 Concentric Activity Rings (Draw-phase animated) + Activity Score
+            // 1. Hero: Center Concentric Rings Dial (120dp) with score in center and status pill
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ShapeStadium)
-                        .background(DailyActivityBrush)
-                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(122.dp)
                     ) {
                         ConcentricActivityRings(
                             stepsProgress = stepsProgress,
                             timeProgress = timeProgress,
                             calProgress = calProgress,
-                            modifier = Modifier.size(68.dp)
+                            modifier = Modifier.fillMaxSize()
                         )
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = "$activityScore",
-                                    fontSize = TextHero,
-                                    style = TabularNums,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.pts_unit),
-                                    fontSize = TextBody,
-                                    color = LabelSilver,
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-                            }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
-                                text = stringResource(R.string.excellent),
-                                fontSize = TextLabel,
-                                color = LimeSteps,
+                                text = "$activityScore",
+                                fontSize = TextHero,
+                                style = TabularNums,
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                buildAnnotatedString {
-                                    withStyle(SpanStyle(color = LimeSteps, fontWeight = FontWeight.Bold)) {
-                                        append(stepsFormatted)
-                                    }
-                                    withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
-                                    withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold)) {
-                                        append("${activeMins}${stringResource(R.string.min_unit)}")
-                                    }
-                                    withStyle(SpanStyle(color = PipeGray)) { append(" | ") }
-                                    withStyle(SpanStyle(color = VioletCalorie, fontWeight = FontWeight.Bold)) {
-                                        append("$calories")
-                                    }
-                                },
+                                text = stringResource(R.string.pts_unit).uppercase(),
+                                fontSize = TextCaption,
+                                color = LabelSilver,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val statusLabel = when {
+                        activityScore >= 85 -> stringResource(R.string.excellent)
+                        activityScore >= 70 -> "Buen ritmo"
+                        else -> "En progreso"
+                    }
+                    val statusColor = when {
+                        activityScore >= 85 -> LimeSteps
+                        activityScore >= 70 -> CyanActive
+                        else -> Color(0xFFFFD600)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(statusColor.copy(alpha = 0.18f))
+                            .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), ShapePill)
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp)
+                    ) {
+                        Text(
+                            text = statusLabel.uppercase(),
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            color = statusColor
+                        )
+                    }
+                }
+            }
+
+            // 2. Card: Pasos Diarios (Neon Lime)
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF142410), Color(0xFF0C170A))))
+                        .border(BorderStroke(1.dp, Color(0x33A0F116)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(LimeSteps)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.steps),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(LimeSteps.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${(stepsProgress * 100).toInt()}%",
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = LimeSteps,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = stepsFormatted,
+                                fontSize = TextBig,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "/ 8,000",
                                 fontSize = TextLabel,
-                                style = TabularNums
+                                style = TabularNums,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ActivityProgressBar(progress = stepsProgress, color = LimeSteps)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val distKm = (liveSteps * 0.00075f)
+                            Text(
+                                text = String.format(Locale.US, "%.1f km", distKm),
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = LabelSilver
+                            )
+                            val cadence = if (activeMins > 0) (liveSteps / activeMins).coerceIn(0, 180) else 0
+                            Text(
+                                text = if (cadence > 0) "$cadence spm" else "--",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = LabelSilver
                             )
                         }
                     }
                 }
             }
 
-            // Capsule 2: Metrics Breakdown Capsule (Draw-phase animated Canvas bars)
+            // 3. Card: Tiempo Activo (Electric Cyan)
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeStadium)
-                        .background(DailyActivityBrush)
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF0B212D), Color(0xFF07141C))))
+                        .border(BorderStroke(1.dp, Color(0x3347CDFF)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(CyanActive)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.active_time),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(CyanActive.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Meta ${targetActiveMins}m",
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = CyanActive,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$activeMins",
+                                fontSize = TextBig,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.min_unit),
+                                fontSize = TextLabel,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ActivityProgressBar(progress = timeProgress, color = CyanActive)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = if (activeMins >= targetActiveMins) "¡Meta diaria superada!" else "Faltan ${targetActiveMins - activeMins} min de actividad",
+                            fontSize = TextCaption,
+                            color = LabelSilver
+                        )
+                    }
+                }
+            }
+
+            // 4. Card: Calorías Activas (Vivid Violet)
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF221128), Color(0xFF130917))))
+                        .border(BorderStroke(1.dp, Color(0x33C580FF)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(VioletCalorie)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.active_calories),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(VioletCalorie.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Meta ${targetCalories} kcal",
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = VioletCalorie,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$calories",
+                                fontSize = TextBig,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "kcal",
+                                fontSize = TextLabel,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ActivityProgressBar(progress = calProgress, color = VioletCalorie)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Gasto dinámico por movimiento",
+                            fontSize = TextCaption,
+                            color = LabelSilver
+                        )
+                    }
+                }
+            }
+
+            // 5. Card: Perspectiva RingConn
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF161F24), Color(0xFF0E1317))))
+                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
                         Text(
-                            text = stringResource(R.string.daily_goals_title),
-                            fontSize = TextBody,
-                            color = Color.White,
+                            text = "✦ Perspectiva RingConn",
+                            fontSize = TextLabel,
+                            color = CyanActive,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        ActivityMetricBar(
-                            title = stringResource(R.string.steps),
-                            current = stepsFormatted,
-                            target = "8,000",
-                            color = LimeSteps,
-                            targetProgress = stepsProgress
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        ActivityMetricBar(
-                            title = stringResource(R.string.active_time),
-                            current = "${activeMins}${stringResource(R.string.min_unit)}",
-                            target = "${targetActiveMins}${stringResource(R.string.min_unit)}",
-                            color = CyanActive,
-                            targetProgress = timeProgress
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        ActivityMetricBar(
-                            title = stringResource(R.string.active_calories),
-                            current = "$calories kcal",
-                            target = "$targetCalories kcal",
-                            color = VioletCalorie,
-                            targetProgress = calProgress
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (activityScore >= 80) {
+                                "Excelente balance de movimiento hoy. Tu activación metabólica apoya una óptima recuperación nocturna."
+                            } else {
+                                "Buen progreso diario. Un paseo ligero completará tus objetivos antes de descansar."
+                            },
+                            fontSize = TextCaption,
+                            color = Color(0xFFCFD8DC),
+                            lineHeight = 14.sp
                         )
                     }
                 }
@@ -312,7 +533,7 @@ private fun ConcentricActivityRings(
 
     Canvas(modifier = modifier) {
         val sweepFactor = anim.value
-        val strokeWidth = 5.5.dp.toPx()
+        val strokeWidth = 7.dp.toPx()
         val spacing = strokeWidth + 2.dp.toPx()
         val center = Offset(size.width / 2f, size.height / 2f)
 
@@ -388,66 +609,38 @@ private fun ConcentricActivityRings(
 }
 
 /**
- * Metric Progress Bar animated cleanly in the draw phase via Canvas.
- * Never forces relayout or parent recomposition.
+ * Clean animated horizontal progress bar with rounded ends.
  */
 @Composable
-private fun ActivityMetricBar(
-    title: String,
-    current: String,
-    target: String,
-    color: Color,
-    targetProgress: Float
-) {
+private fun ActivityProgressBar(progress: Float, color: Color) {
     val anim = remember { Animatable(0f) }
-    LaunchedEffect(targetProgress) {
+    LaunchedEffect(progress) {
         anim.animateTo(
-            targetValue = targetProgress.coerceIn(0f, 1f),
+            targetValue = progress.coerceIn(0f, 1f),
             animationSpec = tween(
-                durationMillis = 350,
+                durationMillis = 400,
                 easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
             )
         )
     }
-
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(title, fontSize = TextLabel, color = Color.White)
-            }
-            Text("$current / $target", fontSize = TextLabel, style = TabularNums, color = LabelSilver)
-        }
-        Spacer(modifier = Modifier.height(3.dp))
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(5.5.dp)
-        ) {
-            val corner = CornerRadius(size.height / 2f, size.height / 2f)
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.5.dp)
+    ) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(
+            color = Color(0x33FFFFFF),
+            size = size,
+            cornerRadius = corner
+        )
+        val barW = size.width * anim.value
+        if (barW > 0f) {
             drawRoundRect(
-                color = GlassBlack50,
-                size = size,
+                color = color,
+                size = Size(barW, size.height),
                 cornerRadius = corner
             )
-            val barW = size.width * anim.value
-            if (barW > 0f) {
-                drawRoundRect(
-                    color = color,
-                    size = Size(barW, size.height),
-                    cornerRadius = corner
-                )
-            }
         }
     }
 }
