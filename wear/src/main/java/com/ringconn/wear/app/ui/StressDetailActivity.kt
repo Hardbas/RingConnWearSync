@@ -6,8 +6,13 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -165,84 +170,58 @@ fun StressDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // b) Hero Stadium Card: Live Stress Score, Gauge Image & Status Pill
+            // b) Hero: Centered Stress Dial (122dp), live Score & Status Pill
             // =========================================================================
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(CardBg)
-                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        // Badge status pill
-                        Box(
-                            modifier = Modifier
-                                .clip(ShapePill)
-                                .background(statusColor.copy(alpha = 0.22f))
-                                .padding(horizontal = 14.dp, vertical = 3.5.dp),
-                            contentAlignment = Alignment.Center
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(122.dp)
+                    ) {
+                        StressDialGauge(
+                            score = score,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = statusLabel.uppercase(),
-                                color = statusColor,
-                                fontSize = TextCaption,
+                                text = if (score > 0) "$score" else "--",
+                                fontSize = TextHero,
+                                style = TabularNums,
+                                color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        val gaugeResId = when {
-                            score < 30 -> R.drawable.oneui_ic_gauge_relaxed
-                            score < 60 -> R.drawable.oneui_ic_gauge_balanced
-                            score < 80 -> R.drawable.oneui_ic_gauge_moderate
-                            else -> R.drawable.oneui_ic_gauge_high
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        text = if (score > 0) "$score" else "--",
-                                        color = Color.White,
-                                        fontSize = 42.sp,
-                                        style = TabularNums,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "/ 100",
-                                        color = Color(0xFFD8B4FE),
-                                        fontSize = TextLabel,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(bottom = 6.dp)
-                                    )
-                                }
-                                val hrvVal = if (vitals.lastHrv > 0) stringResource(R.string.stress_hrv_format, vitals.lastHrv) else stringResource(R.string.stress_resting)
-                                Text(
-                                    text = hrvVal,
-                                    color = Color(0xFF5EEAD4),
-                                    fontSize = TextLabel,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            Image(
-                                painter = painterResource(id = gaugeResId),
-                                contentDescription = statusLabel,
-                                modifier = Modifier.size(68.dp, 52.dp)
+                            Text(
+                                text = stringResource(R.string.pts_unit).uppercase(),
+                                fontSize = TextCaption,
+                                color = Color(0xFFD8B4FE),
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
                             )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(statusColor.copy(alpha = 0.18f))
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = statusLabel.uppercase(),
+                            color = statusColor,
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }
@@ -273,12 +252,23 @@ fun StressDetailContent(vitals: RingConnVitals) {
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
-                        Text(
-                            text = stringResource(R.string.stress_zones_title),
-                            color = Color.White,
-                            fontSize = TextBody,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF8B5CF6))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.stress_zones_title),
+                                color = Color.White,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
 
                         StressZoneRow(stringResource(R.string.stress_relaxed), stringResource(R.string.stress_zone_relaxed_desc), StressRelaxed, score < 30)
@@ -293,27 +283,42 @@ fun StressDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // f) Respiración Guiada 4x4 (Floating Typography)
+            // f) Card: Respiración Guiada 4x4
             // =========================================================================
             item {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.stress_breathing_title),
-                        color = Color(0xFF00E676),
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.stress_breathing_guide),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF00E676))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.stress_breathing_title),
+                                color = Color.White,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.stress_breathing_guide),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextCaption,
+                            lineHeight = 14.sp
+                        )
+                    }
                 }
             }
         }
@@ -351,21 +356,40 @@ private fun StressTimelineCard(score: Int) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.stress_timeline_title),
-                    color = Color.White,
-                    fontSize = TextBody,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "24h",
-                    color = Color(0xFFD8B4FE),
-                    fontSize = TextCaption,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFD8B4FE))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.stress_timeline_title),
+                        color = Color.White,
+                        fontSize = TextBody,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(Color(0x22D8B4FE))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "24h",
+                        color = Color(0xFFD8B4FE),
+                        fontSize = TextCaption,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -672,6 +696,68 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
             style = TabularNums,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
+    }
+}
+
+/**
+ * 270-degree animated circular gauge for Stress Score in One UI Watch style.
+ */
+@Composable
+private fun StressDialGauge(
+    score: Int,
+    modifier: Modifier = Modifier
+) {
+    val animProgress = remember { Animatable(0f) }
+    val targetProgress = (score.coerceIn(0, 100) / 100f)
+
+    LaunchedEffect(targetProgress) {
+        animProgress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 7.5.dp.toPx()
+        val diameter = size.minDimension - strokeWidth
+        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+        val arcSize = Size(diameter, diameter)
+
+        // Background track (270 degrees from 135 to 405)
+        drawArc(
+            color = Color(0x228B5CF6),
+            startAngle = 135f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+
+        // Progress Arc
+        if (animProgress.value > 0f) {
+            val sweep = 270f * animProgress.value
+            drawArc(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        StressRelaxed,
+                        StressBalanced,
+                        StressModerate,
+                        StressHigh,
+                        StressRelaxed
+                    )
+                ),
+                startAngle = 135f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
     }
 }
 

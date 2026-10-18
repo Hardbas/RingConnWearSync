@@ -24,6 +24,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -298,7 +300,85 @@ fun HeartRateDetailContent(
             }
 
             // =========================================================================
-            // b) Hero Stadium Card: Live BPM, pulsing heart, Min-Max range & Measure button
+            // b) Hero: Centered Heart Dial (122dp), live BPM, status pill & Measure button
+            // =========================================================================
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(122.dp)
+                    ) {
+                        HeartDialGauge(
+                            bpm = currentHr,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = hrDisplay,
+                                fontSize = TextHero,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = stringResource(R.string.bpm_unit).uppercase(),
+                                fontSize = TextCaption,
+                                color = HrSubtitlePink,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(hrStatusColor.copy(alpha = 0.18f))
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = hrStatusLabel.uppercase(),
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            color = hrStatusColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // "Medir Ahora" pill button
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(Color(0x2BFFFFFF))
+                            .clickable {
+                                onMeasureClick()
+                            }
+                            .padding(horizontal = 20.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
+                            fontSize = TextCaption,
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // =========================================================================
+            // c) Card: Rango Diario (Min - Max BPM)
             // =========================================================================
             item {
                 Box(
@@ -306,10 +386,9 @@ fun HeartRateDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
-                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        // Top badge row
+                    Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -319,13 +398,18 @@ fun HeartRateDetailContent(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f, fill = false)
                             ) {
-                                PulsingHeartIcon(isMeasuring = isMeasuring)
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(HrMinMaxPink)
+                                )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isMeasuring) stringResource(R.string.measuring_caps) else stringResource(R.string.realtime_caps),
-                                    fontSize = TextCaption,
-                                    color = HrSubtitlePink,
-                                    fontWeight = FontWeight.Bold,
+                                    text = stringResource(R.string.daily_range),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -333,29 +417,27 @@ fun HeartRateDetailContent(
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
-                                    .background(hrStatusColor.copy(alpha = 0.2f))
+                                    .background(HrMinMaxPink.copy(alpha = 0.18f))
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = hrStatusLabel.uppercase(),
+                                    text = if (hasMinMax) "$minHr - $maxHr" else "--",
                                     fontSize = TextCaption,
                                     style = TabularNums,
-                                    color = hrStatusColor,
+                                    color = HrMinMaxPink,
                                     fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        // Large BPM Value
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = hrDisplay,
-                                fontSize = 42.sp,
+                                text = if (hasMinMax) "$minHr - $maxHr" else hrDisplay,
+                                fontSize = TextBig,
                                 style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
@@ -363,53 +445,33 @@ fun HeartRateDetailContent(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = stringResource(R.string.bpm_unit),
-                                fontSize = TextBody,
-                                color = HrBpmWarm,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 7.dp)
+                                fontSize = TextLabel,
+                                style = TabularNums,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Min-Max range bar with smooth Canvas draw animation
+                        AnimatedMinMaxBar(
+                            progress = if (hasMinMax && maxHr > minHr && hasHr) {
+                                ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
+                            } else if (hasHr) 0.65f else 0f,
+                            color = HrMinMaxPink,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.5.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(minHrText, fontSize = TextCaption, style = TabularNums, color = HrSubtitlePink)
-                            AnimatedMinMaxBar(
-                                progress = if (hasMinMax && maxHr > minHr && hasHr) {
-                                    ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
-                                } else if (hasHr) 0.65f else 0f,
-                                color = HrMinMaxPink,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(6.5.dp)
-                                    .padding(horizontal = 8.dp)
-                            )
-                            Text(maxHrText, fontSize = TextCaption, style = TabularNums, color = HrSubtitlePink)
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // "Medir Ahora" pill button
-                        Box(
-                            modifier = Modifier
-                                .clip(ShapePill)
-                                .background(Color(0x2BFFFFFF))
-                                .clickable {
-                                    onMeasureClick()
-                                }
-                                .padding(horizontal = 24.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
-                                fontSize = TextLabel,
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                            Text(minHrText, fontSize = TextCaption, style = TabularNums, color = LabelSilver)
+                            Text(maxHrText, fontSize = TextCaption, style = TabularNums, color = LabelSilver)
                         }
                     }
                 }
@@ -432,24 +494,35 @@ fun HeartRateDetailContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(R.string.rhythm_and_rest),
-                            fontSize = TextBody,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f, fill = false),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(CyanActive)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.rhythm_and_rest),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                         Box(
                             modifier = Modifier
-                                .clip(ShapePill)
-                                .background(hrStatusColor.copy(alpha = 0.22f))
-                                .padding(horizontal = 10.dp, vertical = 3.dp),
+                                .clip(ShapeChip)
+                                .background(hrStatusColor.copy(alpha = 0.18f))
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = hrStatusLabel,
+                                text = hrStatusLabel.uppercase(),
                                 fontSize = TextCaption,
                                 style = TabularNums,
                                 color = hrStatusColor,
@@ -557,21 +630,41 @@ fun HeartRateDetailContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stringResource(R.string.hrv_title),
-                                fontSize = TextBody,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f, fill = false),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "RMSSD",
-                                fontSize = TextCaption,
-                                color = LabelSilver,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(CyanActive)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.hrv_title),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(CyanActive.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "RMSSD",
+                                    fontSize = TextCaption,
+                                    color = CyanActive,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -686,12 +779,23 @@ fun HeartRateDetailContent(
                     val z5Pct = if (totalZoneMins > 0) vitals.zone5Mins.toFloat() / totalZoneMins.toFloat() else 0f
 
                     Column {
-                        Text(
-                            text = stringResource(R.string.hr_zones_title),
-                            fontSize = TextBody,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(ZoneCardioColor)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.hr_zones_title),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
 
                         val bpmUnit = stringResource(R.string.bpm_unit)
@@ -1005,6 +1109,68 @@ private fun ZoneItemRow(
                     cornerRadius = corner
                 )
             }
+        }
+    }
+}
+
+/**
+ * 270-degree animated circular gauge for Heart Rate in One UI Watch style.
+ */
+@Composable
+private fun HeartDialGauge(
+    bpm: Int,
+    modifier: Modifier = Modifier
+) {
+    val animProgress = remember { Animatable(0f) }
+    // Map 40..180 bpm to 0..1f
+    val targetProgress = if (bpm > 0) ((bpm - 40f) / 140f).coerceIn(0.05f, 1f) else 0f
+
+    LaunchedEffect(targetProgress) {
+        animProgress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 7.5.dp.toPx()
+        val diameter = size.minDimension - strokeWidth
+        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+        val arcSize = Size(diameter, diameter)
+
+        // Background track (270 degrees from 135 to 405)
+        drawArc(
+            color = Color(0x22FF2D55),
+            startAngle = 135f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+
+        // Progress Arc
+        if (animProgress.value > 0f) {
+            val sweep = 270f * animProgress.value
+            drawArc(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        Color(0xFFFF2D55),
+                        Color(0xFFFF6482),
+                        Color(0xFFFF9500),
+                        Color(0xFFFF2D55)
+                    )
+                ),
+                startAngle = 135f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
         }
     }
 }
