@@ -206,8 +206,8 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
 
                     val statusLabel = when {
                         activityScore >= 85 -> stringResource(R.string.excellent)
-                        activityScore >= 70 -> "Buen ritmo"
-                        else -> "En progreso"
+                        activityScore >= 70 -> stringResource(R.string.status_good_pace)
+                        else -> stringResource(R.string.status_in_progress)
                     }
                     val statusColor = when {
                         activityScore >= 85 -> LimeSteps
@@ -359,7 +359,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "Meta ${targetActiveMins}m",
+                                    text = stringResource(R.string.goal_format_min, targetActiveMins),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = CyanActive,
@@ -388,7 +388,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         ActivityProgressBar(progress = timeProgress, color = CyanActive)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (activeMins >= targetActiveMins) "¡Meta diaria superada!" else "Faltan ${targetActiveMins - activeMins} min de actividad",
+                            text = if (activeMins >= targetActiveMins) stringResource(R.string.goal_achieved) else stringResource(R.string.goal_remaining_min, targetActiveMins - activeMins),
                             fontSize = TextCaption,
                             color = LabelSilver
                         )
@@ -434,7 +434,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "Meta ${targetCalories} kcal",
+                                    text = stringResource(R.string.goal_format_cal, targetCalories),
                                     fontSize = TextCaption,
                                     style = TabularNums,
                                     color = VioletCalorie,
@@ -463,7 +463,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         ActivityProgressBar(progress = calProgress, color = VioletCalorie)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Gasto dinámico por movimiento",
+                            text = stringResource(R.string.calorie_desc),
                             fontSize = TextCaption,
                             color = LabelSilver
                         )
@@ -483,7 +483,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 ) {
                     Column {
                         Text(
-                            text = "✦ Perspectiva RingConn",
+                            text = stringResource(R.string.ringconn_insights),
                             fontSize = TextLabel,
                             color = CyanActive,
                             fontWeight = FontWeight.Bold
@@ -491,9 +491,9 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (activityScore >= 80) {
-                                "Excelente balance de movimiento hoy. Tu activación metabólica apoya una óptima recuperación nocturna."
+                                stringResource(R.string.daily_insight_high)
                             } else {
-                                "Buen progreso diario. Un paseo ligero completará tus objetivos antes de descansar."
+                                stringResource(R.string.daily_insight_low)
                             },
                             fontSize = TextCaption,
                             color = Color(0xFFCFD8DC),
