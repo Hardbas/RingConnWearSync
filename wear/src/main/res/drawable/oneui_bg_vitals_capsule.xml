@@ -1,21 +1,27 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="184dp"
-    android:height="132dp"
-    android:viewportWidth="184"
-    android:viewportHeight="132">
+    android:width="195dp"
+    android:height="142dp"
+    android:viewportWidth="195"
+    android:viewportHeight="142">
+    <!-- Deep obsidian gold titanium gradient fill -->
     <path
-        android:pathData="M66,0 L118,0 A66,66 0 0,1 184,66 A66,66 0 0,1 118,132 L66,132 A66,66 0 0,1 0,66 A66,66 0 0,1 66,0 Z">
+        android:pathData="M71,0 L124,0 A71,71 0 0,1 195,71 A71,71 0 0,1 124,142 L71,142 A71,71 0 0,1 0,71 A71,71 0 0,1 71,0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="0"
                 android:startY="0"
-                android:endX="184"
-                android:endY="132"
+                android:endX="195"
+                android:endY="142"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#FF6E5A2F" />
-                <item android:offset="1.0" android:color="#FF2B2514" />
+                <item android:offset="0.0" android:color="#FF3A3120" />
+                <item android:offset="1.0" android:color="#FF17140D" />
             </gradient>
         </aapt:attr>
     </path>
+    <!-- Luminous titanium gold glass rim border for AMOLED definition -->
+    <path
+        android:pathData="M71,0.75 L124,0.75 A70.25,70.25 0 0,1 194.25,71 A70.25,70.25 0 0,1 124,141.25 L71,141.25 A70.25,70.25 0 0,1 0.75,71 A70.25,70.25 0 0,1 71,0.75 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#99EDCB8B" />
 </vector>

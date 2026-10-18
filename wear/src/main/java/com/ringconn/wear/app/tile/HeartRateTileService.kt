@@ -57,7 +57,7 @@ class HeartRateTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-hr-official-v1"
+        const val RESOURCES_VERSION = "oneui8-hr-official-v3"
         private const val RES_BG_HR_CAPSULE = "oneui_bg_hr_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"
@@ -376,7 +376,19 @@ class HeartRateTileService : TileService() {
                 .build()
 
             // 6. Resting Baseline & Range Metric (Authentic physiological resting status)
-            val restingTextStr = if (hasMinMax) {
+            val stageName = when {
+                hrInt <= 0 -> ""
+                hrInt < 100 -> context.getString(R.string.status_resting)
+                hrInt in 100..120 -> context.getString(R.string.zone_warmup)
+                hrInt in 121..140 -> context.getString(R.string.zone_fat_burn)
+                hrInt in 141..160 -> context.getString(R.string.zone_cardio)
+                else -> context.getString(R.string.zone_peak)
+            }
+            val restingTextStr = if (hasMinMax && stageName.isNotEmpty()) {
+                "$stageName · ${vitals.minHeartRate} - ${vitals.maxHeartRate} ${context.getString(R.string.bpm_unit).lowercase()}"
+            } else if (stageName.isNotEmpty()) {
+                stageName
+            } else if (hasMinMax) {
                 "${vitals.minHeartRate} - ${vitals.maxHeartRate} ${context.getString(R.string.bpm_unit).lowercase()}"
             } else if (vitals.avgHeartRate > 0) {
                 "${context.getString(R.string.stress_resting)}: ${vitals.avgHeartRate} ${context.getString(R.string.bpm_unit).lowercase()}"

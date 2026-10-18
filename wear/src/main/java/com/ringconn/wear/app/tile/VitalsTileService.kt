@@ -45,7 +45,7 @@ class VitalsTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-vitals-v6"
+        const val RESOURCES_VERSION = "oneui8-vitals-v8"
         private const val RES_BG_VITALS_CAPSULE = "oneui_bg_vitals_capsule"
         private const val RES_IC_HR = "oneui_hr_icon"
         private const val RES_HR_DOT = "oneui_hr_dot"
@@ -145,9 +145,19 @@ class VitalsTileService : TileService() {
                 )
                 .build()
 
-            // 3. Subtitle / Ring Telemetry Row (11.5sp Regular #FFF99BD6, top margin 30.76dp in ra7.java)
+            // 3. Subtitle / Ring Telemetry Row with physiological stage (Resting / Reposo at 76 bpm)
+            val hrStage = when {
+                hrInt <= 0 -> ""
+                hrInt < 100 -> context.getString(R.string.status_resting)
+                hrInt in 100..120 -> context.getString(R.string.zone_warmup)
+                hrInt in 121..140 -> context.getString(R.string.zone_fat_burn)
+                hrInt in 141..160 -> context.getString(R.string.zone_cardio)
+                else -> context.getString(R.string.zone_peak)
+            }
+            val subtitleStr = if (hrStage.isNotEmpty()) "$hrStage  ·  SpO2 $spo2Value" else "SpO2 $spo2Value  ·  Ring $batteryValue"
+
             val subtitleText = LayoutElementBuilders.Text.Builder()
-                .setText("SpO2 $spo2Value  ·  Ring $batteryValue")
+                .setText(subtitleStr)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
