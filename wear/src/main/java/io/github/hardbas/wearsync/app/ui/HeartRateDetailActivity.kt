@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -27,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +45,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
@@ -58,7 +63,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 val HrBpmWarm = Color(0xFFFBCEB6)
 val CardBg = Color(0xFF1B1E22)
 val CardBgSubtle = Color(0xFF22262C)
-val TrackDark = Color(0x33000000)
+val TrackDark = Color(0x22FFFFFF)
 
 // 5 Standard One UI Heart Rate Zones
 private val ZoneRestColor = Color(0xFF47CDFF)      // Reposo (< 100 bpm)
@@ -216,7 +221,13 @@ fun HeartRateDetailContent(
 
     val currentHr = vitals.lastHeartRate
     val hasHr = currentHr > 0
-    val hrDisplay = if (hasHr) "$currentHr" else "--"
+    val animatedHr = animateIntAsState(
+        targetValue = if (hasHr) currentHr else 0,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "heroHrCountUp"
+    )
+    val hrDisplay = if (hasHr) "${animatedHr.value}" else "--"
+    val pulseState = rememberHeartbeatPulse(bpm = currentHr, isMeasuring = isMeasuring)
 
     val avgHr = vitals.avgHeartRate
     val minHr = vitals.minHeartRate
@@ -332,13 +343,29 @@ fun HeartRateDetailContent(
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
-                            Text(
-                                text = stringResource(R.string.bpm_unit).uppercase(),
-                                fontSize = TextCaption,
-                                color = HrSubtitlePink,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .graphicsLayer {
+                                            scaleX = pulseState.value
+                                            scaleY = pulseState.value
+                                        }
+                                        .clip(CircleShape)
+                                        .background(HrMinMaxPink)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.bpm_unit).uppercase(),
+                                    fontSize = TextCaption,
+                                    color = HrSubtitlePink,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
 
@@ -741,6 +768,8 @@ fun HeartRateDetailContent(
                                 color = HrMinMaxPink,
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
@@ -750,6 +779,8 @@ fun HeartRateDetailContent(
                                 color = CyanActive,
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
@@ -759,6 +790,8 @@ fun HeartRateDetailContent(
                                 color = LimeSteps,
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -863,31 +896,83 @@ fun HeartRateDetailContent(
 }
 
 /**
+ * Dynamic BPM-synced physiological lub-dub double-beat pulse animation.
+ * Cycle duration is calculated from the user's real BPM:
+ * periodMs = (60_000 / (bpm.takeIf { it > 0 } ?: 72).coerceIn(45, 180))
+ * Gated on Lifecycle.State.RESUMED so it pauses in Ambient Mode.
+ */
+@Composable
+private fun rememberHeartbeatPulse(bpm: Int, isMeasuring: Boolean = false): State<Float> {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isResumed = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val periodMs = remember(bpm, isMeasuring) {
+        (60_000 / (bpm.takeIf { it > 0 } ?: 72).coerceIn(45, 180))
+    }
+
+    return if (isResumed) {
+        val infiniteTransition = rememberInfiniteTransition(label = "hr_lub_dub_pulse")
+        val peak1 = if (isMeasuring) 1.28f else 1.20f
+        val peak2 = if (isMeasuring) 1.18f else 1.10f
+        val s1Peak = (periodMs * 0.15f).roundToInt()
+        val s1Relax = (periodMs * 0.30f).roundToInt()
+        val s2Peak = (periodMs * 0.45f).roundToInt()
+        val s2Relax = (periodMs * 0.60f).roundToInt()
+
+        infiniteTransition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = periodMs
+                    1.0f at 0 with FastOutSlowInEasing
+                    peak1 at s1Peak with FastOutSlowInEasing
+                    1.03f at s1Relax with FastOutSlowInEasing
+                    peak2 at s2Peak with FastOutSlowInEasing
+                    1.0f at s2Relax with LinearEasing
+                    1.0f at periodMs with LinearEasing
+                },
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "pulseScale"
+        )
+    } else {
+        remember { mutableFloatStateOf(1.0f) }
+    }
+}
+
+/**
  * Isolated pulsing heart icon with graphicsLayer scale animation.
  * Zero parent recomposition during animation ticks.
  */
 @Composable
-private fun PulsingHeartIcon(isMeasuring: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "hr_pulse_solitary")
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1.0f,
-        targetValue = if (isMeasuring) 1.28f else 1.10f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isMeasuring) 400 else 750, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulseScale"
-    )
+private fun PulsingHeartIcon(
+    isMeasuring: Boolean = false,
+    bpm: Int = 0,
+    modifier: Modifier = Modifier
+) {
+    val pulseState = rememberHeartbeatPulse(bpm = bpm, isMeasuring = isMeasuring)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(38.dp)
             .graphicsLayer {
-                scaleX = pulseScale
-                scaleY = pulseScale
+                scaleX = pulseState.value
+                scaleY = pulseState.value
             }
             .clip(CircleShape)
-            .background(Color(0x33000000)),
+            .background(Color(0x22FFFFFF)),
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -1018,7 +1103,29 @@ private fun ZoneItemRow(
     distributionPct: Float,
     isActive: Boolean
 ) {
-    Column(modifier = Modifier.padding(vertical = 3.5.dp)) {
+    val textColor by animateColorAsState(
+        targetValue = if (isActive) Color.White else LabelSilver,
+        animationSpec = tween(350),
+        label = "zoneTextColor"
+    )
+    val rangeColor by animateColorAsState(
+        targetValue = if (isActive) zoneColor else PipeGray,
+        animationSpec = tween(350),
+        label = "zoneRangeColor"
+    )
+    val rowBgColor by animateColorAsState(
+        targetValue = if (isActive) zoneColor.copy(alpha = 0.14f) else Color.Transparent,
+        animationSpec = tween(350),
+        label = "zoneRowBgColor"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeChip)
+            .background(rowBgColor)
+            .padding(horizontal = 6.dp, vertical = 3.5.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1038,7 +1145,7 @@ private fun ZoneItemRow(
                 Text(
                     text = zoneName,
                     fontSize = TextLabel,
-                    color = if (isActive) Color.White else LabelSilver,
+                    color = textColor,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1048,7 +1155,7 @@ private fun ZoneItemRow(
                 text = durationText,
                 fontSize = TextCaption,
                 style = TabularNums,
-                color = if (isActive) Color.White else LabelSilver,
+                color = textColor,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
         }
@@ -1064,7 +1171,7 @@ private fun ZoneItemRow(
                 text = bpmRange,
                 fontSize = TextCaption,
                 style = TabularNums,
-                color = if (isActive) zoneColor else PipeGray,
+                color = rangeColor,
                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal
             )
             if (isActive) {
@@ -1141,8 +1248,22 @@ private fun HeartDialGauge(
         )
     }
 
+    val strokeWidth = with(LocalDensity.current) { 7.5.dp.toPx() }
+    val dialStroke = remember(strokeWidth) {
+        Stroke(width = strokeWidth, cap = StrokeCap.Round)
+    }
+    val sweepBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFFFF2D55),
+                Color(0xFFFF6482),
+                Color(0xFFFF9500),
+                Color(0xFFFF2D55)
+            )
+        )
+    }
+
     Canvas(modifier = modifier) {
-        val strokeWidth = 7.5.dp.toPx()
         val diameter = size.minDimension - strokeWidth
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
@@ -1155,27 +1276,20 @@ private fun HeartDialGauge(
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = dialStroke
         )
 
         // Progress Arc
         if (animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        Color(0xFFFF2D55),
-                        Color(0xFFFF6482),
-                        Color(0xFFFF9500),
-                        Color(0xFFFF2D55)
-                    )
-                ),
+                brush = sweepBrush,
                 startAngle = 135f,
                 sweepAngle = sweep,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = dialStroke
             )
         }
     }

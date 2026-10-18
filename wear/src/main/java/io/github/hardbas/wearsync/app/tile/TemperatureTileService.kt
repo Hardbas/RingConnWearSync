@@ -92,11 +92,19 @@ class TemperatureTileService : TileService() {
                 "--"
             }
 
-            val statusColor = when {
-                !hasData -> argb(0xFF686D73.toInt())
-                offset in -0.5f..0.5f -> argb(0xFF00E676.toInt())   // Optimal Euthermia (Green)
-                offset > 0.5f -> argb(0xFFFF7043.toInt())           // Warm departure (Amber/Coral)
-                else -> argb(0xFF38BDF8.toInt())                    // Cool departure (Cyan)
+            val statusColorInt = when {
+                !hasData -> 0xFF686D73.toInt()
+                offset in -0.5f..0.5f -> 0xFF00E676.toInt()   // Optimal Euthermia (Green)
+                offset > 0.5f -> 0xFFFF7043.toInt()           // Warm departure (Amber/Coral)
+                else -> 0xFF38BDF8.toInt()                    // Cool departure (Cyan)
+            }
+            val statusColor = argb(statusColorInt)
+
+            val statusPulseColorInt = when {
+                !hasData -> 0xFF686D73.toInt()
+                offset in -0.5f..0.5f -> 0xFF007A3D.toInt()   // Deeper green pulse
+                offset > 0.5f -> 0xFF8A2E12.toInt()           // Deeper coral pulse
+                else -> 0xFF026AA7.toInt()                    // Deeper cyan pulse
             }
 
             val statusText = when {
@@ -146,7 +154,7 @@ class TemperatureTileService : TileService() {
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey("temp_arc_sweep"),
+                        AppDataKey<DynamicBuilders.DynamicFloat>("temp_arc_sweep"),
                         sweepAnimSpec
                     )
                 )
@@ -206,6 +214,33 @@ class TemperatureTileService : TileService() {
                 )
                 .build()
 
+            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val tempIconTint = if (hasData) {
+                val dynamicColor = DynamicBuilders.DynamicColor.animate(
+                    statusColorInt,
+                    statusPulseColorInt,
+                    pulseAnimSpec
+                )
+                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(statusColorInt)
+                    .setDynamicValue(dynamicColor)
+                    .build()
+            } else {
+                statusColor
+            }
+
             // 5. Hero Row: Temp Icon + 30sp Bold Number + "°C"
             val tempIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_TEMP)
@@ -213,7 +248,7 @@ class TemperatureTileService : TileService() {
                 .setHeight(dp(16f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(statusColor)
+                        .setTint(tempIconTint)
                         .build()
                 )
                 .build()
@@ -350,6 +385,7 @@ class TemperatureTileService : TileService() {
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
                                 .build()
                         )
                         .build()
@@ -368,7 +404,10 @@ class TemperatureTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("temp_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("temp_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees)
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()

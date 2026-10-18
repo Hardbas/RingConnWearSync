@@ -27,6 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
@@ -601,26 +604,41 @@ private fun AnimatedCapsuleBar(
 
 /**
  * Heart icon badge animated with graphicsLayer draw phase to avoid parent recomposition.
+ * Uses physiological lub-dub double-beat keyframes gated on lifecycle.
  */
 @Composable
 private fun PulsingHeartBadge(isMeasuring: Boolean) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val cycleDurationMs = if (isMeasuring) 600 else 1000
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val heartScale by infiniteTransition.animateFloat(
+    val pulseScale = infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (isMeasuring) 1.24f else 1.08f,
+        targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isMeasuring) 420 else 800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = keyframes {
+                durationMillis = cycleDurationMs
+                1.0f at 0
+                1.20f at (cycleDurationMs * 0.18f).toInt()
+                0.96f at (cycleDurationMs * 0.32f).toInt()
+                1.12f at (cycleDurationMs * 0.48f).toInt()
+                1.0f at (cycleDurationMs * 0.65f).toInt()
+                1.0f at cycleDurationMs
+            },
+            repeatMode = RepeatMode.Restart
         ),
-        label = "heartScale"
+        label = "pulseScale"
     )
 
     Box(
         modifier = Modifier
             .size(38.dp)
             .graphicsLayer {
-                scaleX = heartScale
-                scaleY = heartScale
+                val scale = if (isResumed) pulseScale.value else 1.0f
+                scaleX = scale
+                scaleY = scale
             }
             .clip(CircleShape)
             .background(GlassBlack50),

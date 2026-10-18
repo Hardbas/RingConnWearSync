@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.ui
+package io.github.hardbas.wearsync.app.ui
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -8,7 +8,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -117,6 +123,12 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
     val targetCalories = if (vitals.targetCalorie > 0) vitals.targetCalorie else 500
     val activityScore = vitals.activityScore
 
+    val animatedActivityScore by animateIntAsState(
+        targetValue = activityScore,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "activityScoreAnim"
+    )
+
     val stepsFormatted = remember(liveSteps) {
         NumberFormat.getIntegerInstance(Locale.getDefault()).format(liveSteps)
     }
@@ -191,7 +203,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "$activityScore",
+                                text = "$animatedActivityScore",
                                 fontSize = TextHero,
                                 style = TabularNums,
                                 color = Color.White,
@@ -223,7 +235,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     Box(
                         modifier = Modifier
                             .clip(ShapePill)
-                            .background(statusColor.copy(alpha = 0.18f))
+                            .background(statusColor.copy(alpha = 0.26f))
                             .padding(horizontal = 14.dp, vertical = 3.5.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -276,7 +288,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
-                                    .background(LimeSteps.copy(alpha = 0.18f))
+                                    .background(LimeSteps.copy(alpha = 0.26f))
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -372,7 +384,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
-                                    .background(CyanActive.copy(alpha = 0.18f))
+                                    .background(CyanActive.copy(alpha = 0.26f))
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -453,7 +465,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                             Box(
                                 modifier = Modifier
                                     .clip(ShapeChip)
-                                    .background(VioletCalorie.copy(alpha = 0.18f))
+                                    .background(VioletCalorie.copy(alpha = 0.26f))
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -501,7 +513,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.ringconn_insights),
@@ -531,7 +543,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
  * Outer: Neon Lime (Steps)
  * Middle: Electric Cyan (Active Time)
  * Inner: Vivid Violet (Calories)
- * Animates strictly in Canvas draw phase to avoid recomposing the screen.
+ * Cascades outward with organic spring physics and zero per-frame object allocations.
  */
 @Composable
 private fun ConcentricActivityRings(
@@ -540,25 +552,55 @@ private fun ConcentricActivityRings(
     calProgress: Float,
     modifier: Modifier = Modifier
 ) {
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        anim.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 350,
-                easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
+    val outerAnim = remember { Animatable(0f) }
+    val midAnim = remember { Animatable(0f) }
+    val innerAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(stepsProgress, timeProgress, calProgress) {
+        launch {
+            delay(0L)
+            outerAnim.animateTo(
+                targetValue = stepsProgress,
+                animationSpec = spring(
+                    dampingRatio = 0.75f,
+                    stiffness = Spring.StiffnessLow
+                )
             )
-        )
+        }
+        launch {
+            delay(90L)
+            midAnim.animateTo(
+                targetValue = timeProgress,
+                animationSpec = spring(
+                    dampingRatio = 0.75f,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+        launch {
+            delay(180L)
+            innerAnim.animateTo(
+                targetValue = calProgress,
+                animationSpec = spring(
+                    dampingRatio = 0.75f,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+        }
+    }
+
+    val density = LocalDensity.current
+    val strokeWidthPx = remember(density) { with(density) { 7.dp.toPx() } }
+    val spacingPx = remember(density, strokeWidthPx) { with(density) { strokeWidthPx + 2.dp.toPx() } }
+    val ringStroke = remember(strokeWidthPx) {
+        Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
     }
 
     Canvas(modifier = modifier) {
-        val sweepFactor = anim.value
-        val strokeWidth = 7.dp.toPx()
-        val spacing = strokeWidth + 2.dp.toPx()
         val center = Offset(size.width / 2f, size.height / 2f)
 
         // Ring 1: Steps (Outer)
-        val outerRadius = (size.minDimension / 2f) - (strokeWidth / 2f)
+        val outerRadius = (size.minDimension / 2f) - (strokeWidthPx / 2f)
         val outerTopLeft = Offset(center.x - outerRadius, center.y - outerRadius)
         val outerSize = Size(outerRadius * 2f, outerRadius * 2f)
         drawArc(
@@ -568,20 +610,20 @@ private fun ConcentricActivityRings(
             useCenter = false,
             topLeft = outerTopLeft,
             size = outerSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
         drawArc(
             color = LimeSteps,
             startAngle = -90f,
-            sweepAngle = (stepsProgress * 360f * sweepFactor).coerceIn(0f, 360f),
+            sweepAngle = (outerAnim.value * 360f).coerceIn(0f, 360f),
             useCenter = false,
             topLeft = outerTopLeft,
             size = outerSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
 
         // Ring 2: Active Time (Middle)
-        val middleRadius = outerRadius - spacing
+        val middleRadius = outerRadius - spacingPx
         val middleTopLeft = Offset(center.x - middleRadius, center.y - middleRadius)
         val middleSize = Size(middleRadius * 2f, middleRadius * 2f)
         drawArc(
@@ -591,20 +633,20 @@ private fun ConcentricActivityRings(
             useCenter = false,
             topLeft = middleTopLeft,
             size = middleSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
         drawArc(
             color = CyanActive,
             startAngle = -90f,
-            sweepAngle = (timeProgress * 360f * sweepFactor).coerceIn(0f, 360f),
+            sweepAngle = (midAnim.value * 360f).coerceIn(0f, 360f),
             useCenter = false,
             topLeft = middleTopLeft,
             size = middleSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
 
         // Ring 3: Calories (Inner)
-        val innerRadius = middleRadius - spacing
+        val innerRadius = middleRadius - spacingPx
         val innerTopLeft = Offset(center.x - innerRadius, center.y - innerRadius)
         val innerSize = Size(innerRadius * 2f, innerRadius * 2f)
         drawArc(
@@ -614,16 +656,16 @@ private fun ConcentricActivityRings(
             useCenter = false,
             topLeft = innerTopLeft,
             size = innerSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
         drawArc(
             color = VioletCalorie,
             startAngle = -90f,
-            sweepAngle = (calProgress * 360f * sweepFactor).coerceIn(0f, 360f),
+            sweepAngle = (innerAnim.value * 360f).coerceIn(0f, 360f),
             useCenter = false,
             topLeft = innerTopLeft,
             size = innerSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = ringStroke
         )
     }
 }

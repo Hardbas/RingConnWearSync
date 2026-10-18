@@ -156,7 +156,7 @@ class HeartRateTileService : TileService() {
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey("hr_arc_sweep"),
+                        AppDataKey<DynamicBuilders.DynamicFloat>("hr_arc_sweep"),
                         sweepAnimSpec
                     )
                 )
@@ -204,15 +204,18 @@ class HeartRateTileService : TileService() {
                 )
                 .build()
 
-            val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
-                0xFFFF5D99.toInt(),
-                0xFF8A1E4A.toInt(),
-                heartbeatPulseAnimSpec
-            )
-
-            val dynamicHeartTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFF5D99.toInt())
-                .setDynamicValue(dynamicHeartColor)
-                .build()
+            val dynamicHeartTint = if (hasHr) {
+                val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
+                    0xFFFF5D99.toInt(),
+                    0xFF8A1E4A.toInt(),
+                    heartbeatPulseAnimSpec
+                )
+                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFF5D99.toInt())
+                    .setDynamicValue(dynamicHeartColor)
+                    .build()
+            } else {
+                argb(0xFF686D73.toInt())
+            }
 
             // 3. Title: "Frecuencia Cardíaca" (11.5sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
@@ -370,8 +373,9 @@ class HeartRateTileService : TileService() {
                         .setClickable(mainTileClickable)
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
-                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
-                                .build()
+                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                 .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
+                                 .build()
                         )
                         .build()
                 )
@@ -389,7 +393,10 @@ class HeartRateTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("hr_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("hr_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees)
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()

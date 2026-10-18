@@ -8,7 +8,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -139,7 +142,12 @@ fun SleepDetailContent(
 
     val hasSleepData = vitals.sleepScore > 0
     val sleepScore = vitals.sleepScore
-    val sleepScoreText = if (hasSleepData) "$sleepScore" else "--"
+    val animatedSleepScore by animateIntAsState(
+        targetValue = if (hasSleepData) sleepScore else 0,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "sleepScoreAnim"
+    )
+    val sleepScoreText = if (hasSleepData) "$animatedSleepScore" else "--"
     val qualityBadge = when {
         !hasSleepData -> stringResource(R.string.no_data)
         sleepScore >= 85 -> stringResource(R.string.excellent)
@@ -515,6 +523,7 @@ fun SleepDetailContent(
 
 /**
  * 270-degree animated circular gauge for Sleep Score in One UI Watch style.
+ * Hoists Brush and Stroke outside Canvas to prevent per-frame allocations during animation.
  */
 @Composable
 private fun SleepDialGauge(
@@ -534,9 +543,24 @@ private fun SleepDialGauge(
         )
     }
 
+    val density = LocalDensity.current
+    val strokeWidthPx = remember(density) { with(density) { 7.5.dp.toPx() } }
+    val arcStroke = remember(strokeWidthPx) {
+        Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+    }
+    val gradientBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFF5E72E4),
+                Color(0xFF8E99F3),
+                Color(0xFF47CDFF),
+                Color(0xFF5E72E4)
+            )
+        )
+    }
+
     Canvas(modifier = modifier) {
-        val strokeWidth = 7.5.dp.toPx()
-        val diameter = size.minDimension - strokeWidth
+        val diameter = size.minDimension - strokeWidthPx
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
 
@@ -548,27 +572,20 @@ private fun SleepDialGauge(
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = arcStroke
         )
 
         // Progress Arc
         if (animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        Color(0xFF5E72E4),
-                        Color(0xFF8E99F3),
-                        Color(0xFF47CDFF),
-                        Color(0xFF5E72E4)
-                    )
-                ),
+                brush = gradientBrush,
                 startAngle = 135f,
                 sweepAngle = sweep,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = arcStroke
             )
         }
     }
@@ -576,6 +593,7 @@ private fun SleepDialGauge(
 
 /**
  * Multi-stage sleep bar drawn in Canvas with zero weight layout recomputations.
+ * Features sequential reveal animation with subtle glowing divider ticks.
  */
 @Composable
 private fun SleepStagesBar(
@@ -586,15 +604,21 @@ private fun SleepStagesBar(
     modifier: Modifier = Modifier
 ) {
     val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(deepPct, remPct, lightPct, awakePct) {
+        anim.snapTo(0f)
         anim.animateTo(
             targetValue = 1f,
             animationSpec = tween(
-                durationMillis = 350,
+                durationMillis = 650,
                 easing = CubicBezierEasing(0.22f, 0.25f, 0.0f, 1.0f)
             )
         )
     }
+
+    val density = LocalDensity.current
+    val tickWidthPx = remember(density) { with(density) { 1.5.dp.toPx() } }
+    val dividerColor = remember { Color(0x80FFFFFF) }
+
     Canvas(modifier = modifier) {
         val corner = CornerRadius(size.height / 2f, size.height / 2f)
         drawRoundRect(color = SleepTrackBg, size = size, cornerRadius = corner)
@@ -602,24 +626,34 @@ private fun SleepStagesBar(
         val totalAnimW = size.width * anim.value
         var curX = 0f
 
-        val wAwake = totalAnimW * awakePct
-        if (wAwake > 0f) {
-            drawRect(color = StageAwake, topLeft = Offset(curX, 0f), size = Size(wAwake, size.height))
-            curX += wAwake
-        }
-        val wRem = totalAnimW * remPct
-        if (wRem > 0f) {
-            drawRect(color = StageRem, topLeft = Offset(curX, 0f), size = Size(wRem, size.height))
-            curX += wRem
-        }
-        val wLight = totalAnimW * lightPct
-        if (wLight > 0f) {
-            drawRect(color = StageLight, topLeft = Offset(curX, 0f), size = Size(wLight, size.height))
-            curX += wLight
-        }
-        val wDeep = totalAnimW * deepPct
-        if (wDeep > 0f) {
-            drawRect(color = StageDeep, topLeft = Offset(curX, 0f), size = Size(wDeep, size.height))
+        val stages = listOf(
+            StageAwake to awakePct,
+            StageRem to remPct,
+            StageLight to lightPct,
+            StageDeep to deepPct
+        )
+
+        for (i in stages.indices) {
+            val (color, pct) = stages[i]
+            val w = totalAnimW * pct
+            if (w > 0f) {
+                drawRect(
+                    color = color,
+                    topLeft = Offset(curX, 0f),
+                    size = Size(w, size.height)
+                )
+                curX += w
+
+                // Subtle glowing divider tick between stages if reached by animation sweep
+                if (i < stages.size - 1 && curX < totalAnimW && curX > 0f) {
+                    drawLine(
+                        color = dividerColor,
+                        start = Offset(curX, 0f),
+                        end = Offset(curX, size.height),
+                        strokeWidth = tickWidthPx
+                    )
+                }
+            }
         }
     }
 }

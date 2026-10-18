@@ -139,7 +139,7 @@ class VitalsTileService : TileService() {
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey("vitals_arc_sweep"),
+                        AppDataKey<DynamicBuilders.DynamicFloat>("vitals_arc_sweep"),
                         sweepAnimSpec
                     )
                 )
@@ -187,15 +187,18 @@ class VitalsTileService : TileService() {
                 )
                 .build()
 
-            val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
-                0xFFEDCB8B.toInt(),
-                0xFF8A6E30.toInt(),
-                heartbeatPulseAnimSpec
-            )
-
-            val dynamicHeartTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFEDCB8B.toInt())
-                .setDynamicValue(dynamicHeartColor)
-                .build()
+            val dynamicHeartTint = if (hasHr) {
+                val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
+                    0xFFEDCB8B.toInt(),
+                    0xFF8A6E30.toInt(),
+                    heartbeatPulseAnimSpec
+                )
+                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFEDCB8B.toInt())
+                    .setDynamicValue(dynamicHeartColor)
+                    .build()
+            } else {
+                argb(0xFF686D73.toInt())
+            }
 
             // 4. Title Text: "RingConn Vitals" (11sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
@@ -398,6 +401,7 @@ class VitalsTileService : TileService() {
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
                                 .build()
                         )
                         .build()
@@ -416,7 +420,10 @@ class VitalsTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("vitals_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("vitals_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees)
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()

@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.ui
+package io.github.hardbas.wearsync.app.ui
 
 import android.content.Intent
 import android.os.Bundle
@@ -10,13 +10,6 @@ import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
-            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
-            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
-        } else {
-            @Suppress("DEPRECATION")
-            overridePendingTransition(0, 0)
-        }
         applyIntentTelemetryIfPresent(intent)
         setContent {
             WearApp(context = this)
@@ -25,13 +18,6 @@ class WearMainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (android.os.Build.VERSION.SDK_INT >= 34) {
-            overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, 0, 0)
-            overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, 0, 0)
-        } else {
-            @Suppress("DEPRECATION")
-            overridePendingTransition(0, 0)
-        }
         applyIntentTelemetryIfPresent(intent)
     }
 

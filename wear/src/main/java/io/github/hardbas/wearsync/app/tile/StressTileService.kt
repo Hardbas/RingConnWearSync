@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.tile
+package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
 import androidx.wear.protolayout.ActionBuilders
@@ -81,12 +81,21 @@ class StressTileService : TileService() {
             val score = vitals.stressScore.coerceIn(0, 100)
             val scoreStr = if (hasStress) "$score" else "--"
 
-            val statusColor = when {
-                !hasStress -> argb(0xFF686D73.toInt())
-                score < 30 -> argb(0xFF00E676.toInt())     // Relaxed (Green)
-                score < 60 -> argb(0xFF00E5FF.toInt())     // Balanced (Cyan)
-                score < 80 -> argb(0xFFFFD600.toInt())     // Moderate (Yellow)
-                else -> argb(0xFFFF3D00.toInt())           // High (Orange-Red)
+            val statusColorInt = when {
+                !hasStress -> 0xFF686D73.toInt()
+                score < 30 -> 0xFF00E676.toInt()     // Relaxed (Green)
+                score < 60 -> 0xFF00E5FF.toInt()     // Balanced (Cyan)
+                score < 80 -> 0xFFFFD600.toInt()     // Moderate (Yellow)
+                else -> 0xFFFF3D00.toInt()           // High (Orange-Red)
+            }
+            val statusColor = argb(statusColorInt)
+
+            val statusPulseColorInt = when {
+                !hasStress -> 0xFF686D73.toInt()
+                score < 30 -> 0xFF007A3D.toInt()
+                score < 60 -> 0xFF007A8A.toInt()
+                score < 80 -> 0xFF8A7200.toInt()
+                else -> 0xFF8A1A00.toInt()
             }
 
             val statusText = when {
@@ -137,7 +146,7 @@ class StressTileService : TileService() {
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey("stress_arc_sweep"),
+                        AppDataKey<DynamicBuilders.DynamicFloat>("stress_arc_sweep"),
                         sweepAnimSpec
                     )
                 )
@@ -197,6 +206,33 @@ class StressTileService : TileService() {
                 )
                 .build()
 
+            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val stressIconTint = if (hasStress) {
+                val dynamicColor = DynamicBuilders.DynamicColor.animate(
+                    statusColorInt,
+                    statusPulseColorInt,
+                    pulseAnimSpec
+                )
+                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(statusColorInt)
+                    .setDynamicValue(dynamicColor)
+                    .build()
+            } else {
+                statusColor
+            }
+
             // 5. Hero Row: Stress Icon + 30sp Bold Score
             val stressIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_STRESS)
@@ -204,7 +240,7 @@ class StressTileService : TileService() {
                 .setHeight(dp(16f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(statusColor)
+                        .setTint(stressIconTint)
                         .build()
                 )
                 .build()
@@ -327,6 +363,7 @@ class StressTileService : TileService() {
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
                                 .build()
                         )
                         .build()
@@ -345,7 +382,10 @@ class StressTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("stress_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("stress_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees)
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()

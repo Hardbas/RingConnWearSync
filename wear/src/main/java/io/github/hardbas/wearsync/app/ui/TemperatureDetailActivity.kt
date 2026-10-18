@@ -6,8 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -33,6 +36,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -108,13 +114,19 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
     }
 
     val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
+    val animatedOffset = animateFloatAsState(
+        targetValue = if (hasData) vitals.skinTempOffset else 0f,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "heroTempOffsetAnim"
+    )
     val offset = vitals.skinTempOffset
+    val offsetToDisplay = if (hasData) animatedOffset.value else 0f
     val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
     val offsetFormatted = if (hasData) {
         when {
-            offset in -0.05f..0.05f -> "±0.0 °C"
-            offset > 0.05f -> String.format(Locale.US, "+%.1f °C", offset)
-            else -> String.format(Locale.US, "%.1f °C", offset)
+            offsetToDisplay in -0.05f..0.05f -> "±0.0 °C"
+            offsetToDisplay > 0.05f -> String.format(Locale.US, "+%.1f °C", offsetToDisplay)
+            else -> String.format(Locale.US, "%.1f °C", offsetToDisplay)
         }
     } else {
         "--.-"
@@ -531,6 +543,32 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
 private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
     val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
     val offset = vitals.skinTempOffset
+    val curveProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(vitals.skinTempOffset) {
+        curveProgress.snapTo(0f)
+        curveProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(950, easing = FastOutSlowInEasing)
+        )
+    }
+
+    val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f) }
+    val curveStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
+    val curveStroke = remember(curveStrokeWidth) {
+        Stroke(width = curveStrokeWidth, cap = StrokeCap.Round)
+    }
+    val curveStrokeBrush = remember {
+        Brush.horizontalGradient(
+            listOf(TempCool, Color(0xFF00E676), TempEmeraldSoft, Color(0xFF00E5FF))
+        )
+    }
+    val fillBrush = remember {
+        Brush.verticalGradient(
+            listOf(TempEmeraldSoft.copy(alpha = 0.25f), TempCool.copy(alpha = 0.25f))
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -572,7 +610,6 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                 val totalW = size.width
                 val totalH = size.height - 12.dp.toPx()
                 val midY = totalH / 2f
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
 
                 // Shaded Optimal Corridor (Band from -0.5°C to +0.5°C)
                 val bandTopY = midY - (totalH * 0.35f)
@@ -632,30 +669,51 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                     close()
                 }
 
-                drawPath(
-                    path = fillPath,
-                    brush = Brush.verticalGradient(
-                        listOf(TempEmeraldSoft.copy(alpha = 0.25f), TempCool.copy(alpha = 0.25f)),
-                        startY = bandTopY,
-                        endY = bandBottomY
+                // Progressive draw-on clip from left to right
+                clipRect(right = totalW * curveProgress.value) {
+                    drawPath(
+                        path = fillPath,
+                        brush = fillBrush
                     )
-                )
 
-                // Luminous curve stroke
-                drawPath(
-                    path = splinePath,
-                    brush = Brush.horizontalGradient(
-                        listOf(TempCool, Color(0xFF00E676), TempEmeraldSoft, Color(0xFF00E5FF))
-                    ),
-                    style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
-                )
+                    drawPath(
+                        path = splinePath,
+                        brush = curveStrokeBrush,
+                        style = curveStroke
+                    )
 
-                // Point Markers
-                drawCircle(color = TempCool, radius = 3.5.dp.toPx(), center = p2)
-                drawCircle(color = Color.White, radius = 1.8.dp.toPx(), center = p2)
+                    // Point Markers
+                    drawCircle(color = TempCool, radius = 3.5.dp.toPx(), center = p2)
+                    drawCircle(color = Color.White, radius = 1.8.dp.toPx(), center = p2)
 
-                drawCircle(color = TempOptimal, radius = 3.5.dp.toPx(), center = p4)
-                drawCircle(color = Color.White, radius = 1.8.dp.toPx(), center = p4)
+                    drawCircle(color = TempOptimal, radius = 3.5.dp.toPx(), center = p4)
+                    drawCircle(color = Color.White, radius = 1.8.dp.toPx(), center = p4)
+                }
+
+                // Subtle glowing indicator dot riding the tip of the curve
+                if (curveProgress.value > 0.01f) {
+                    val tip = sampleCircadianSpline(
+                        t = curveProgress.value,
+                        totalW = totalW,
+                        p0 = p0,
+                        p1 = p1,
+                        p2 = p2,
+                        p3 = p3,
+                        p4 = p4,
+                        c1_2_offset = 8.dp.toPx(),
+                        c3_2_offset = 6.dp.toPx()
+                    )
+                    drawCircle(
+                        color = TempEmeraldSoft.copy(alpha = 0.35f),
+                        radius = 5.dp.toPx(),
+                        center = tip
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 2.dp.toPx(),
+                        center = tip
+                    )
+                }
             }
 
             // X-Axis Sleep Time Labels
@@ -745,6 +803,71 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
     }
 }
 
+private fun sampleCircadianSpline(
+    t: Float,
+    totalW: Float,
+    p0: Offset,
+    p1: Offset,
+    p2: Offset,
+    p3: Offset,
+    p4: Offset,
+    c1_2_offset: Float,
+    c3_2_offset: Float
+): Offset {
+    val clamped = t.coerceIn(0f, 1f)
+    val s: Offset
+    val c1: Offset
+    val c2: Offset
+    val e: Offset
+    val u: Float
+
+    when {
+        clamped < 0.25f -> {
+            s = p0
+            c1 = Offset(totalW * 0.12f, p0.y)
+            c2 = Offset(totalW * 0.18f, p1.y)
+            e = p1
+            u = clamped / 0.25f
+        }
+        clamped < 0.50f -> {
+            s = p1
+            c1 = Offset(totalW * 0.35f, p1.y + c1_2_offset)
+            c2 = Offset(totalW * 0.42f, p2.y)
+            e = p2
+            u = (clamped - 0.25f) / 0.25f
+        }
+        clamped < 0.75f -> {
+            s = p2
+            c1 = Offset(totalW * 0.58f, p2.y)
+            c2 = Offset(totalW * 0.65f, p3.y)
+            e = p3
+            u = (clamped - 0.50f) / 0.25f
+        }
+        else -> {
+            s = p3
+            c1 = Offset(totalW * 0.85f, p3.y - c3_2_offset)
+            c2 = Offset(totalW * 0.92f, p4.y)
+            e = p4
+            u = (clamped - 0.75f) / 0.25f
+        }
+    }
+    val invU = 1f - u
+    val y = (invU * invU * invU * s.y) +
+            (3f * invU * invU * u * c1.y) +
+            (3f * invU * u * u * c2.y) +
+            (u * u * u * e.y)
+    return Offset(totalW * clamped, y)
+}
+
+private fun getThermalColor(progress: Float): Color {
+    val p = progress.coerceIn(0f, 1f)
+    return if (p <= 0.5f) {
+        lerp(TempCool, TempOptimal, p / 0.5f)
+    } else {
+        lerp(TempOptimal, TempWarmAlert, (p - 0.5f) / 0.5f)
+    }
+}
+
 @Composable
 private fun TempBandRow(
     label: String,
@@ -753,11 +876,27 @@ private fun TempBandRow(
     color: Color,
     isActive: Boolean
 ) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isActive) color.copy(alpha = 0.18f) else Color.Transparent,
+        animationSpec = tween(350),
+        label = "tempBandBg"
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (isActive) Color.White else Color(0xFFB0BEC5),
+        animationSpec = tween(350),
+        label = "tempBandLabel"
+    )
+    val rangeColor by animateColorAsState(
+        targetValue = if (isActive) color else Color(0xFF78909C),
+        animationSpec = tween(350),
+        label = "tempBandRange"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeChip)
-            .background(if (isActive) color.copy(alpha = 0.18f) else Color.Transparent)
+            .background(bgColor)
             .padding(horizontal = 8.dp, vertical = 5.dp)
     ) {
         Row(
@@ -778,7 +917,7 @@ private fun TempBandRow(
                 Spacer(modifier = Modifier.width(7.dp))
                 Text(
                     text = label,
-                    color = if (isActive) Color.White else Color(0xFFB0BEC5),
+                    color = labelColor,
                     fontSize = TextLabel,
                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
                     maxLines = 1,
@@ -787,7 +926,7 @@ private fun TempBandRow(
             }
             Text(
                 text = range,
-                color = if (isActive) color else Color(0xFF78909C),
+                color = rangeColor,
                 fontSize = TextLabel,
                 style = TabularNums,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
@@ -817,7 +956,7 @@ private fun TempDialGauge(
     // Map -1.0..+1.0°C to 0..1f (0.0°C baseline = 0.5f)
     val targetProgress = if (hasData) ((offset + 1.0f) / 2.0f).coerceIn(0.05f, 0.95f) else 0f
 
-    LaunchedEffect(targetProgress, hasData) {
+    LaunchedEffect(targetProgress) {
         animProgress.animateTo(
             targetValue = targetProgress,
             animationSpec = tween(
@@ -827,41 +966,65 @@ private fun TempDialGauge(
         )
     }
 
+    val strokeWidth = with(LocalDensity.current) { 7.5.dp.toPx() }
+    val dialStroke = remember(strokeWidth) {
+        Stroke(width = strokeWidth, cap = StrokeCap.Round)
+    }
+    val sweepBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                TempCool,
+                TempOptimal,
+                TempWarmAlert,
+                TempOptimal
+            )
+        )
+    }
+
     Canvas(modifier = modifier) {
-        val strokeWidth = 7.5.dp.toPx()
         val diameter = size.minDimension - strokeWidth
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
+        val activeGlowColor = getThermalColor(animProgress.value)
 
         // Background track (270 degrees from 135 to 405)
         drawArc(
-            color = Color(0x2210B981),
+            color = activeGlowColor.copy(alpha = 0.15f),
             startAngle = 135f,
             sweepAngle = 270f,
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = dialStroke
         )
 
         // Progress Arc
         if (hasData && animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        TempCool,
-                        TempOptimal,
-                        TempWarmAlert,
-                        TempOptimal
-                    )
-                ),
+                brush = sweepBrush,
                 startAngle = 135f,
                 sweepAngle = sweep,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = dialStroke
+            )
+
+            // Dynamic thermal color indicator dot riding the tip of the dial arc
+            val angleRad = Math.toRadians((135f + sweep).toDouble())
+            val radius = diameter / 2f
+            val cx = topLeft.x + radius + (radius * Math.cos(angleRad)).toFloat()
+            val cy = topLeft.y + radius + (radius * Math.sin(angleRad)).toFloat()
+            drawCircle(
+                color = activeGlowColor.copy(alpha = 0.45f),
+                radius = 5.dp.toPx(),
+                center = Offset(cx, cy)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 2.dp.toPx(),
+                center = Offset(cx, cy)
             )
         }
     }

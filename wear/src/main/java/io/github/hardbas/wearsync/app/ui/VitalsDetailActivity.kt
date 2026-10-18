@@ -32,6 +32,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -179,7 +183,12 @@ fun VitalsDetailContent(
 
     val currentHr = vitals.lastHeartRate
     val hasHr = currentHr > 0
-    val hrDisplay = if (hasHr) "$currentHr" else "--"
+    val animatedHr by animateIntAsState(
+        targetValue = if (hasHr) currentHr else 0,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "hrAnim"
+    )
+    val hrDisplay = if (hasHr) "$animatedHr" else "--"
     val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
     val minHr = if (hasMinMax) vitals.minHeartRate else (if (currentHr > 0) currentHr else 0)
     val maxHr = if (hasMinMax) vitals.maxHeartRate else (if (currentHr > 0) currentHr else 0)
@@ -482,7 +491,12 @@ fun VitalsDetailContent(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}" else "--"
+                        val animatedSpo2 by animateIntAsState(
+                            targetValue = if (vitals.lastSpo2 > 0) vitals.lastSpo2 else 0,
+                            animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                            label = "spo2Anim"
+                        )
+                        val spo2Val = if (vitals.lastSpo2 > 0) "$animatedSpo2" else "--"
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 text = spo2Val,
@@ -513,7 +527,12 @@ fun VitalsDetailContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val hrvVal = if (vitals.lastHrv > 0) "${vitals.lastHrv} ms" else "--"
+                    val animatedHrv by animateIntAsState(
+                        targetValue = if (vitals.lastHrv > 0) vitals.lastHrv else 0,
+                        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+                        label = "hrvAnim"
+                    )
+                    val hrvVal = if (vitals.lastHrv > 0) "$animatedHrv ms" else "--"
                     val batVal = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--"
 
                     Box(
@@ -614,17 +633,30 @@ fun VitalsDetailContent(
 }
 
 /**
- * Isolated pulsing heart icon with graphicsLayer scale animation.
+ * Isolated pulsing heart badge with graphicsLayer scale animation and physiological lub-dub pulse.
  */
 @Composable
-private fun PulsingHeartIcon(isMeasuring: Boolean) {
+private fun PulsingHeartBadge(isMeasuring: Boolean) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val cycleDurationMs = if (isMeasuring) 600 else 1000
     val infiniteTransition = rememberInfiniteTransition(label = "hr_pulse")
-    val pulseScale by infiniteTransition.animateFloat(
+    val pulseScale = infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = if (isMeasuring) 1.28f else 1.10f,
+        targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = if (isMeasuring) 400 else 750, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = keyframes {
+                durationMillis = cycleDurationMs
+                1.0f at 0
+                1.20f at (cycleDurationMs * 0.18f).toInt()
+                0.96f at (cycleDurationMs * 0.32f).toInt()
+                1.12f at (cycleDurationMs * 0.48f).toInt()
+                1.0f at (cycleDurationMs * 0.65f).toInt()
+                1.0f at cycleDurationMs
+            },
+            repeatMode = RepeatMode.Restart
         ),
         label = "pulseScale"
     )
@@ -633,8 +665,9 @@ private fun PulsingHeartIcon(isMeasuring: Boolean) {
         modifier = Modifier
             .size(32.dp)
             .graphicsLayer {
-                scaleX = pulseScale
-                scaleY = pulseScale
+                val scale = if (isResumed) pulseScale.value else 1.0f
+                scaleX = scale
+                scaleY = scale
             }
             .clip(CircleShape)
             .background(Color(0x33FF5D99)),
@@ -647,6 +680,9 @@ private fun PulsingHeartIcon(isMeasuring: Boolean) {
         )
     }
 }
+
+@Composable
+private fun PulsingHeartIcon(isMeasuring: Boolean) = PulsingHeartBadge(isMeasuring)
 
 /**
  * Min-Max progress bar animated via Canvas draw phase.
@@ -704,6 +740,7 @@ private fun ZoneRow(label: String, isActive: Boolean, activeColor: Color) {
 
 /**
  * 270-degree animated circular gauge for Heart Rate in One UI Watch style.
+ * Hoists Brush and Stroke outside Canvas to prevent per-frame allocations during animation.
  */
 @Composable
 private fun HeartDialGauge(
@@ -723,9 +760,24 @@ private fun HeartDialGauge(
         )
     }
 
+    val density = LocalDensity.current
+    val strokeWidthPx = remember(density) { with(density) { 7.5.dp.toPx() } }
+    val arcStroke = remember(strokeWidthPx) {
+        Stroke(width = strokeWidthPx, cap = StrokeCap.Round)
+    }
+    val gradientBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFFFF2D55),
+                Color(0xFFFF6482),
+                Color(0xFFFF9500),
+                Color(0xFFFF2D55)
+            )
+        )
+    }
+
     Canvas(modifier = modifier) {
-        val strokeWidth = 7.5.dp.toPx()
-        val diameter = size.minDimension - strokeWidth
+        val diameter = size.minDimension - strokeWidthPx
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
 
@@ -737,27 +789,20 @@ private fun HeartDialGauge(
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = arcStroke
         )
 
         // Progress Arc
         if (animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        Color(0xFFFF2D55),
-                        Color(0xFFFF6482),
-                        Color(0xFFFF9500),
-                        Color(0xFFFF2D55)
-                    )
-                ),
+                brush = gradientBrush,
                 startAngle = 135f,
                 sweepAngle = sweep,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = arcStroke
             )
         }
     }

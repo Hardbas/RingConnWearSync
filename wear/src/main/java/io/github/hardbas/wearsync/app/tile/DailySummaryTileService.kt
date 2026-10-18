@@ -121,9 +121,11 @@ class DailySummaryTileService : TileService() {
                         .build()
                 ).build()
 
-            val activityClickable = ModifiersBuilders.Clickable.Builder()
+            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
                 .setOnClick(activityAction)
                 .build()
+
+            val activityClickable = mainTileClickable
 
             // Click 2: Sleep Section -> SleepDetailActivity
             val sleepAction = ActionBuilders.LaunchAction.Builder()
@@ -152,7 +154,7 @@ class DailySummaryTileService : TileService() {
             val dynamicStepsSweep = DimensionBuilders.DegreesProp.Builder(targetStepsSweep)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey("daily_steps_arc_sweep"),
+                        AppDataKey<DynamicBuilders.DynamicFloat>("daily_steps_arc_sweep"),
                         sweepAnimSpec
                     )
                 )
@@ -387,9 +389,11 @@ class DailySummaryTileService : TileService() {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
+                        .setClickable(mainTileClickable)
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
                                 .build()
                         )
                         .build()

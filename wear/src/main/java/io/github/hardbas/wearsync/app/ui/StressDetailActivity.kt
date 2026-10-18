@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.ui
+package io.github.hardbas.wearsync.app.ui
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -6,13 +6,19 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -107,6 +113,12 @@ fun StressDetailContent(vitals: RingConnVitals) {
     }
 
     val score = vitals.stressScore.coerceIn(0, 100)
+    val animatedScore = animateIntAsState(
+        targetValue = if (score > 0) score else 0,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "heroStressCountUp"
+    )
+    val scoreDisplay = if (score > 0) "${animatedScore.value}" else "--"
     val statusLabel = when {
         score < 30 -> stringResource(R.string.stress_relaxed)
         score < 60 -> stringResource(R.string.stress_balanced)
@@ -189,7 +201,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = if (score > 0) "$score" else "--",
+                                text = scoreDisplay,
                                 fontSize = TextHero,
                                 style = TabularNums,
                                 color = Color.White,
@@ -395,6 +407,8 @@ private fun StressTimelineCard(score: Int) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // 24-Hour Timeline Bar Chart
+            val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f) }
+
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -405,7 +419,6 @@ private fun StressTimelineCard(score: Int) {
                 val barCount = 24
                 val barSlotWidth = totalW / barCount
                 val barWidth = barSlotWidth * 0.65f
-                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 0f)
 
                 // Horizontal threshold guides (30, 60, 80)
                 val y30 = totalH * (1f - 30f / 100f)
@@ -551,6 +564,24 @@ private fun StressTimelineCard(score: Int) {
 
 @Composable
 private fun AutonomicBalanceCard(hrv: Int, score: Int) {
+    val targetProgress = (score / 100f).coerceIn(0.05f, 0.95f)
+    val animProgress = remember { Animatable(targetProgress) }
+    LaunchedEffect(targetProgress) {
+        animProgress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+    }
+
+    val trackBrush = remember {
+        Brush.horizontalGradient(
+            listOf(StressRelaxed, StressBalanced, StressModerate, StressHigh)
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -588,9 +619,6 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                 val totalW = size.width
                 val h = size.height
 
-                val trackBrush = Brush.horizontalGradient(
-                    listOf(StressRelaxed, StressBalanced, StressModerate, StressHigh)
-                )
                 drawRoundRect(
                     brush = trackBrush,
                     topLeft = Offset(0f, 0f),
@@ -599,8 +627,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
                     alpha = 0.5f
                 )
 
-                val normPos = (score / 100f).coerceIn(0.05f, 0.95f)
-                val markerX = normPos * totalW
+                val markerX = animProgress.value * totalW
                 drawCircle(
                     color = Color.White,
                     radius = 5.5.dp.toPx(),
@@ -665,11 +692,27 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int) {
 
 @Composable
 private fun StressZoneRow(label: String, range: String, color: Color, isActive: Boolean) {
+    val bgColor by animateColorAsState(
+        targetValue = if (isActive) color.copy(alpha = 0.18f) else Color.Transparent,
+        animationSpec = tween(350),
+        label = "stressZoneBg"
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (isActive) Color.White else Color(0xFFB0BEC5),
+        animationSpec = tween(350),
+        label = "stressZoneLabel"
+    )
+    val rangeColor by animateColorAsState(
+        targetValue = if (isActive) color else Color(0xFF78909C),
+        animationSpec = tween(350),
+        label = "stressZoneRange"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeChip)
-            .background(if (isActive) color.copy(alpha = 0.18f) else Color.Transparent)
+            .background(bgColor)
             .padding(horizontal = 8.dp, vertical = 5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -684,14 +727,14 @@ private fun StressZoneRow(label: String, range: String, color: Color, isActive: 
             Spacer(modifier = Modifier.width(7.dp))
             Text(
                 text = label,
-                color = if (isActive) Color.White else Color(0xFFB0BEC5),
+                color = labelColor,
                 fontSize = TextLabel,
                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
             )
         }
         Text(
             text = range,
-            color = if (isActive) color else Color(0xFF78909C),
+            color = rangeColor,
             fontSize = TextLabel,
             style = TabularNums,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
@@ -713,15 +756,30 @@ private fun StressDialGauge(
     LaunchedEffect(targetProgress) {
         animProgress.animateTo(
             targetValue = targetProgress,
-            animationSpec = tween(
-                durationMillis = 650,
-                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+    }
+
+    val strokeWidth = with(LocalDensity.current) { 7.5.dp.toPx() }
+    val dialStroke = remember(strokeWidth) {
+        Stroke(width = strokeWidth, cap = StrokeCap.Round)
+    }
+    val sweepBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                StressRelaxed,
+                StressBalanced,
+                StressModerate,
+                StressHigh,
+                StressRelaxed
             )
         )
     }
 
     Canvas(modifier = modifier) {
-        val strokeWidth = 7.5.dp.toPx()
         val diameter = size.minDimension - strokeWidth
         val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
         val arcSize = Size(diameter, diameter)
@@ -734,28 +792,20 @@ private fun StressDialGauge(
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
-            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            style = dialStroke
         )
 
         // Progress Arc
         if (animProgress.value > 0f) {
             val sweep = 270f * animProgress.value
             drawArc(
-                brush = Brush.sweepGradient(
-                    listOf(
-                        StressRelaxed,
-                        StressBalanced,
-                        StressModerate,
-                        StressHigh,
-                        StressRelaxed
-                    )
-                ),
+                brush = sweepBrush,
                 startAngle = 135f,
                 sweepAngle = sweep,
                 useCenter = false,
                 topLeft = topLeft,
                 size = arcSize,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                style = dialStroke
             )
         }
     }
