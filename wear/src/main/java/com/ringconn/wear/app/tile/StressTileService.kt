@@ -30,9 +30,14 @@ import com.ringconn.wear.app.data.RingConnVitals
 import com.ringconn.wear.app.ui.StressDetailActivity
 
 /**
- * Dedicated One UI Watch 8 Stress Tile for Samsung Galaxy Watch 8.
- * Renders an atmospheric HUD tachometer gauge layout with side-by-side
- * hero score, live VFC telemetry, and hot-to-cold alarm dial indicator.
+ * Dedicated Circular Bezel Arc Stress Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Features:
+ * - 260° sweeping perimeter bezel arc gauge mapped to physiological stress zones
+ * - 38sp Hero digits with tabular numerals
+ * - Color-coded stress status pill (Relaxed, Balanced, Moderate, High)
+ * - Autonomic HRV tone indicator (ms)
+ * - Ergonomic frosted glass action button ("Respirar" / "Detalles")
+ * - 100% full-bleed circular layout with zero wasted borders
  */
 class StressTileService : TileService() {
 
@@ -51,68 +56,18 @@ class StressTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-stress-v10"
-        private const val RES_BG_STRESS_CAPSULE = "oneui_bg_stress_capsule"
+        const val RESOURCES_VERSION = "oneui8-stress-circular-v1"
         private const val RES_IC_STRESS = "ic_comp_stress"
-        private const val RES_GAUGE_RELAXED = "oneui_ic_gauge_relaxed"
-        private const val RES_GAUGE_BALANCED = "oneui_ic_gauge_balanced"
-        private const val RES_GAUGE_MODERATE = "oneui_ic_gauge_moderate"
-        private const val RES_GAUGE_HIGH = "oneui_ic_gauge_high"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_BG_STRESS_CAPSULE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_stress_capsule)
-                                .build()
-                        ).build()
-                )
                 .addIdToImageMapping(
                     RES_IC_STRESS,
                     ResourceBuilders.ImageResource.Builder()
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.ic_comp_stress)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_GAUGE_RELAXED,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_ic_gauge_relaxed)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_GAUGE_BALANCED,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_ic_gauge_balanced)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_GAUGE_MODERATE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_ic_gauge_moderate)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_GAUGE_HIGH,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_ic_gauge_high)
                                 .build()
                         ).build()
                 )
@@ -135,24 +90,10 @@ class StressTileService : TileService() {
             }
 
             val statusColorInt = when {
-                score < 30 -> 0xFF00E676.toInt() // Emerald Green
-                score < 60 -> 0xFF00E5FF.toInt() // Sky Cyan
-                score < 80 -> 0xFFFFD600.toInt() // Sunny Amber
-                else -> 0xFFFF3D00.toInt()       // Coral Red
-            }
-
-            val statusBgInt = when {
-                score < 30 -> 0x3300E676.toInt()
-                score < 60 -> 0x3300E5FF.toInt()
-                score < 80 -> 0x33FFD600.toInt()
-                else -> 0x33FF3D00.toInt()
-            }
-
-            val gaugeResId = when {
-                score < 30 -> RES_GAUGE_RELAXED
-                score < 60 -> RES_GAUGE_BALANCED
-                score < 80 -> RES_GAUGE_MODERATE
-                else -> RES_GAUGE_HIGH
+                score < 30 -> 0xFF38E1FF.toInt() // Calm Cyan (<30)
+                score < 60 -> 0xFF34D399.toInt() // Balanced Emerald (<60)
+                score < 80 -> 0xFFFBBF24.toInt() // Moderate Amber (<80)
+                else -> 0xFFF87171.toInt()       // High Coral (>=80)
             }
 
             val hrvSubtitle = if (vitals.lastHrv > 0) {
@@ -161,13 +102,11 @@ class StressTileService : TileService() {
                 context.getString(R.string.stress_resting)
             }
 
-            val sleepLabelColor = 0xFFE9D5FF.toInt()      // Soft Pastel Lilac
-            val cyanAccentColor = 0xFF5EEAD4.toInt()      // Electric Aquamarine Mint
-
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val lavenderColor = argb(sleepLabelColor)
             val statusColor = argb(statusColorInt)
-            val translucentGlassBlack = argb(0x66000000.toInt())
+            val subtitleColor = argb(0xFFCBD5E1.toInt())        // Slate 300
+            val frostedGlassPill = argb(0x26FFFFFF.toInt())     // 15% Frosted glass
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
 
             val clickAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
@@ -177,233 +116,172 @@ class StressTileService : TileService() {
                         .build()
                 ).build()
 
-            val mainCapsuleClickable = ModifiersBuilders.Clickable.Builder()
+            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
                 .setOnClick(clickAction)
                 .setId("open_stress_detail")
                 .build()
 
-            // 1. One UI Watch 8 Enlarged Stadium Capsule Background (206dp x 146dp)
-            val bgImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_STRESS_CAPSULE)
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
+            // Dynamic Sweeping Bezel Arc Gauge (260° total span, 140° to 40°)
+            val totalArcSpanDegrees = 260f
+            val arcStartAngle = 140f
+
+            val targetSweepDegrees = if (score > 0) {
+                val fraction = score / 100f
+                (fraction * totalArcSpanDegrees).coerceIn(14f, totalArcSpanDegrees)
+            } else {
+                14f
+            }
+
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .build()
+                )
                 .build()
 
-            // 2. Top Header Row: Title on Left, Status Pill on Right (width 152dp)
+            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey("stress_arc_sweep"),
+                        sweepAnimSpec
+                    )
+                )
+                .build()
+
+            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
+                .build()
+
+            // 1. Outer Bezel Track (Static subtle track)
+            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
+                .setThickness(dp(7f))
+                .setColor(bezelTrackColor)
+                .build()
+
+            val bgArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(bgTrackArcLine)
+                .build()
+
+            // 2. Active Stress Bezel Arc (Animated dynamic sweep)
+            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(dynamicSweep)
+                .setLayoutConstraintsForDynamicLength(angularConstraint)
+                .setThickness(dp(7f))
+                .setColor(statusColor)
+                .build()
+
+            val activeArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(activeArcLine)
+                .build()
+
+            // 3. Title: "Estrés" (12.5sp bold white)
             val titleText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.stress_title))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(lavenderColor)
-                        .build()
-                )
-                .build()
-
-            val stressPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(800L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
-                        .build()
-                )
-                .build()
-
-            val dynamicStatusColor = DynamicBuilders.DynamicColor.animate(
-                statusColorInt,
-                0x60FFFFFF.toInt(),
-                stressPulseAnimSpec
-            )
-
-            val dynamicStatusTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(statusColorInt)
-                .setDynamicValue(dynamicStatusColor)
-                .build()
-
-            val statusChipText = LayoutElementBuilders.Text.Builder()
-                .setText(statusText)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(dynamicStatusTint)
-                        .build()
-                )
-                .build()
-
-            val statusChipBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(wrap())
-                .setHeight(dp(18f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(argb(statusBgInt))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(9f)).build())
-                                .build()
-                        )
-                        .setPadding(
-                            ModifiersBuilders.Padding.Builder()
-                                .setStart(dp(8f))
-                                .setEnd(dp(8f))
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(statusChipText)
-                .build()
-
-            val topHeaderRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(132f))
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(10f)).setHeight(dp(1f)).build())
-                .addContent(statusChipBox)
-                .build()
-
-            // 3. Center Hero Row: Score & VFC on Left, Semicircle Tachometer on Right (width 156dp)
-            val scoreNumberText = LayoutElementBuilders.Text.Builder()
-                .setText(scoreStr)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.HERO))
+                        .setSize(sp(12.5f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            val scoreUnitText = LayoutElementBuilders.Text.Builder()
-                .setText("/100")
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(argb(0xFFD8B4FE.toInt()))
-                        .build()
-                )
-                .build()
-
-            val scoreNumbersRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_BOTTOM)
-                .addContent(scoreNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
-                .addContent(scoreUnitText)
-                .build()
-
-            val hrvText = LayoutElementBuilders.Text.Builder()
+            // 4. Subtitle: HRV indicator
+            val subtitleText = LayoutElementBuilders.Text.Builder()
                 .setText(hrvSubtitle)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(argb(cyanAccentColor))
+                        .setSize(sp(10.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
+                        .setColor(subtitleColor)
                         .build()
                 )
                 .build()
 
-            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(600L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+            // 5. Hero Row: Stress Icon + 38sp Bold Score
+            val stressIcon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_STRESS)
+                .setWidth(dp(20f))
+                .setHeight(dp(20f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(statusColor)
                         .build()
                 )
                 .build()
 
-            // Dynamic mini progress bar for Stress (0 to 100 mapped across 76dp track)
-            val maxStressBarWidth = 76f
-            val targetStressBarWidth = if (score > 0) {
-                ((score / 100f) * maxStressBarWidth).coerceIn(4f, maxStressBarWidth)
-            } else {
-                4f
-            }
-            val dynamicStressBarWidth = DimensionBuilders.DpProp.Builder(targetStressBarWidth)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("stress_bar_width"), sweepAnimSpec))
+            val scoreText = LayoutElementBuilders.Text.Builder()
+                .setText(scoreStr)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(38f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
+                        .build()
+                )
                 .build()
 
-            val stressMiniProgressBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(maxStressBarWidth))
-                .setHeight(dp(3.5f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
+            val heroRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(stressIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
+                .addContent(scoreText)
+                .build()
+
+            // 6. Zone Badge Pill ("Relajado", "Equilibrado", etc.)
+            val statusPillText = LayoutElementBuilders.Text.Builder()
+                .setText(statusText)
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(statusColor)
+                        .build()
+                )
+                .build()
+
+            val statusBadgeBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(wrap())
+                .setHeight(dp(22f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x2EFFFFFF.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
+                                .setColor(argb(0x22FFFFFF.toInt()))
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .build()
+                        )
+                        .setPadding(
+                            ModifiersBuilders.Padding.Builder()
+                                .setStart(dp(10f))
+                                .setEnd(dp(10f))
                                 .build()
                         )
                         .build()
                 )
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicStressBarWidth)
-                        .setHeight(dp(3.5f))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(statusColor)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .build()
-                )
+                .addContent(statusPillText)
                 .build()
 
-            val leftHeroColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(88f))
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .addContent(scoreNumbersRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
-                .addContent(stressMiniProgressBar)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
-                .addContent(hrvText)
-                .build()
-
-            val gaugeImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(gaugeResId)
-                .setWidth(dp(62f))
-                .setHeight(dp(46.5f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FIT)
-                .build()
-
-            val centerHeroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(156f))
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(leftHeroColumn)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
-                .addContent(gaugeImage)
-                .build()
-
-            // 4. Action Pill Button (94dp x 24dp, translucent glass)
+            // 7. Ergonomic Frosted Glass Action Button ("Respirar" / "Detalles")
             val actionButtonText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.details))
+                .setText(context.getString(R.string.breathe))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -411,17 +289,17 @@ class StressTileService : TileService() {
                 .build()
 
             val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(94f))
-                .setHeight(dp(24f))
+                .setWidth(dp(96f))
+                .setHeight(dp(28f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainCapsuleClickable)
+                        .setClickable(mainTileClickable)
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(12f)).build())
+                                .setColor(frostedGlassPill)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
                                 .build()
                         )
                         .build()
@@ -429,27 +307,31 @@ class StressTileService : TileService() {
                 .addContent(actionButtonText)
                 .build()
 
-            // 5. Assemble inside the 206dp x 146dp Stadium Capsule
-            val capsuleContentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
+            // Center Column Content
+            val contentColumn = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(12f)).setWidth(dp(1f)).build())
-                .addContent(topHeaderRow)
+                .addContent(titleText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
+                .addContent(subtitleText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
+                .addContent(heroRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
-                .addContent(centerHeroRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
+                .addContent(statusBadgeBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
-            val stadiumCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(206f))
-                .setHeight(dp(146f))
+            // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content
+            val rootBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(expand())
+                .setHeight(expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainCapsuleClickable)
+                        .setClickable(mainTileClickable)
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
@@ -457,22 +339,13 @@ class StressTileService : TileService() {
                         )
                         .build()
                 )
-                .addContent(bgImage)
-                .addContent(capsuleContentColumn)
+                .addContent(bgArc)
+                .addContent(activeArc)
+                .addContent(contentColumn)
                 .build()
-
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(stadiumCapsuleBox)
-                .build()
-
-            val layout = LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build()
 
             val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(layout)
+                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build())
                 .build()
 
             val timeline = TimelineBuilders.Timeline.Builder()
@@ -480,7 +353,7 @@ class StressTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("stress_bar_width"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStressBarWidth))
+                .addKeyToValueMapping(AppDataKey("stress_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
                 .build()
 
             return TileBuilders.Tile.Builder()

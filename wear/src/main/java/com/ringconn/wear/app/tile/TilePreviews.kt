@@ -5,7 +5,7 @@ import androidx.wear.tiles.tooling.preview.Preview
 import androidx.wear.tiles.tooling.preview.TilePreviewData
 import com.ringconn.wear.app.data.RingConnVitals
 
-@Preview(name = "One UI Watch 8 - Heart Rate & Vitals")
+@Preview(name = "Circular Bezel - Heart Rate & Vitals")
 fun vitalsTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         lastHeartRate = 74,
@@ -25,7 +25,7 @@ fun vitalsTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "One UI Watch 8 - Daily Activity & Sleep")
+@Preview(name = "Circular Bezel - Daily Activity & Sleep")
 fun dailySummaryTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         lastHeartRate = 74,
@@ -45,7 +45,7 @@ fun dailySummaryTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "One UI Watch 8 - Solitary Heart Rate")
+@Preview(name = "Circular Bezel - Solitary Heart Rate")
 fun heartRateTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         lastHeartRate = 74,
@@ -65,7 +65,7 @@ fun heartRateTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "One UI Watch 8 - Stress")
+@Preview(name = "Circular Bezel - Stress")
 fun stressTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         stressScore = 26,
@@ -79,7 +79,7 @@ fun stressTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "One UI Watch 8 - Skin Temperature")
+@Preview(name = "Circular Bezel - Skin Temperature")
 fun temperatureTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         skinTempOffset = 0.2f,
@@ -92,4 +92,3 @@ fun temperatureTilePreview(context: Context): TilePreviewData {
         }
     )
 }
-

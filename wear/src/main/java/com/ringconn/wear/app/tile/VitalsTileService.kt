@@ -27,7 +27,19 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
+import java.text.DateFormat
+import java.util.Date
+import java.util.Locale
 
+/**
+ * Dedicated Circular Bezel Arc Vitals Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Features:
+ * - 260° sweeping perimeter Gold Titanium bezel arc tracking ring health/battery telemetry
+ * - 36sp Hero Heart Rate typography with tabular numerals
+ * - Frosted glass Multi-metric Pod showcasing SpO2 and Ring Battery
+ * - Ergonomic frosted glass action button ("Sincronizar")
+ * - 100% full-bleed circular layout with zero wasted borders
+ */
 class VitalsTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -45,38 +57,18 @@ class VitalsTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-vitals-v8"
-        private const val RES_BG_VITALS_CAPSULE = "oneui_bg_vitals_capsule"
+        const val RESOURCES_VERSION = "oneui8-vitals-circular-v1"
         private const val RES_IC_HR = "oneui_hr_icon"
-        private const val RES_HR_DOT = "oneui_hr_dot"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_BG_VITALS_CAPSULE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_vitals_capsule)
-                                .build()
-                        ).build()
-                )
                 .addIdToImageMapping(
                     RES_IC_HR,
                     ResourceBuilders.ImageResource.Builder()
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.oneui_hr_icon)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_HR_DOT,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_hr_dot)
                                 .build()
                         ).build()
                 )
@@ -95,11 +87,15 @@ class VitalsTileService : TileService() {
 
             // Gold Titanium Palette for Vitals
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val vitalsGoldColor = argb(0xFFEDCB8B.toInt())        // vitals gold titanium accent
-            val translucentGlassBlack = argb(0x80000000.toInt())  // #80000000 (50% black glassmorphism)
+            val vitalsGoldColor = argb(0xFFEDCB8B.toInt())        // Gold titanium accent
+            val spo2CyanColor = argb(0xFF38E1FF.toInt())          // Clinical SpO2 cyan
+            val subtitleColor = argb(0xFFCBD5E1.toInt())          // Slate 300
+            val frostedPodBg = argb(0x2BFFFFFF.toInt())           // 17% frosted glass
+            val frostedGlassPill = argb(0x26FFFFFF.toInt())       // 15% Frosted glass
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())        // Dark frosted bezel track
 
-            // Click 1: Main Stadium Capsule -> VitalsDetailActivity
-            val mainCapsuleAction = ActionBuilders.LaunchAction.Builder()
+            // Click 1: Main Tile Tap -> VitalsDetailActivity
+            val mainTileAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
                         .setPackageName(context.packageName)
@@ -107,11 +103,11 @@ class VitalsTileService : TileService() {
                         .build()
                 ).build()
 
-            val mainCapsuleClickable = ModifiersBuilders.Clickable.Builder()
-                .setOnClick(mainCapsuleAction)
+            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
+                .setOnClick(mainTileAction)
                 .build()
 
-            // Click 2: "Medir Ahora" Pill Button -> HeartRateMeasureActivity alias (instant measurement)
+            // Click 2: "Sincronizar" Button -> HeartRateMeasureActivity
             val measurePillAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
@@ -124,51 +120,63 @@ class VitalsTileService : TileService() {
                 .setOnClick(measurePillAction)
                 .build()
 
-            // 1. One UI Watch 8 Full-Tile Stadium Capsule Background (195dp x 142dp, radius 71dp)
-            val bgImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_VITALS_CAPSULE)
-                .setWidth(dp(195f))
-                .setHeight(dp(142f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
-                .build()
+            // Dynamic Sweeping Gold Titanium Bezel Arc (260° total span, 140° to 40°)
+            val totalArcSpanDegrees = 260f
+            val arcStartAngle = 140f
 
-            // 2. Title Text (14sp SemiBold White, top margin 10.25dp in ra7.java)
-            val titleText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.heart_rate))
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
+            // Fraction mapped to battery or vitals health (default battery percentage 0..100)
+            val ringBatteryPct = if (vitals.ringBattery > 0) vitals.ringBattery else 80
+            val targetSweepDegrees = (ringBatteryPct.toFloat() / 100f * totalArcSpanDegrees).coerceIn(16f, totalArcSpanDegrees)
+
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
                         .build()
                 )
                 .build()
 
-            // 3. Subtitle / Ring Telemetry Row with physiological stage (Resting / Reposo at 76 bpm)
-            val hrStage = when {
-                hrInt <= 0 -> ""
-                hrInt < 100 -> context.getString(R.string.status_resting)
-                hrInt in 100..120 -> context.getString(R.string.zone_warmup)
-                hrInt in 121..140 -> context.getString(R.string.zone_fat_burn)
-                hrInt in 141..160 -> context.getString(R.string.zone_cardio)
-                else -> context.getString(R.string.zone_peak)
-            }
-            val subtitleStr = if (hrStage.isNotEmpty()) "$hrStage  ·  SpO2 $spo2Value" else "SpO2 $spo2Value  ·  Ring $batteryValue"
-
-            val subtitleText = LayoutElementBuilders.Text.Builder()
-                .setText(subtitleStr)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
-                        .setColor(vitalsGoldColor)
-                        .build()
+            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey("vitals_arc_sweep"),
+                        sweepAnimSpec
+                    )
                 )
                 .build()
 
-            // Continuous heartbeat pulse animation (650ms reverse loop, reverse-engineered from shealth cg7.java:482)
+            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
+                .build()
+
+            // 1. Outer Bezel Track (Static subtle track)
+            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
+                .setThickness(dp(7f))
+                .setColor(bezelTrackColor)
+                .build()
+
+            val bgArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(bgTrackArcLine)
+                .build()
+
+            // 2. Active Gold Titanium Bezel Arc (Animated dynamic sweep)
+            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(dynamicSweep)
+                .setLayoutConstraintsForDynamicLength(angularConstraint)
+                .setThickness(dp(7f))
+                .setColor(vitalsGoldColor)
+                .build()
+
+            val activeArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(activeArcLine)
+                .build()
+
+            // 3. Heartbeat Pulse Animation
             val heartbeatPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
@@ -184,20 +192,52 @@ class VitalsTileService : TileService() {
                 .build()
 
             val dynamicHeartColor = DynamicBuilders.DynamicColor.animate(
-                0xFFFF5D99.toInt(),
-                0xFF8A1E4A.toInt(),
+                0xFFEDCB8B.toInt(),
+                0xFF8A6E30.toInt(),
                 heartbeatPulseAnimSpec
             )
 
-            val dynamicHeartTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFF5D99.toInt())
+            val dynamicHeartTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFEDCB8B.toInt())
                 .setDynamicValue(dynamicHeartColor)
                 .build()
 
-            // 4. Hero Heart Rate Row (cg7.c: Icon + 25sp Bold HR + 12.3sp BPM unit)
+            // 4. Title Text: "RingConn Vitals" (12.5sp bold white)
+            val titleText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.tile_vitals_title))
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(12.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
+                        .build()
+                )
+                .build()
+
+            // Subtitle: Timestamp or Ring Model
+            val subtitleTextStr = if (vitals.refreshTimestamp > 0L) {
+                DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault()).format(Date(vitals.refreshTimestamp * 1000L))
+            } else {
+                context.getString(R.string.just_now)
+            }
+
+            val subtitleText = LayoutElementBuilders.Text.Builder()
+                .setText(subtitleTextStr)
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(10.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
+                        .setColor(vitalsGoldColor)
+                        .build()
+                )
+                .build()
+
+            // 5. Hero HR Row: Heart icon + 36sp Bold Number + "ppm"
             val hrIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_HR)
-                .setWidth(dp(16f))
-                .setHeight(dp(16f))
+                .setWidth(dp(18f))
+                .setHeight(dp(18f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
                         .setTint(dynamicHeartTint)
@@ -210,7 +250,7 @@ class VitalsTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.HERO))
+                        .setSize(sp(36f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -222,7 +262,7 @@ class VitalsTileService : TileService() {
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
+                        .setSize(sp(13f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(vitalsGoldColor)
                         .build()
@@ -234,162 +274,79 @@ class VitalsTileService : TileService() {
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(hrIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
                 .addContent(hrNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
                 .addContent(bpmUnitText)
                 .build()
 
-            // =========================================================================
-            // 5. One UI Watch 8 ProtoLayout 1.2 Dynamic Animated Min-Max Range Bar (ra7.java / xf7.java)
-            // =========================================================================
-            val barWidthDp = 133f
-            val barHeightDp = 12f
-            val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
-            val minHr = if (hasMinMax) vitals.minHeartRate else (if (vitals.lastHeartRate > 0) vitals.lastHeartRate else 0)
-            val maxHr = if (hasMinMax) vitals.maxHeartRate else (if (vitals.lastHeartRate > 0) vitals.lastHeartRate else 0)
-            val scale = barWidthDp / 110f // 40..150 bpm span
-            val rangeStartDp = if (minHr > 0) ((minHr - 40) * scale).coerceIn(0f, 80f) else 0f
-            val rangeLengthDp = if (maxHr > minHr) ((maxHr - minHr) * scale).coerceIn(4f, barWidthDp - rangeStartDp) else (if (minHr > 0) 10f else 0f)
-            val dotHr = if (vitals.lastHeartRate > 0) vitals.lastHeartRate else minHr
-            val dotPosDp = if (dotHr > 0) (((dotHr.coerceIn(40, 150) - 40) * scale) - 4.1f).coerceIn(0f, barWidthDp - 8f) else 0f
-
-            // One UI Watch 8 Animation Parameters (600L ms sweep with CubicBezierEasing 0.22, 0.25, 0.0, 1.0)
-            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(600L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+            // 6. Frosted Multi-Metric Pod (SpO2 & Ring Battery)
+            val spo2LabelText = LayoutElementBuilders.Text.Builder()
+                .setText("SpO2 $spo2Value")
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(12f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(spo2CyanColor)
                         .build()
                 )
                 .build()
 
-            // Continuous pulse animation for indicator dot (800ms reverse loop, reverse-engineered from shealth cg7.java:482)
-            val pulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(800L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+            val dotDividerText = LayoutElementBuilders.Text.Builder()
+                .setText("  ·  ")
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(12f))
+                        .setColor(subtitleColor)
                         .build()
                 )
                 .build()
 
-            // Dynamic Animated Offset & Widths bound to AppDataKey state
-            val dynamicRangeStart = DimensionBuilders.DpProp.Builder(rangeStartDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_range_start"), sweepAnimSpec))
+            val batteryLabelText = LayoutElementBuilders.Text.Builder()
+                .setText("Anillo $batteryValue")
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(12f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(vitalsGoldColor)
+                        .build()
+                )
                 .build()
 
-            val dynamicRangeLength = DimensionBuilders.DpProp.Builder(rangeLengthDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_range_length"), sweepAnimSpec))
+            val podInnerRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(spo2LabelText)
+                .addContent(dotDividerText)
+                .addContent(batteryLabelText)
                 .build()
 
-            val dynamicDotPos = DimensionBuilders.DpProp.Builder(dotPosDp)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("vitals_dot_pos"), sweepAnimSpec))
-                .build()
-
-            val dynamicDotSize = DimensionBuilders.DpProp.Builder(8.2f)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(6.5f, 9.5f, pulseAnimSpec))
-                .build()
-
-            val barTrackBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
+            val vitalsPodBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(168f))
+                .setHeight(dp(36f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(6.15f)).build())
+                                .setColor(frostedPodBg)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(18f)).build())
                                 .build()
                         )
                         .build()
                 )
+                .addContent(podInnerRow)
                 .build()
 
-            val activeRangeRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicRangeStart)
-                        .setHeight(dp(barHeightDp))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicRangeLength)
-                        .setHeight(dp(barHeightDp))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(vitalsGoldColor)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(6.15f)).build())
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-
-            val dynamicDotColor = DynamicBuilders.DynamicColor.animate(
-                0xFFFFFFFF.toInt(),
-                0x33FFFFFF.toInt(),
-                heartbeatPulseAnimSpec
-            )
-
-            val dynamicDotTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
-                .setDynamicValue(dynamicDotColor)
-                .build()
-
-            val dotIndicatorRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicDotPos)
-                        .setHeight(dp(barHeightDp))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Image.Builder()
-                        .setResourceId(RES_HR_DOT)
-                        .setWidth(dp(7.5f))
-                        .setHeight(dp(7.5f))
-                        .setColorFilter(
-                            LayoutElementBuilders.ColorFilter.Builder()
-                                .setTint(dynamicDotTint)
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-
-            val minMaxChartBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(barWidthDp))
-                .setHeight(dp(barHeightDp))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(barTrackBox)
-                .addContent(activeRangeRow)
-                .addContent(dotIndicatorRow)
-                .build()
-
-            // 6. Glassmorphic "Medir Ahora" Pill Button (cg7.e: 92.27dp x 26.66dp, radius 18.45dp, #80000000)
+            // 7. Ergonomic Frosted Glass Action Button ("Sincronizar")
             val measureButtonText = LayoutElementBuilders.Text.Builder()
                 .setText(context.getString(R.string.measure_now))
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -397,8 +354,8 @@ class VitalsTileService : TileService() {
                 .build()
 
             val measurePillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(92.3f))
-                .setHeight(dp(26.7f))
+                .setWidth(dp(96f))
+                .setHeight(dp(28f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
@@ -406,8 +363,8 @@ class VitalsTileService : TileService() {
                         .setClickable(measurePillClickable)
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(translucentGlassBlack)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(18.45f)).build())
+                                .setColor(frostedGlassPill)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
                                 .build()
                         )
                         .build()
@@ -415,31 +372,31 @@ class VitalsTileService : TileService() {
                 .addContent(measureButtonText)
                 .build()
 
-            // Assemble inside the 195dp x 142dp One UI Watch 8 Stadium Capsule
-            val capsuleContentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(dp(195f))
-                .setHeight(dp(142f))
+            // Center Column Content
+            val centerContentColumn = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).build())
                 .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(subtitleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
                 .addContent(heroHrRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).build())
-                .addContent(minMaxChartBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
+                .addContent(vitalsPodBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(8f)).setWidth(dp(1f)).build())
                 .addContent(measurePillBox)
                 .build()
 
-            val stadiumCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(195f))
-                .setHeight(dp(142f))
+            // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content
+            val rootBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(expand())
+                .setHeight(expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainCapsuleClickable)
+                        .setClickable(mainTileClickable)
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
@@ -447,16 +404,9 @@ class VitalsTileService : TileService() {
                         )
                         .build()
                 )
-                .addContent(bgImage)
-                .addContent(capsuleContentColumn)
-                .build()
-
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(stadiumCapsuleBox)
+                .addContent(bgArc)
+                .addContent(activeArc)
+                .addContent(centerContentColumn)
                 .build()
 
             val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
@@ -468,9 +418,7 @@ class VitalsTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("vitals_range_start"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeStartDp))
-                .addKeyToValueMapping(AppDataKey("vitals_range_length"), DynamicDataBuilders.DynamicDataValue.fromFloat(rangeLengthDp))
-                .addKeyToValueMapping(AppDataKey("vitals_dot_pos"), DynamicDataBuilders.DynamicDataValue.fromFloat(dotPosDp))
+                .addKeyToValueMapping(AppDataKey("vitals_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees))
                 .build()
 
             return TileBuilders.Tile.Builder()

@@ -30,6 +30,15 @@ import com.ringconn.wear.app.data.RingConnVitals
 import java.text.NumberFormat
 import java.util.Locale
 
+/**
+ * Dedicated Circular Bezel Arc Daily Summary Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Features:
+ * - 260° sweeping perimeter Neon Lime bezel arc tracking daily step progress towards goal
+ * - 34sp Hero step counter typography with tabular numerals
+ * - Glanceable Active Time (Cyan) and Active Calories (Violet) chips
+ * - Ergonomic frosted glass Sleep Pod with sleep score and SpO2 metrics
+ * - 100% full-bleed circular layout with dual contextual tap targets
+ */
 class DailySummaryTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -47,33 +56,13 @@ class DailySummaryTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-summary-v5"
-        private const val RES_BG_ACTIVITY_CAPSULE = "oneui_bg_activity_capsule"
-        private const val RES_BG_SLEEP_CAPSULE = "oneui_bg_sleep_capsule"
+        const val RESOURCES_VERSION = "oneui8-summary-circular-v1"
         private const val RES_IC_ACTIVITY_RINGS = "oneui_ic_activity_rings"
         private const val RES_IC_SLEEP = "oneui_sleep_icon"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
                 .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_BG_ACTIVITY_CAPSULE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_activity_capsule)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_BG_SLEEP_CAPSULE,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.oneui_bg_sleep_capsule)
-                                .build()
-                        ).build()
-                )
                 .addIdToImageMapping(
                     RES_IC_ACTIVITY_RINGS,
                     ResourceBuilders.ImageResource.Builder()
@@ -100,36 +89,35 @@ class DailySummaryTileService : TileService() {
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
         ): TileBuilders.Tile {
-            // Exact Samsung Health One UI Watch 8 Colors (from aapt2 dump & watch_oneui_active.png)
-            val limeStepsColor = argb(0xFFA0F116.toInt())       // daily_activity_steps_text_color
-            val cyanTimeColor = argb(0xFF47CDFF.toInt())        // daily_activity_active_time_color
-            val violetCalorieColor = argb(0xFFC580FF.toInt())   // daily_activity_active_calories_color
-            val pipeDividerColor = argb(0xFF686D73.toInt())     // subtle pipe divider
-            val labelSilverColor = argb(0xFFB7B7BB.toInt())     // daily_activity_effect_on_today_string_text_color
-            val sleepLabelColor = argb(0xFFA5AEDE.toInt())      // vitals_half_tile_subtitle_no_data_color
+            val limeStepsColor = argb(0xFFA0F116.toInt())       // Neon Lime steps accent
+            val cyanTimeColor = argb(0xFF47CDFF.toInt())        // Active time cyan
+            val violetCalorieColor = argb(0xFFC580FF.toInt())   // Active calories violet
+            val pipeDividerColor = argb(0xFF686D73.toInt())     // Subtle pipe divider
+            val labelSilverColor = argb(0xFFB7B7BB.toInt())     // Silver label
+            val sleepLabelColor = argb(0xFFA5AEDE.toInt())      // Soft lavender sleep label
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val iconCircleBg = argb(0x40000000.toInt())
-            val progressTrackBg = argb(0x33000000.toInt())
+            val frostedPodBg = argb(0x2BFFFFFF.toInt())         // 17% frosted glass
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
 
             val rawSteps = vitals.liveSteps
             val stepsFormatted = if (rawSteps > 0) NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps) else "--"
+            val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 10000
             val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
             val activityVal = if (activeMins > 0) "${activeMins}m" else "--"
             val calorieVal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else "--"
             val sleepVal = if (vitals.sleepScore > 0) "${vitals.sleepScore}" else "--"
             val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
 
-            // Animation Spec: 600L ms smooth sweep with One UI CubicBezierEasing
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(600L)
+                        .setDurationMillis(650L)
                         .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
                         .build()
                 )
                 .build()
 
-            // Click 1: Top Capsule (Actividad Diaria) -> DailySummaryDetailActivity (Activity ONLY)
+            // Click 1: Activity Section -> DailySummaryDetailActivity
             val activityAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
@@ -142,7 +130,7 @@ class DailySummaryTileService : TileService() {
                 .setOnClick(activityAction)
                 .build()
 
-            // Click 2: Bottom Capsule (Sueño) -> SleepDetailActivity (Sleep ONLY)
+            // Click 2: Sleep Section -> SleepDetailActivity
             val sleepAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
@@ -155,255 +143,157 @@ class DailySummaryTileService : TileService() {
                 .setOnClick(sleepAction)
                 .build()
 
-            // =========================================================================
-            // CAPSULE 1: Daily Activity (188dp x 66dp, exact clone of watch_oneui_active.png)
-            // =========================================================================
-            val activityBg = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_ACTIVITY_CAPSULE)
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
+            // 1. Perimeter Steps Goal Bezel Arc (260° span, 140° to 40°)
+            val totalArcSpanDegrees = 260f
+            val arcStartAngle = 140f
+
+            val targetStepsSweep = if (rawSteps > 0) {
+                val fraction = (rawSteps.toFloat() / targetSteps.toFloat()).coerceIn(0.04f, 1.0f)
+                fraction * totalArcSpanDegrees
+            } else {
+                12f
+            }
+
+            val dynamicStepsSweep = DimensionBuilders.DegreesProp.Builder(targetStepsSweep)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey("daily_steps_arc_sweep"),
+                        sweepAnimSpec
+                    )
+                )
                 .build()
 
+            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
+                .build()
+
+            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
+                .setThickness(dp(7f))
+                .setColor(bezelTrackColor)
+                .build()
+
+            val bgArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(bgTrackArcLine)
+                .build()
+
+            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(dynamicStepsSweep)
+                .setLayoutConstraintsForDynamicLength(angularConstraint)
+                .setThickness(dp(7f))
+                .setColor(limeStepsColor)
+                .build()
+
+            val activeArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(activeArcLine)
+                .build()
+
+            // 2. Activity Header & Hero (Upper Half)
             val ringsIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_ACTIVITY_RINGS)
-                .setWidth(dp(36f))
-                .setHeight(dp(36f))
+                .setWidth(dp(22f))
+                .setHeight(dp(22f))
                 .build()
 
-            val activityTitle = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.daily_activity_title))
-                .setMaxLines(1)
+            val stepsNumberText = LayoutElementBuilders.Text.Builder()
+                .setText(stepsFormatted)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(labelSilverColor)
+                        .setSize(sp(34f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            val stepsText = LayoutElementBuilders.Text.Builder()
-                .setText(stepsFormatted)
+            val stepsLabelText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.steps_short).lowercase())
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.VALUE))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setSize(sp(12.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
                         .setColor(limeStepsColor)
                         .build()
                 )
                 .build()
 
-            val pipe1 = LayoutElementBuilders.Text.Builder()
-                .setText(" | ")
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
-                        .setColor(pipeDividerColor)
-                        .build()
-                )
+            val heroStepsRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(ringsIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
+                .addContent(stepsNumberText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(stepsLabelText)
                 .build()
 
-            val activityScoreText = LayoutElementBuilders.Text.Builder()
+            val activityTimeText = LayoutElementBuilders.Text.Builder()
                 .setText(activityVal)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.VALUE))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
                 )
                 .build()
 
-            val pipe2 = LayoutElementBuilders.Text.Builder()
-                .setText(" | ")
+            val pipeText = LayoutElementBuilders.Text.Builder()
+                .setText(" · ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
+                        .setSize(sp(12f))
                         .setColor(pipeDividerColor)
                         .build()
                 )
                 .build()
 
-            val caloriesScoreText = LayoutElementBuilders.Text.Builder()
-                .setText(calorieVal)
+            val calorieText = LayoutElementBuilders.Text.Builder()
+                .setText("$calorieVal kcal")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.VALUE))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(violetCalorieColor)
                         .build()
                 )
                 .build()
 
-            val activityMetricsRow = LayoutElementBuilders.Row.Builder()
+            val subMetricsRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(stepsText)
-                .addContent(pipe1)
-                .addContent(activityScoreText)
-                .addContent(pipe2)
-                .addContent(caloriesScoreText)
+                .addContent(activityTimeText)
+                .addContent(pipeText)
+                .addContent(calorieText)
                 .build()
 
-            // Dynamic mini progress bar for activity (target 8,000 steps across 108dp track)
-            val maxActivityBarWidth = 108f
-            val targetStepsProgress = ((rawSteps.toFloat() / 8000f).coerceIn(0.08f, 1f) * maxActivityBarWidth)
-            val dynamicActivityBarWidth = DimensionBuilders.DpProp.Builder(targetStepsProgress)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("daily_steps_progress"), sweepAnimSpec))
-                .build()
-
-            val activityMiniProgressBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(maxActivityBarWidth))
-                .setHeight(dp(3.5f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(progressTrackBg)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicActivityBarWidth)
-                        .setHeight(dp(3.5f))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(limeStepsColor)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-
-            val activityTextColumn = LayoutElementBuilders.Column.Builder()
+            val activitySection = LayoutElementBuilders.Column.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .addContent(activityTitle)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).build())
-                .addContent(activityMetricsRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).build())
-                .addContent(activityMiniProgressBar)
-                .build()
-
-            val activityRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(14f)).build())
-                .addContent(ringsIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(10f)).build())
-                .addContent(activityTextColumn)
-                .build()
-
-            val activityCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(activityClickable)
-                        .setContentUpdateAnimation(
-                            ModifiersBuilders.AnimatedVisibility.Builder()
-                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(activityBg)
-                .addContent(activityRow)
-                .build()
-
-            // =========================================================================
-            // CAPSULE 2: Sleep & Nocturnal Vitals (188dp x 66dp, exact clone of watch_oneui_scrolled.png)
-            // =========================================================================
-            val sleepBg = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_BG_SLEEP_CAPSULE)
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
-                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS)
-                .build()
-
-            val sleepPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(800L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
-                        .build()
-                )
-                .build()
-
-            val dynamicSleepColor = DynamicBuilders.DynamicColor.animate(
-                0xFFFFFFFF.toInt(),
-                0x50FFFFFF.toInt(),
-                sleepPulseAnimSpec
-            )
-
-            val dynamicSleepTint = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFFFFF.toInt())
-                .setDynamicValue(dynamicSleepColor)
-                .build()
-
-            val sleepIconBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(36f))
-                .setHeight(dp(36f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(iconCircleBg)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(18f)).build())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Image.Builder()
-                        .setResourceId(RES_IC_SLEEP)
-                        .setWidth(dp(22f))
-                        .setHeight(dp(22f))
-                        .setColorFilter(
-                            LayoutElementBuilders.ColorFilter.Builder()
-                                .setTint(dynamicSleepTint)
-                                .build()
-                        )
-                        .build()
-                )
+                .setModifiers(ModifiersBuilders.Modifiers.Builder().setClickable(activityClickable).build())
+                .addContent(heroStepsRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2.5f)).setWidth(dp(1f)).build())
+                .addContent(subMetricsRow)
                 .build()
 
-            val sleepTitle = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.sleep_score))
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(sleepLabelColor)
-                        .build()
-                )
+            // 3. Sleep Glassmorphic Pod (Lower Half)
+            val sleepIcon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_SLEEP)
+                .setWidth(dp(18f))
+                .setHeight(dp(18f))
                 .build()
 
             val sleepValueText = LayoutElementBuilders.Text.Builder()
                 .setText(sleepVal)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.VALUE))
+                        .setSize(sp(20f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -411,10 +301,10 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val sleepPtsLabel = LayoutElementBuilders.Text.Builder()
-                .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)}  ·  " else "  ·  ")
+                .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)} · " else " · ")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.LABEL))
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
                         .setColor(sleepLabelColor)
                         .build()
@@ -425,92 +315,75 @@ class DailySummaryTileService : TileService() {
                 .setText("SpO2 $spo2Val")
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(TileType.TITLE))
+                        .setSize(sp(12f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(cyanTimeColor)
                         .build()
                 )
                 .build()
 
-            val sleepMetricsRow = LayoutElementBuilders.Row.Builder()
+            val sleepInnerRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(sleepIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(6f)).setHeight(dp(1f)).build())
                 .addContent(sleepValueText)
                 .addContent(sleepPtsLabel)
                 .addContent(spo2InlineText)
                 .build()
 
-            // Dynamic mini progress bar for sleep score (0..100 pts across 108dp track)
-            val hasSleepScore = vitals.sleepScore > 0
-            val targetSleepProgress = if (hasSleepScore) {
-                ((vitals.sleepScore.coerceIn(0, 100).toFloat() / 100f) * maxActivityBarWidth)
-            } else {
-                0f
-            }
-            val dynamicSleepBarWidth = DimensionBuilders.DpProp.Builder(targetSleepProgress)
-                .setDynamicValue(DynamicBuilders.DynamicFloat.animate(AppDataKey("daily_sleep_progress"), sweepAnimSpec))
-                .build()
-
-            val sleepMiniProgressBar = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(maxActivityBarWidth))
-                .setHeight(dp(3.5f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(progressTrackBg)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(dynamicSleepBarWidth)
-                        .setHeight(dp(3.5f))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(sleepLabelColor)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(2f)).build())
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .build()
-                )
-                .build()
-
-            val sleepTextColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
-                .addContent(sleepTitle)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).build())
-                .addContent(sleepMetricsRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).build())
-                .addContent(sleepMiniProgressBar)
-                .build()
-
-            val sleepRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
+            val sleepPodBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(168f))
+                .setHeight(dp(44f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(14f)).build())
-                .addContent(sleepIconBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(10f)).build())
-                .addContent(sleepTextColumn)
-                .build()
-
-            val sleepCapsuleBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(188f))
-                .setHeight(dp(66f))
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
                         .setClickable(sleepClickable)
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(frostedPodBg)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(22f)).build())
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(sleepInnerRow)
+                .build()
+
+            // Center Column Content
+            val titleText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.tile_summary_title))
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(12f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(labelSilverColor)
+                        .build()
+                )
+                .build()
+
+            val centerContentColumn = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .addContent(titleText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
+                .addContent(activitySection)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).setWidth(dp(1f)).build())
+                .addContent(sleepPodBox)
+                .build()
+
+            // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content
+            val rootBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(expand())
+                .setHeight(expand())
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
                         .setContentUpdateAnimation(
                             ModifiersBuilders.AnimatedVisibility.Builder()
                                 .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
@@ -518,26 +391,9 @@ class DailySummaryTileService : TileService() {
                         )
                         .build()
                 )
-                .addContent(sleepBg)
-                .addContent(sleepRow)
-                .build()
-
-            // Stack the two One UI Watch 8 Stadium Capsules vertically (66 + 6 + 66 = 138dp)
-            val stackedCapsulesColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(activityCapsuleBox)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).build())
-                .addContent(sleepCapsuleBox)
-                .build()
-
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(stackedCapsulesColumn)
+                .addContent(bgArc)
+                .addContent(activeArc)
+                .addContent(centerContentColumn)
                 .build()
 
             val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
@@ -549,8 +405,7 @@ class DailySummaryTileService : TileService() {
                 .build()
 
             val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(AppDataKey("daily_steps_progress"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsProgress))
-                .addKeyToValueMapping(AppDataKey("daily_sleep_progress"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetSleepProgress))
+                .addKeyToValueMapping(AppDataKey("daily_steps_arc_sweep"), DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsSweep))
                 .build()
 
             return TileBuilders.Tile.Builder()
