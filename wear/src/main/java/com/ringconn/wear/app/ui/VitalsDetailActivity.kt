@@ -247,8 +247,7 @@ fun VitalsDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF2E1520), Color(0xFF1B0C13))))
-                        .border(BorderStroke(1.dp, Color(0x33FF5D99)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -342,7 +341,6 @@ fun VitalsDetailContent(
                             modifier = Modifier
                                 .clip(ShapePill)
                                 .background(Color(0x2BFFFFFF))
-                                .border(BorderStroke(1.dp, Color(0x33FFFFFF)), ShapePill)
                                 .clickable {
                                     onMeasureClick()
                                 }
@@ -444,8 +442,7 @@ fun VitalsDetailContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(ShapeCard)
-                            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                            .background(CardBg)
                             .padding(horizontal = 10.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -477,8 +474,7 @@ fun VitalsDetailContent(
                         modifier = Modifier
                             .weight(1f)
                             .clip(ShapeCard)
-                            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                            .background(CardBg)
                             .padding(horizontal = 10.dp, vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -516,8 +512,7 @@ fun VitalsDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {

@@ -224,7 +224,6 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         modifier = Modifier
                             .clip(ShapePill)
                             .background(statusColor.copy(alpha = 0.18f))
-                            .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), ShapePill)
                             .padding(horizontal = 14.dp, vertical = 3.5.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -245,8 +244,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF142410), Color(0xFF0C170A))))
-                        .border(BorderStroke(1.dp, Color(0x33A0F116)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -342,8 +340,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF0B212D), Color(0xFF07141C))))
-                        .border(BorderStroke(1.dp, Color(0x3347CDFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -424,8 +421,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF221128), Color(0xFF130917))))
-                        .border(BorderStroke(1.dp, Color(0x33C580FF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -500,35 +496,30 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 5. Card: Perspectiva RingConn
+            // 5. Perspectiva RingConn (Floating Typography)
             item {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF161F24), Color(0xFF0E1317))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.ringconn_insights),
-                            fontSize = TextLabel,
-                            color = CyanActive,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (activityScore >= 80) {
-                                stringResource(R.string.daily_insight_high)
-                            } else {
-                                stringResource(R.string.daily_insight_low)
-                            },
-                            fontSize = TextCaption,
-                            color = Color(0xFFCFD8DC),
-                            lineHeight = 14.sp
-                        )
-                    }
+                    Text(
+                        text = stringResource(R.string.ringconn_insights),
+                        fontSize = TextLabel,
+                        color = CyanActive,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (activityScore >= 80) {
+                            stringResource(R.string.daily_insight_high)
+                        } else {
+                            stringResource(R.string.daily_insight_low)
+                        },
+                        fontSize = TextCaption,
+                        color = Color(0xFFCFD8DC),
+                        lineHeight = 14.sp
+                    )
                 }
             }
         }

@@ -264,7 +264,6 @@ fun SleepDetailContent(
                         modifier = Modifier
                             .clip(ShapePill)
                             .background(qualityColor.copy(alpha = 0.18f))
-                            .border(BorderStroke(1.dp, qualityColor.copy(alpha = 0.35f)), ShapePill)
                             .padding(horizontal = 14.dp, vertical = 3.5.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -284,7 +283,6 @@ fun SleepDetailContent(
                         modifier = Modifier
                             .clip(ShapePill)
                             .background(Color(0x221E2638))
-                            .border(BorderStroke(1.dp, Color(0x335E72E4)), ShapePill)
                             .padding(horizontal = 14.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -323,8 +321,7 @@ fun SleepDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1F38), Color(0xFF111424))))
-                        .border(BorderStroke(1.dp, Color(0x335E72E4)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -397,8 +394,7 @@ fun SleepDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF14242A), Color(0xFF0C161B))))
-                        .border(BorderStroke(1.dp, Color(0x3347CDFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -463,7 +459,6 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapePill)
                         .background(Color(0x2BFFFFFF))
-                        .border(BorderStroke(1.dp, Color(0x33FFFFFF)), ShapePill)
                         .clickable {
                             if (!isSyncing) {
                                 isSyncing = true

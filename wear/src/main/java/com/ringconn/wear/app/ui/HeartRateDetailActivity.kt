@@ -305,12 +305,7 @@ fun HeartRateDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0xFF381525), Color(0xFF1E0A14), Color(0xFF0F040A))
-                            )
-                        )
-                        .border(BorderStroke(1.dp, Color(0x33FF5D99)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -404,7 +399,6 @@ fun HeartRateDetailContent(
                             modifier = Modifier
                                 .clip(ShapePill)
                                 .background(Color(0x2BFFFFFF))
-                                .border(BorderStroke(1.dp, Color(0x33FFFFFF)), ShapePill)
                                 .clickable {
                                     onMeasureClick()
                                 }
@@ -429,8 +423,7 @@ fun HeartRateDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                 Column {
@@ -555,8 +548,7 @@ fun HeartRateDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF14242A), Color(0xFF0C161B))))
-                        .border(BorderStroke(1.dp, Color(0x3347CDFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -683,8 +675,7 @@ fun HeartRateDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
-                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .background(CardBg)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins
