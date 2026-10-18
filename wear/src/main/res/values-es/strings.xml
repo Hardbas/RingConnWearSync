@@ -173,4 +173,20 @@
     <string name="elevated_temp_desc">Metabolismo activo o respuesta inmune</string>
     <string name="cool_temp_desc">Enfriamiento ambiental o recuperación profunda</string>
     <string name="just_now">Hace un momento</string>
+
+    <!-- Activity & Daily Goals (Localized) -->
+    <string name="status_good_pace">Buen ritmo</string>
+    <string name="status_in_progress">En progreso</string>
+    <string name="goal_format_min">Meta %1$dm</string>
+    <string name="goal_format_cal">Meta %1$d kcal</string>
+    <string name="goal_achieved">¡Meta diaria superada!</string>
+    <string name="goal_remaining_min">Faltan %1$d min</string>
+    <string name="calorie_desc">Gasto dinámico por movimiento</string>
+    <string name="ringconn_insights">✦ Perspectiva RingConn</string>
+    <string name="daily_insight_high">Excelente balance de movimiento hoy. Tu activación metabólica apoya una óptima recuperación nocturna.</string>
+    <string name="daily_insight_low">Buen progreso diario. Un paseo ligero completará tus objetivos antes de descansar.</string>
+
+    <!-- Realtime HR -->
+    <string name="realtime_caps">EN TIEMPO REAL</string>
+    <string name="measuring_caps">MIDIENDO...</string>
 </resources>

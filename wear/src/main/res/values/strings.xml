@@ -173,4 +173,20 @@
     <string name="elevated_temp_desc">Active metabolism or immune response</string>
     <string name="cool_temp_desc">Environmental cooling or deep recovery</string>
     <string name="just_now">Just now</string>
+
+    <!-- Activity & Daily Goals (Localized) -->
+    <string name="status_good_pace">Good pace</string>
+    <string name="status_in_progress">In progress</string>
+    <string name="goal_format_min">Goal %1$dm</string>
+    <string name="goal_format_cal">Goal %1$d kcal</string>
+    <string name="goal_achieved">Daily goal achieved!</string>
+    <string name="goal_remaining_min">%1$d min remaining</string>
+    <string name="calorie_desc">Dynamic movement expenditure</string>
+    <string name="ringconn_insights">✦ RingConn Insights</string>
+    <string name="daily_insight_high">Excellent movement balance today. Your metabolic activation supports optimal nighttime recovery.</string>
+    <string name="daily_insight_low">Good daily progress. A light walk will complete your goals before resting.</string>
+
+    <!-- Realtime HR -->
+    <string name="realtime_caps">REAL-TIME</string>
+    <string name="measuring_caps">MEASURING...</string>
 </resources>

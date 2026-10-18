@@ -6,34 +6,16 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,8 +34,9 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
@@ -64,14 +47,6 @@ private val TempCool = Color(0xFF38BDF8)          // Electric Sky Cyan
 private val TempOptimal = Color(0xFF00E676)       // Clinical Mint
 private val TempWarmAlert = Color(0xFFFF7043)     // Warm Amber / Coral
 private val TempEmeraldSoft = Color(0xFF34D399)   // Luminous Mint Emerald
-
-private val TempHeroGradient = Brush.verticalGradient(
-    listOf(Color(0xFF144238), Color(0xFF0B2822), Color(0xFF051411))
-)
-
-private val CardGradient = Brush.verticalGradient(
-    listOf(Color(0xFF132B25), Color(0xFF0C1A16))
-)
 
 class TemperatureDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -154,64 +129,80 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
         ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        listState.scrollBy(it.verticalScrollPixels * 1.5f)
+                        listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
-            autoCentering = AutoCenteringParams(itemIndex = 0),
+            autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
         ) {
-            // Header: Clean title with circular clearance
+            // =========================================================================
+            // a) Header: Clean title with circular clearance
+            // =========================================================================
             item {
-                Text(
-                    text = stringResource(R.string.skin_temp),
-                    color = Color.White,
-                    fontSize = TextBody,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.skin_temp),
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.ring_model_subtitle),
+                        fontSize = TextCaption,
+                        color = TempEmeraldSoft
+                    )
+                }
             }
 
-            // 1. Hero Stadium Capsule Card
+            // =========================================================================
+            // b) Hero Stadium Card: Big Offset, Status Pill & Deviation Scale
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(ShapePod)
-                        .background(TempHeroGradient)
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .clip(ShapeCard)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF143026), Color(0xFF0C1D17))))
+                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 14.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         // Badge status pill
                         Box(
                             modifier = Modifier
-                                .clip(ShapeChip)
+                                .clip(ShapePill)
                                 .background(statusColor.copy(alpha = 0.22f))
-                                .padding(horizontal = 12.dp, vertical = 3.5.dp)
+                                .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), ShapePill)
+                                .padding(horizontal = 14.dp, vertical = 3.5.dp)
                         ) {
                             Text(
-                                text = statusLabel,
+                                text = statusLabel.uppercase(),
                                 color = statusColor,
-                                fontSize = TextLabel,
+                                fontSize = TextCaption,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Big Offset Value
                         Text(
                             text = offsetFormatted,
                             color = Color.White,
-                            fontSize = TextHero,
+                            fontSize = 42.sp,
                             style = TabularNums,
                             fontWeight = FontWeight.Bold
                         )
@@ -275,19 +266,24 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 2. Nocturnal Circadian Thermal Curve Chart
+            // =========================================================================
+            // c) Nocturnal Circadian Thermal Curve Chart
+            // =========================================================================
             item {
                 CircadianThermalCurveCard(offset = offset)
             }
 
-            // 3. Card: Perspectiva Fisiológica Samsung Health
+            // =========================================================================
+            // d) Card: Perspectiva Fisiológica Samsung Health
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(CardGradient)
-                        .padding(14.dp)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
+                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -304,7 +300,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        Spacer(modifier = Modifier.height(5.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.temp_delta_explanation_desc),
                             color = Color(0xFFCFD8DC),
@@ -315,14 +311,17 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 4. Card: Rangos de Termorregulación Circadiana
+            // =========================================================================
+            // e) Card: Rangos de Termorregulación Circadiana
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(CardGradient)
-                        .padding(14.dp)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
+                        .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
                         Text(
@@ -331,7 +330,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             fontSize = TextBody,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         TempBandRow(
                             label = stringResource(R.string.optimal),
@@ -340,7 +339,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             color = TempOptimal,
                             isActive = offset in -0.5f..0.5f
                         )
-                        Spacer(modifier = Modifier.height(5.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         TempBandRow(
                             label = stringResource(R.string.elevated),
                             range = "> +0.5 °C",
@@ -348,7 +347,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             color = TempWarmAlert,
                             isActive = offset > 0.5f
                         )
-                        Spacer(modifier = Modifier.height(5.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         TempBandRow(
                             label = stringResource(R.string.temp_cool),
                             range = "< -0.5 °C",
@@ -360,14 +359,17 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 5. Card: Alerta Inmune Temprana
+            // =========================================================================
+            // f) Card: Alerta Inmune Temprana
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(ShapeCard)
-                        .background(Color(0xFF162B24))
-                        .padding(14.dp)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF12241D), Color(0xFF0C1713))))
+                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapeCard)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
                         Text(
@@ -376,7 +378,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                             fontSize = TextBody,
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.temp_recovery_desc),
                             color = Color(0xFFCFD8DC),
@@ -396,8 +398,9 @@ private fun CircadianThermalCurveCard(offset: Float) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(ShapeCard)
-            .background(CardGradient)
-            .padding(14.dp)
+            .background(Brush.verticalGradient(listOf(Color(0xFF1B1E22), Color(0xFF131518))))
+            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
             Row(
@@ -414,7 +417,7 @@ private fun CircadianThermalCurveCard(offset: Float) {
                 Text(
                     text = stringResource(R.string.sleep_stat),
                     color = TempEmeraldSoft,
-                    fontSize = TextLabel,
+                    fontSize = TextCaption,
                     fontWeight = FontWeight.SemiBold
                 )
             }

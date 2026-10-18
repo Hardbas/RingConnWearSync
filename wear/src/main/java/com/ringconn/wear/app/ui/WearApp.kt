@@ -4,21 +4,28 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -27,13 +34,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.focusable
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import com.ringconn.wear.app.R
@@ -75,7 +75,6 @@ val PipeGray = Color(0xFF686D73)
 val GlassBlack50 = Color(0x80000000)
 
 private val WearVitalsBrush = Brush.linearGradient(colors = listOf(VitalsGradientStart, VitalsGradientEnd))
-private val WearHrBrush = Brush.linearGradient(colors = listOf(HrGradientStart, HrGradientEnd))
 private val WearActivityBrush = Brush.horizontalGradient(colors = listOf(ActivityGradientStart, ActivityGradientEnd))
 private val WearSleepBrush = Brush.horizontalGradient(colors = listOf(SleepGradientStart, SleepGradientEnd))
 private val WearStressBrush = Brush.horizontalGradient(colors = listOf(StressGradientStart, StressGradientMid, StressGradientEnd))
@@ -155,26 +154,28 @@ fun WearAppContent(
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        listState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels * 0.8f)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
                 .focusable(),
             state = listState,
-            autoCentering = AutoCenteringParams(itemIndex = 0),
+            autoCentering = null,
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            contentPadding = PaddingValues(top = 24.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 26.dp, start = 8.dp, end = 8.dp)
         ) {
+            // =========================================================================
             // 1. One UI Watch 8 Top Header ("RingConn Health" + Ring Battery Pill)
+            // =========================================================================
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                    modifier = Modifier.padding(bottom = 2.dp)
                 ) {
                     Text(
-                        text = "RingConn Health",
+                        text = stringResource(R.string.app_name),
                         fontSize = TextBody,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
@@ -184,7 +185,8 @@ fun WearAppContent(
                         modifier = Modifier
                             .clip(ShapePill)
                             .background(Color(0xFF1F2328))
-                            .padding(horizontal = 10.dp, vertical = 2.dp)
+                            .border(BorderStroke(1.dp, Color(0x22FFFFFF)), ShapePill)
+                            .padding(horizontal = 10.dp, vertical = 2.5.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
@@ -196,7 +198,7 @@ fun WearAppContent(
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = stringResource(R.string.ring_battery, vitals.ringBattery),
-                                fontSize = TextLabel,
+                                fontSize = TextCaption,
                                 style = TabularNums,
                                 color = LabelSilver,
                                 fontWeight = FontWeight.Medium
@@ -206,7 +208,9 @@ fun WearAppContent(
                 }
             }
 
+            // =========================================================================
             // 2. CAPSULE 1: Heart Rate & SpO2 (One UI Watch 8 Vitals Capsule)
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
@@ -214,6 +218,7 @@ fun WearAppContent(
                         .height(78.dp)
                         .clip(ShapePill)
                         .background(WearVitalsBrush)
+                        .border(BorderStroke(1.dp, Color(0x33EDCB8B)), ShapePill)
                         .clickable {
                             context.startActivity(Intent(context, VitalsDetailActivity::class.java))
                         }
@@ -252,7 +257,7 @@ fun WearAppContent(
                                     modifier = Modifier.padding(bottom = 2.dp)
                                 )
                                 val hasSpo2 = vitals.lastSpo2 > 0
-                                val spo2Text = if (hasSpo2) "SpO2 ${vitals.lastSpo2}%" else "SpO2 --"
+                                val spo2Text = if (hasSpo2) "${stringResource(R.string.blood_oxygen_short)} ${vitals.lastSpo2}%" else "${stringResource(R.string.blood_oxygen_short)} --"
                                 Text(
                                     text = spo2Text,
                                     fontSize = TextLabel,
@@ -276,7 +281,9 @@ fun WearAppContent(
                 }
             }
 
-            // 3. CAPSULE 2: Daily Activity (Exact match to watch_oneui_active.png)
+            // =========================================================================
+            // 3. CAPSULE 2: Daily Activity (Concentric Rings & Steps / Active / Calories)
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
@@ -284,6 +291,7 @@ fun WearAppContent(
                         .height(76.dp)
                         .clip(ShapePill)
                         .background(WearActivityBrush)
+                        .border(BorderStroke(1.dp, Color(0x33A0F116)), ShapePill)
                         .clickable {
                             context.startActivity(Intent(context, DailySummaryDetailActivity::class.java))
                         }
@@ -339,7 +347,9 @@ fun WearAppContent(
                 }
             }
 
-            // 4. CAPSULE 3: Sleep Score & HRV (Exact match to watch_oneui_scrolled.png)
+            // =========================================================================
+            // 4. CAPSULE 3: Sleep Score & HRV
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
@@ -347,6 +357,7 @@ fun WearAppContent(
                         .height(76.dp)
                         .clip(ShapePill)
                         .background(WearSleepBrush)
+                        .border(BorderStroke(1.dp, Color(0x335E72E4)), ShapePill)
                         .clickable {
                             context.startActivity(Intent(context, SleepDetailActivity::class.java))
                         }
@@ -386,7 +397,7 @@ fun WearAppContent(
                                     fontWeight = FontWeight.Bold
                                 )
                                 val hasHrv = vitals.lastHrv > 0
-                                val hrvText = if (hasHrv) "  ·  HRV ${vitals.lastHrv} ms" else "  ·  HRV --"
+                                val hrvText = if (hasHrv) "  ·  ${stringResource(R.string.hrv_short)} ${vitals.lastHrv} ms" else "  ·  ${stringResource(R.string.hrv_short)} --"
                                 Text(
                                     text = hrvText,
                                     fontSize = TextLabel,
@@ -410,7 +421,9 @@ fun WearAppContent(
                 }
             }
 
-            // 5. CAPSULE 4: Stress Index (One UI Watch 8 Stress Gradient)
+            // =========================================================================
+            // 5. CAPSULE 4: Stress Index
+            // =========================================================================
             item {
                 Box(
                     modifier = Modifier
@@ -418,6 +431,7 @@ fun WearAppContent(
                         .height(74.dp)
                         .clip(ShapePill)
                         .background(WearStressBrush)
+                        .border(BorderStroke(1.dp, Color(0x33A855F7)), ShapePill)
                         .clickable {
                             context.startActivity(Intent(context, StressDetailActivity::class.java))
                         }
@@ -475,7 +489,9 @@ fun WearAppContent(
                 }
             }
 
+            // =========================================================================
             // 6. CAPSULE 5: Skin Temperature (Emerald Mint Gradient - One UI Watch 8 match)
+            // =========================================================================
             item {
                 val hasTemp = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
                 val tempOffset = vitals.skinTempOffset
@@ -494,6 +510,7 @@ fun WearAppContent(
                         .height(74.dp)
                         .clip(ShapePill)
                         .background(Brush.horizontalGradient(listOf(Color(0xFF144238), Color(0xFF0B2822))))
+                        .border(BorderStroke(1.dp, Color(0x3300E676)), ShapePill)
                         .clickable {
                             context.startActivity(Intent(context, TemperatureDetailActivity::class.java))
                         }

@@ -49,10 +49,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // Specific One UI Watch 8 Heart Rate & HRV Palette
-private val HrBpmWarm = Color(0xFFFBCEB6)
-private val CardBg = Color(0xFF1B1E22)
-private val CardBgSubtle = Color(0xFF22262C)
-private val TrackDark = Color(0x33000000)
+val HrBpmWarm = Color(0xFFFBCEB6)
+val CardBg = Color(0xFF1B1E22)
+val CardBgSubtle = Color(0xFF22262C)
+val TrackDark = Color(0x33000000)
 
 // 5 Standard One UI Heart Rate Zones
 private val ZoneRestColor = Color(0xFF47CDFF)      // Reposo (< 100 bpm)
@@ -321,7 +321,7 @@ fun HeartRateDetailContent(
                                 PulsingHeartIcon(isMeasuring = isMeasuring)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isMeasuring) "MIDIENDO..." else "EN TIEMPO REAL",
+                                    text = if (isMeasuring) stringResource(R.string.measuring_caps) else stringResource(R.string.realtime_caps),
                                     fontSize = TextCaption,
                                     color = HrSubtitlePink,
                                     fontWeight = FontWeight.Bold
