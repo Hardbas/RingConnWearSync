@@ -105,8 +105,8 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
 
     val liveSteps = vitals.liveSteps
     val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 8000
-    // Real active minutes from RingConn (not conflating with activityScore!)
-    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else 3
+    // Real active minutes from RingConn (cadence fallback when duration collapsed)
+    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) (vitals.liveSteps / 100).coerceAtLeast(1) else 0
     val targetActiveMins = 60
     val calories = vitals.liveCalorie
     val targetCalories = if (vitals.targetCalorie > 0) vitals.targetCalorie else 500

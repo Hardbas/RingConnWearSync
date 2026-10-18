@@ -307,7 +307,7 @@ fun WearAppContent(
                                     append(" | ")
                                 }
                                 withStyle(SpanStyle(color = CyanActive, fontWeight = FontWeight.Bold, fontSize = TextBody)) {
-                                    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
+                                    val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) (vitals.liveSteps / 100).coerceAtLeast(1) else 0
                                     append(if (activeMins > 0) "${activeMins}m" else "--")
                                 }
                                 withStyle(SpanStyle(color = PipeGray, fontSize = TextBody)) {

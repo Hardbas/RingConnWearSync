@@ -102,7 +102,7 @@ class DailySummaryTileService : TileService() {
             val rawSteps = vitals.liveSteps
             val stepsFormatted = if (rawSteps > 0) NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps) else "--"
             val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 10000
-            val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) 3 else 0
+            val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) (vitals.liveSteps / 100).coerceAtLeast(1) else 0
             val activityVal = if (activeMins > 0) "${activeMins}m" else "--"
             val calorieVal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else "--"
             val sleepVal = if (vitals.sleepScore > 0) "${vitals.sleepScore}" else "--"

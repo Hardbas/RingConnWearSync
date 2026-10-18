@@ -313,10 +313,17 @@ object RingConnTelemetryReader {
                 }
                 if (effectiveSteps.isNotEmpty()) {
                     todaySteps = effectiveSteps.sumOf { it.count }.toInt()
-                    activeMinutes = effectiveSteps.sumOf {
-                        val m = Duration.between(it.startTime, it.endTime).toMinutes()
-                        if (m > 0) m else 1L
-                    }.toInt()
+                    var computedActiveMins = 0L
+                    for (rec in effectiveSteps) {
+                        val durMins = Duration.between(rec.startTime, rec.endTime).toMinutes()
+                        if (durMins >= 1L && (rec.count.toDouble() / durMins) in 20.0..220.0) {
+                            computedActiveMins += durMins
+                        } else if (rec.count > 0) {
+                            computedActiveMins += (rec.count / 100L).coerceAtLeast(1L)
+                        }
+                    }
+                    val stepCadenceMinutes = (todaySteps / 100).coerceAtLeast(if (todaySteps > 0) 1 else 0)
+                    activeMinutes = maxOf(computedActiveMins.toInt(), stepCadenceMinutes)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed querying StepsRecord: ${e.message}")
@@ -643,7 +650,7 @@ object RingConnTelemetryReader {
             avgHrv = finalAvgHrv,
             sleepScore = finalSleep,
             activityScore = actScore,
-            activeMinutes = if (activeMinutes > 0) activeMinutes else existing.activeMinutes,
+            activeMinutes = if (activeMinutes > 0) activeMinutes else (if (finalSteps > 0) (finalSteps / 100).coerceAtLeast(1) else existing.activeMinutes),
             stressScore = stressScore,
             liveSteps = finalSteps,
             targetSteps = 10000,
