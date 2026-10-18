@@ -126,6 +126,7 @@
     <string name="status_balanced">Balanced</string>
     <string name="status_fatigue">Fatigue</string>
     <string name="rhythm_and_rest">Rhythm &amp; Rest</string>
+    <string name="daily_range">Daily Range</string>
     <string name="avg_resting_hr">Avg Resting HR</string>
     <string name="variation">Variation</string>
     <string name="zone_rest">Z1 · Resting</string>

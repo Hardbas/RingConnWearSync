@@ -241,7 +241,7 @@ fun SleepDetailContent(
                         ) {
                             Text(
                                 text = sleepScoreText,
-                                fontSize = 38.sp,
+                                fontSize = TextHero,
                                 style = TabularNums,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
@@ -330,12 +330,24 @@ fun SleepDetailContent(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = stringResource(R.string.sleep_stages_title),
-                                fontSize = TextBody,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(StageDeep)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.sleep_stages_title),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                             if (!hasStages) {
                                 Text(
                                     text = stringResource(R.string.no_data),
@@ -398,12 +410,23 @@ fun SleepDetailContent(
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
-                        Text(
-                            text = stringResource(R.string.nocturnal_biometrics),
-                            fontSize = TextBody,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(StageRem)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.nocturnal_biometrics),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Row(

@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -172,7 +175,64 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // b) Hero Stadium Card: Big Offset, Status Pill & Deviation Scale
+            // b) Hero: Centered Temp Dial (122dp), Offset & Status Pill
+            // =========================================================================
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(122.dp)
+                    ) {
+                        TempDialGauge(
+                            offset = offset,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = offsetFormatted,
+                                fontSize = TextHero,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = stringResource(R.string.skin_temp).uppercase(),
+                                fontSize = TextCaption,
+                                color = TempEmeraldSoft,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(ShapePill)
+                            .background(statusColor.copy(alpha = 0.18f))
+                            .padding(horizontal = 14.dp, vertical = 3.5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = statusLabel.uppercase(),
+                            color = statusColor,
+                            fontSize = TextCaption,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // =========================================================================
+            // c) Card: Desviación Dérmica y Escala Circadiana
             // =========================================================================
             item {
                 Box(
@@ -180,47 +240,73 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
-                        .padding(horizontal = 14.dp, vertical = 14.dp)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        // Badge status pill
-                        Box(
-                            modifier = Modifier
-                                .clip(ShapePill)
-                                .background(statusColor.copy(alpha = 0.22f))
-                                .padding(horizontal = 14.dp, vertical = 3.5.dp),
-                            contentAlignment = Alignment.Center
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(TempOptimal)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.baseline_temp),
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(statusColor.copy(alpha = 0.18f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = statusLabel.uppercase(),
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = statusColor,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = statusLabel.uppercase(),
-                                color = statusColor,
-                                fontSize = TextCaption,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
+                                text = offsetFormatted,
+                                fontSize = TextBig,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.temp_baseline_format, baseline),
+                                fontSize = TextLabel,
+                                style = TabularNums,
+                                color = LabelSilver,
+                                modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
-
-                        // Big Offset Value
-                        Text(
-                            text = offsetFormatted,
-                            color = Color.White,
-                            fontSize = 42.sp,
-                            style = TabularNums,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(modifier = Modifier.height(3.dp))
-
-                        Text(
-                            text = stringResource(R.string.temp_baseline_format, baseline),
-                            color = Color(0xFFD1FAE5),
-                            fontSize = TextLabel,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Real-time Deviation Scale Bar (-1.0°C to +1.0°C)
                         Canvas(
@@ -266,6 +352,17 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 center = Offset(markerX.coerceIn(5.dp.toPx(), totalW - 5.dp.toPx()), h / 2f)
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("-1.0 °C", fontSize = TextCaption, style = TabularNums, color = LabelSilver)
+                            Text("0.0 °C", fontSize = TextCaption, style = TabularNums, color = TempOptimal)
+                            Text("+1.0 °C", fontSize = TextCaption, style = TabularNums, color = LabelSilver)
+                        }
                     }
                 }
             }
@@ -278,38 +375,45 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // d) Perspectiva Fisiológica Samsung Health (Floating Typography)
+            // d) Card: Perspectiva Fisiológica
             // =========================================================================
             item {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_comp_temp),
-                            contentDescription = stringResource(R.string.temp_delta_explanation_title),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(7.dp))
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(TempEmeraldSoft)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.temp_delta_explanation_title),
+                                color = Color.White,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f, fill = false),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = stringResource(R.string.temp_delta_explanation_title),
-                            color = TempEmeraldSoft,
-                            fontSize = TextBody,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f, fill = false),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = stringResource(R.string.temp_delta_explanation_desc),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextCaption,
+                            lineHeight = 14.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.temp_delta_explanation_desc),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
                 }
             }
 
@@ -325,12 +429,23 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
-                        Text(
-                            text = stringResource(R.string.temp_thermoregulation_title),
-                            color = Color.White,
-                            fontSize = TextBody,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(TempOptimal)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.temp_thermoregulation_title),
+                                color = Color.White,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                         Spacer(modifier = Modifier.height(10.dp))
 
                         TempBandRow(
@@ -361,27 +476,42 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // f) Alerta Inmune Temprana (Floating Typography)
+            // f) Card: Alerta Inmune Temprana
             // =========================================================================
             item {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.temp_recovery_title),
-                        color = TempEmeraldSoft,
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = stringResource(R.string.temp_recovery_desc),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(TempWarmAlert)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.temp_recovery_title),
+                                color = Color.White,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.temp_recovery_desc),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextCaption,
+                            lineHeight = 14.sp
+                        )
+                    }
                 }
             }
         }
@@ -655,6 +785,68 @@ private fun TempBandRow(
             lineHeight = TextBody,
             modifier = Modifier.padding(start = 14.dp)
         )
+    }
+}
+
+/**
+ * 270-degree animated circular gauge for Skin Temperature in One UI Watch style.
+ */
+@Composable
+private fun TempDialGauge(
+    offset: Float,
+    modifier: Modifier = Modifier
+) {
+    val animProgress = remember { Animatable(0.5f) }
+    // Map -1.0..+1.0°C to 0..1f (0.0°C baseline = 0.5f)
+    val targetProgress = ((offset + 1.0f) / 2.0f).coerceIn(0.05f, 0.95f)
+
+    LaunchedEffect(targetProgress) {
+        animProgress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 7.5.dp.toPx()
+        val diameter = size.minDimension - strokeWidth
+        val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+        val arcSize = Size(diameter, diameter)
+
+        // Background track (270 degrees from 135 to 405)
+        drawArc(
+            color = Color(0x2210B981),
+            startAngle = 135f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = arcSize,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+
+        // Progress Arc
+        if (animProgress.value > 0f) {
+            val sweep = 270f * animProgress.value
+            drawArc(
+                brush = Brush.sweepGradient(
+                    listOf(
+                        TempCool,
+                        TempOptimal,
+                        TempWarmAlert,
+                        TempOptimal
+                    )
+                ),
+                startAngle = 135f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
     }
 }
 
