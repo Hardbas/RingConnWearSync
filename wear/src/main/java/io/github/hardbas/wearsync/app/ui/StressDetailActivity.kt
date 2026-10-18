@@ -65,10 +65,16 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 private val StressRelaxed = Color(0xFF00E676)
 private val StressBalanced = Color(0xFF00E5FF)
@@ -338,43 +344,10 @@ fun StressDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
-            // f) Card: Respiración Guiada 4x4
+            // f) Interactive Haptic Cardiac Coherence Breathwork Coach
             // =========================================================================
             item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ShapeCard)
-                        .background(CardBg)
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Column {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF00E676))
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.stress_breathing_title),
-                                color = Color.White,
-                                fontSize = TextBody,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = stringResource(R.string.stress_breathing_guide),
-                            color = Color(0xFFCFD8DC),
-                            fontSize = TextCaption,
-                            lineHeight = 14.sp
-                        )
-                    }
-                }
+                CardiacCoherenceBreathworkCard(vitals = vitals)
             }
 
             // =========================================================================
@@ -1039,6 +1012,620 @@ private fun StressDialGauge(
                 size = arcSize,
                 style = dialStroke
             )
+        }
+    }
+}
+
+private enum class BreathPhase {
+    INHALE,
+    EXHALE
+}
+
+/**
+ * Triggers on-demand live sync request to the phone bridge via Wearable MessageClient.
+ */
+private fun triggerRingConnSync(context: Context) {
+    try {
+        val nodeClient = Wearable.getNodeClient(context)
+        val messageClient = Wearable.getMessageClient(context)
+        nodeClient.connectedNodes.addOnSuccessListener { nodes ->
+            nodes?.forEach { node ->
+                messageClient.sendMessage(node.id, "/action/sync_ringconn", ByteArray(0))
+            }
+        }
+    } catch (_: Exception) {
+    }
+}
+
+/**
+ * Interactive Haptic Cardiac Coherence Breathwork Coach (0% Idle Battery Drain).
+ * Protocol: Resonance frequency (0.1 Hz = 6 breaths/min = 10s cycle: 4.0s Inhale + 6.0s Exhale).
+ * Features eyes-closed haptic metronome, zero-allocation Canvas Coherence Lotus, and pre/post biofeedback sync.
+ */
+@Composable
+private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val isSpanish = remember { Locale.getDefault().language.equals("es", ignoreCase = true) }
+
+    // 100% On-Demand state
+    var isBreathingActive by remember { mutableStateOf(false) }
+    var remainingSeconds by remember { mutableIntStateOf(60) }
+    var completedCycles by remember { mutableIntStateOf(0) }
+    var currentCycle by remember { mutableIntStateOf(1) }
+    var currentPhase by remember { mutableStateOf(BreathPhase.INHALE) }
+    var sessionCompleted by remember { mutableStateOf(false) }
+
+    // Baseline telemetry recorded at session start
+    var baselineStress by remember { mutableIntStateOf(vitals.stressScore) }
+    var baselineHr by remember { mutableIntStateOf(vitals.lastHeartRate) }
+
+    // Smooth Coherence Lotus / Concentric Liquid Ring scale (0.55f -> 1.0f -> 0.55f)
+    val breathScale = remember { Animatable(0.55f) }
+
+    // Lifecycle-gating: automatic stop if screen goes ambient or paused (0% idle battery drain)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var isResumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            isResumed = event.targetState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    fun completeBiofeedback() {
+        if (sessionCompleted) return
+        sessionCompleted = true
+        isBreathingActive = false
+        scope.launch {
+            // Double haptic confirmation upon completion
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(160L)
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            // Dispatch live sync request to phone
+            triggerRingConnSync(context)
+        }
+    }
+
+    fun handleStop() {
+        if (!isBreathingActive) return
+        val finished = completedCycles
+        isBreathingActive = false
+        if (finished >= 3) {
+            completeBiofeedback()
+        } else {
+            sessionCompleted = false
+            scope.launch {
+                breathScale.snapTo(0.55f)
+            }
+        }
+    }
+
+    // Automatically stop breathing if screen leaves resumed state
+    LaunchedEffect(isResumed) {
+        if (!isResumed && isBreathingActive) {
+            handleStop()
+        }
+    }
+
+    // Resonance Frequency Protocol Coroutine: 6 breaths/min (10s cycle: 4.0s Inhale + 6.0s Exhale)
+    LaunchedEffect(isBreathingActive) {
+        if (!isBreathingActive) {
+            return@LaunchedEffect
+        }
+
+        // 60-second coroutine countdown
+        val timerJob = launch {
+            while (remainingSeconds > 0) {
+                delay(1000L)
+                remainingSeconds--
+            }
+        }
+
+        try {
+            for (cycle in 1..6) {
+                if (!isBreathingActive) break
+                currentCycle = cycle
+
+                // --- INHALE PHASE (0.0s to 4.0s) ---
+                currentPhase = BreathPhase.INHALE
+                // 0.0s: Inhale start haptic cue
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                val inhaleAnim = launch {
+                    breathScale.animateTo(
+                        targetValue = 1.0f,
+                        animationSpec = tween(
+                            durationMillis = 4000,
+                            easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
+                        )
+                    )
+                }
+
+                // 2.0s: Soft mid-inhale tactile cue
+                delay(2000L)
+                if (!isBreathingActive) break
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                // 4.0s: Inhale end
+                delay(2000L)
+                inhaleAnim.join()
+                if (!isBreathingActive) break
+
+                // --- EXHALE PHASE (4.0s to 10.0s) ---
+                currentPhase = BreathPhase.EXHALE
+                // 4.0s: Exhale start haptic cue
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                val exhaleAnim = launch {
+                    breathScale.animateTo(
+                        targetValue = 0.55f,
+                        animationSpec = tween(
+                            durationMillis = 6000,
+                            easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
+                        )
+                    )
+                }
+
+                // 6.0s Exhale duration
+                delay(6000L)
+                exhaleAnim.join()
+
+                completedCycles = cycle
+            }
+
+            if (completedCycles >= 3 || remainingSeconds == 0) {
+                completeBiofeedback()
+            }
+        } finally {
+            timerJob.cancel()
+        }
+    }
+
+    // Hoisted Brushes and Strokes with remember for zero per-frame allocations
+    val density = LocalDensity.current
+    val outerStroke = remember(density) {
+        Stroke(width = with(density) { 3.dp.toPx() }, cap = StrokeCap.Round)
+    }
+    val midStroke = remember(density) {
+        Stroke(width = with(density) { 2.dp.toPx() }, cap = StrokeCap.Round)
+    }
+    val innerStroke = remember(density) {
+        Stroke(width = with(density) { 1.5.dp.toPx() }, cap = StrokeCap.Round)
+    }
+    val petalStroke = remember(density) {
+        Stroke(width = with(density) { 1.5.dp.toPx() }, cap = StrokeCap.Round)
+    }
+
+    val liquidSweepBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFF00E5FF),
+                Color(0xFF00E676),
+                Color(0xFF8B5CF6),
+                Color(0xFFD8B4FE),
+                Color(0xFF00E5FF)
+            )
+        )
+    }
+    val lotusPetalBrush = remember {
+        Brush.sweepGradient(
+            listOf(
+                Color(0xFF00E5FF).copy(alpha = 0.65f),
+                Color(0xFF00E676).copy(alpha = 0.65f),
+                Color(0xFFD8B4FE).copy(alpha = 0.65f),
+                Color(0xFF00E5FF).copy(alpha = 0.65f)
+            )
+        )
+    }
+    val auraGlowBrush = remember {
+        Brush.radialGradient(
+            listOf(
+                Color(0xFF00E5FF).copy(alpha = 0.35f),
+                Color(0xFF00E676).copy(alpha = 0.12f),
+                Color.Transparent
+            )
+        )
+    }
+
+    // Precomputed unit vectors for 6 lotus petals (0°, 60°, 120°, 180°, 240°, 300°)
+    val petalUnitVectors = remember {
+        List(6) { i ->
+            val rad = (i * 60.0) * (PI / 180.0)
+            Pair(cos(rad).toFloat(), sin(rad).toFloat())
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Header: Title + Resonance Tag
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(if (isBreathingActive) Color(0xFF00E5FF) else Color(0xFF00E676))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Coherencia Cardíaca · Guía Háptica" else "Cardiac Coherence · Haptic Guide",
+                        color = Color.White,
+                        fontSize = TextBody,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(Color(0x2200E5FF))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "0.1 Hz",
+                        color = Color(0xFF00E5FF),
+                        fontSize = TextCaption,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (isBreathingActive) {
+                // =========================================================================
+                // ACTIVE BREATHING MODE: Concentric Liquid Ring / Lotus Canvas + HUD
+                // =========================================================================
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(136.dp)
+                        .padding(vertical = 2.dp)
+                ) {
+                    Canvas(modifier = Modifier.size(132.dp)) {
+                        val currentScale = breathScale.value.coerceIn(0.55f, 1.0f)
+                        val radius = (size.minDimension / 2f) - with(density) { 5.dp.toPx() }
+                        val centerOffset = center
+
+                        // 1. Soft radial background glow
+                        drawCircle(
+                            brush = auraGlowBrush,
+                            radius = radius * currentScale,
+                            center = centerOffset
+                        )
+
+                        // 2. Coherence Lotus: 6 petals representing 6 breaths/min resonance
+                        val petalOffset = radius * 0.30f * currentScale
+                        val petalRadius = radius * 0.35f * currentScale
+                        val petalAlpha = (0.35f + (currentScale - 0.55f) * 0.7f).coerceIn(0f, 1f)
+                        for (unit in petalUnitVectors) {
+                            val px = centerOffset.x + (petalOffset * unit.first)
+                            val py = centerOffset.y + (petalOffset * unit.second)
+                            drawCircle(
+                                brush = lotusPetalBrush,
+                                radius = petalRadius,
+                                center = Offset(px, py),
+                                style = petalStroke,
+                                alpha = petalAlpha
+                            )
+                        }
+
+                        // 3. Concentric Liquid Rings
+                        drawCircle(
+                            brush = liquidSweepBrush,
+                            radius = (radius * currentScale).coerceAtLeast(1f),
+                            center = centerOffset,
+                            style = outerStroke
+                        )
+                        drawCircle(
+                            brush = liquidSweepBrush,
+                            radius = (radius * currentScale * 0.74f).coerceAtLeast(1f),
+                            center = centerOffset,
+                            style = midStroke,
+                            alpha = 0.70f
+                        )
+                        drawCircle(
+                            brush = liquidSweepBrush,
+                            radius = (radius * currentScale * 0.48f).coerceAtLeast(1f),
+                            center = centerOffset,
+                            style = innerStroke,
+                            alpha = 0.50f
+                        )
+
+                        // 4. Center nucleus
+                        drawCircle(
+                            color = Color.White,
+                            radius = with(density) { 2.5.dp.toPx() } * currentScale,
+                            center = centerOffset
+                        )
+                    }
+
+                    // Centered Text HUD inside the Lotus
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val phaseColor = if (currentPhase == BreathPhase.INHALE) Color(0xFF00E5FF) else Color(0xFFD8B4FE)
+                        val phaseText = if (currentPhase == BreathPhase.INHALE) {
+                            if (isSpanish) "INHALA" else "INHALE"
+                        } else {
+                            if (isSpanish) "EXHALA" else "EXHALE"
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(ShapePill)
+                                .background(phaseColor.copy(alpha = 0.22f))
+                                .border(BorderStroke(1.dp, phaseColor.copy(alpha = 0.5f)), ShapePill)
+                                .padding(horizontal = 8.dp, vertical = 1.5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = phaseText,
+                                color = phaseColor,
+                                fontSize = TextCaption,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = "${remainingSeconds}s",
+                            fontSize = 28.sp,
+                            style = TabularNums,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = if (isSpanish) "Ciclo $currentCycle de 6" else "Cycle $currentCycle of 6",
+                            fontSize = TextCaption,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Detener (Stop) button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePill)
+                        .background(Color(0x33FF3D00))
+                        .border(BorderStroke(1.dp, Color(0x66FF3D00)), ShapePill)
+                        .clickable { handleStop() }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isSpanish) "Detener" else "Stop",
+                        color = Color(0xFFFF5252),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = TextLabel,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+            } else {
+                // =========================================================================
+                // IDLE / COMPLETED MODE
+                // =========================================================================
+                if (sessionCompleted) {
+                    // Biofeedback Completion Banner
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ShapePill)
+                            .background(Color(0x2200E676))
+                            .border(BorderStroke(1.dp, StressRelaxed.copy(alpha = 0.6f)), ShapePill)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(StressRelaxed)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isSpanish) "Biofeedback Completado" else "Biofeedback Completed",
+                                color = StressRelaxed,
+                                fontSize = TextCaption,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Pre/Post Comparison Grid
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.heart_rate),
+                                color = Color(0xFF94A3B8),
+                                fontSize = TextCaption,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val currentHr = vitals.lastHeartRate
+                            val hrDisplay = if (baselineHr > 0 && currentHr > 0) {
+                                "$baselineHr → $currentHr"
+                            } else if (currentHr > 0) {
+                                "$currentHr bpm"
+                            } else "--"
+                            Text(
+                                text = hrDisplay,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = TextLabel,
+                                style = TabularNums,
+                                textAlign = TextAlign.Center
+                            )
+                            if (baselineHr > 0 && currentHr > 0) {
+                                val hrDelta = currentHr - baselineHr
+                                val hrText = if (hrDelta > 0) "+$hrDelta bpm" else "$hrDelta bpm"
+                                Text(
+                                    text = hrText,
+                                    color = if (hrDelta <= 0) StressRelaxed else StressModerate,
+                                    fontSize = TextCaption,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color(0x22FFFFFF)))
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.stress),
+                                color = Color(0xFF94A3B8),
+                                fontSize = TextCaption,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            val currentStress = vitals.stressScore
+                            val stressDisplay = if (baselineStress > 0 && currentStress > 0) {
+                                "$baselineStress → $currentStress"
+                            } else if (currentStress > 0) {
+                                "$currentStress pts"
+                            } else "--"
+                            Text(
+                                text = stressDisplay,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = TextLabel,
+                                style = TabularNums,
+                                textAlign = TextAlign.Center
+                            )
+                            if (baselineStress > 0 && currentStress > 0) {
+                                val sDelta = currentStress - baselineStress
+                                val sText = if (sDelta > 0) "+$sDelta pts" else "$sDelta pts"
+                                Text(
+                                    text = sText,
+                                    color = if (sDelta <= 0) StressRelaxed else StressModerate,
+                                    fontSize = TextCaption,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = if (isSpanish) "Sincronización RingConn enviada a teléfono" else "RingConn sync requested on phone",
+                        color = Color(0xFF00E5FF),
+                        fontSize = TextCaption,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    // Protocol Description
+                    Text(
+                        text = if (isSpanish) {
+                            "Frecuencia de resonancia a 6 resp/min (4s inhala, 6s exhala) para sincronizar el ritmo cardíaco y activar el tono vagal. Guía háptica táctil para ojos cerrados."
+                        } else {
+                            "Resonance frequency at 6 breaths/min (4s inhale, 6s exhale) to synchronize HRV and stimulate vagal tone. Haptic guidance for eyes-closed practice."
+                        },
+                        color = Color(0xFFCFD8DC),
+                        fontSize = TextCaption,
+                        lineHeight = 14.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Iniciar Respiración (1 min) button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePill)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF00E5FF), Color(0xFF00E676))
+                            )
+                        )
+                        .clickable {
+                            baselineStress = vitals.stressScore
+                            baselineHr = vitals.lastHeartRate
+                            remainingSeconds = 60
+                            completedCycles = 0
+                            currentCycle = 1
+                            sessionCompleted = false
+                            isBreathingActive = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isSpanish) "Iniciar Respiración (1 min)" else "Start Breathing (1 min)",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = TextLabel,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
     }
 }

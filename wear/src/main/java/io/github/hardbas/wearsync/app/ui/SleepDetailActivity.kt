@@ -69,6 +69,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 import kotlin.math.roundToInt
 
 // Dark Obsidian Sleep Stage Accent Palette
@@ -77,6 +78,12 @@ private val StageRem = Color(0xFF47CDFF)       // REM
 private val StageLight = Color(0xFFA5AEDE)     // Ligero
 private val StageDeep = Color(0xFF5E72E4)      // Profundo
 private val SleepTrackBg = Color(0x33000000)
+
+// Clinical & Biometric Status Accents
+private val ColorEmerald = Color(0xFF00E676)
+private val ColorAmber = Color(0xFFFFB703)
+private val ColorCoral = Color(0xFFFF6B6B)
+private val ColorCyanRadar = Color(0xFF00E5FF)
 
 class SleepDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -593,7 +600,428 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
-            // d) Card 2: Biometría Nocturna (Nocturnal Biometrics)
+            // d) Card: Nocturnal Respiratory & Apnea ODI Radar (AHISpo2Data & CalSleepHeartRateData)
+            // =========================================================================
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(ColorCyanRadar)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.apnea_odi_title),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val odiValueText = if (hasSleepData) String.format(Locale.US, "%.1f", vitals.odiDropsPerHour) else "--"
+                        val odiStatus = when {
+                            !hasSleepData -> stringResource(R.string.no_data)
+                            vitals.odiDropsPerHour < 5.0f -> stringResource(R.string.odi_status_optimal)
+                            vitals.odiDropsPerHour < 15.0f -> stringResource(R.string.odi_status_mild)
+                            else -> stringResource(R.string.odi_status_elevated)
+                        }
+                        val odiColor = when {
+                            !hasSleepData -> LabelSilver
+                            vitals.odiDropsPerHour < 5.0f -> ColorEmerald
+                            vitals.odiDropsPerHour < 15.0f -> ColorAmber
+                            else -> ColorCoral
+                        }
+
+                        val minSpo2Text = if (vitals.minSleepingSpo2 > 0) "${vitals.minSleepingSpo2}%" else "--"
+                        val minSpo2Status = when {
+                            vitals.minSleepingSpo2 <= 0 -> stringResource(R.string.no_data)
+                            vitals.minSleepingSpo2 >= 94 -> stringResource(R.string.spo2_stable)
+                            else -> stringResource(R.string.spo2_unstable)
+                        }
+                        val minSpo2Color = when {
+                            vitals.minSleepingSpo2 <= 0 -> LabelSilver
+                            vitals.minSleepingSpo2 >= 94 -> ColorEmerald
+                            else -> ColorCoral
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // ODI Index Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(horizontal = 6.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.odi_index),
+                                        fontSize = TextCaption,
+                                        color = LabelSilver,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.Bottom,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = odiValueText,
+                                            fontSize = TextBody,
+                                            style = TabularNums,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
+                                        if (hasSleepData) {
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Text(
+                                                text = stringResource(R.string.odi_events_per_hr),
+                                                fontSize = TextCaption,
+                                                color = LabelSilver,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(ShapePill)
+                                            .background(odiColor.copy(alpha = 0.16f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = odiStatus,
+                                            fontSize = 9.sp,
+                                            color = odiColor,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Min Sleeping SpO2 Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(horizontal = 6.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.min_sleeping_spo2),
+                                        fontSize = TextCaption,
+                                        color = LabelSilver,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = minSpo2Text,
+                                        fontSize = TextBody,
+                                        style = TabularNums,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(ShapePill)
+                                            .background(minSpo2Color.copy(alpha = 0.16f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = minSpo2Status,
+                                            fontSize = 9.sp,
+                                            color = minSpo2Color,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Nocturnal HR Dip Section
+                        val hrDipHasValue = hasSleepData && vitals.sleepingHrDipPct != 0f
+                        val hrDipStatus = when {
+                            !hrDipHasValue -> stringResource(R.string.no_data)
+                            vitals.sleepingHrDipPct < 10.0f -> stringResource(R.string.hr_dip_reduced)
+                            vitals.sleepingHrDipPct <= 20.0f -> stringResource(R.string.hr_dip_optimal)
+                            else -> stringResource(R.string.hr_dip_extreme)
+                        }
+                        val hrDipColor = when {
+                            !hrDipHasValue -> LabelSilver
+                            vitals.sleepingHrDipPct < 10.0f -> ColorAmber
+                            vitals.sleepingHrDipPct <= 20.0f -> ColorEmerald
+                            else -> Color(0xFFB388FF)
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.sleeping_hr_dip),
+                                fontSize = TextCaption,
+                                color = LabelSilver,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = if (hrDipHasValue) String.format(Locale.US, "%.1f%%", vitals.sleepingHrDipPct) else "--",
+                                fontSize = TextCaption,
+                                style = TabularNums,
+                                color = hrDipColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        NocturnalDipGauge(
+                            dipPct = if (hrDipHasValue) vitals.sleepingHrDipPct else 0f,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(ShapeBar)
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = hrDipStatus,
+                                fontSize = TextCaption,
+                                color = hrDipColor,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = stringResource(R.string.hr_dip_optimal_range),
+                                fontSize = TextCaption,
+                                color = LabelSilver
+                            )
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
+            // e) Card: Sleep Debt, Daytime Naps & Circadian Bedtime Coach (BedScheduleModel & SleepNapModel)
+            // =========================================================================
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(SleepPeriwinkle)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = stringResource(R.string.sleep_coach_title),
+                                fontSize = TextBody,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = stringResource(R.string.bedtime_window),
+                            fontSize = TextCaption,
+                            color = LabelSilver
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        val bedtimeWindow = vitals.bedtimeWindow.ifBlank { "22:45 - 23:30" }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(ShapePill)
+                                .background(SleepPeriwinkle.copy(alpha = 0.18f))
+                                .border(BorderStroke(1.dp, SleepPeriwinkle.copy(alpha = 0.55f)), ShapePill)
+                                .padding(horizontal = 12.dp, vertical = 5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(SleepPeriwinkle)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = bedtimeWindow,
+                                    fontSize = TextBody,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val totalSleepMinutes = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
+                        val sleepBalanceMins = totalSleepMinutes - 480
+                        val sleepBalanceText = when {
+                            !hasSleepData && totalSleepMinutes == 0 -> "--"
+                            sleepBalanceMins > 0 -> stringResource(R.string.sleep_debt_surplus, sleepBalanceMins)
+                            sleepBalanceMins < 0 -> stringResource(R.string.sleep_debt_deficit, kotlin.math.abs(sleepBalanceMins))
+                            else -> stringResource(R.string.sleep_target_balanced)
+                        }
+                        val sleepBalanceColor = when {
+                            !hasSleepData && totalSleepMinutes == 0 -> LabelSilver
+                            sleepBalanceMins >= 0 -> LimeSteps
+                            else -> ColorAmber
+                        }
+
+                        val napsText = when {
+                            vitals.napMinutes > 0 -> stringResource(R.string.nap_minutes_format, vitals.napMinutes)
+                            else -> stringResource(R.string.no_naps_recorded)
+                        }
+                        val napsColor = if (vitals.napMinutes > 0) StageRem else LabelSilver
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Sleep Balance Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(horizontal = 6.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.sleep_balance_label),
+                                        fontSize = TextCaption,
+                                        color = LabelSilver,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = sleepBalanceText,
+                                        fontSize = TextLabel,
+                                        style = TabularNums,
+                                        color = sleepBalanceColor,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+
+                            // Daytime Naps Box
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(horizontal = 6.dp, vertical = 7.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.daytime_naps),
+                                        fontSize = TextCaption,
+                                        color = LabelSilver,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = napsText,
+                                        fontSize = TextLabel,
+                                        style = TabularNums,
+                                        color = napsColor,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
+            // f) Card: Biometría Nocturna (Nocturnal Biometrics)
             // =========================================================================
             item {
                 Box(
@@ -1090,6 +1518,96 @@ private fun formatMins(mins: Int): String {
     return if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
 }
 
+/**
+ * Sleek animated horizontal dip gauge for Nocturnal HR Dip.
+ * Visualizes 0% to 30% sleeping HR drop compared to daytime baseline,
+ * highlighting the 10% to 20% optimal restorative dip zone.
+ * Hoists Brush and Stroke outside Canvas to prevent per-frame allocations during animation.
+ */
+@Composable
+private fun NocturnalDipGauge(
+    dipPct: Float,
+    modifier: Modifier = Modifier
+) {
+    val targetFraction = (dipPct.coerceIn(0f, 30f) / 30f)
+    val animProgress = remember { Animatable(0f) }
+
+    LaunchedEffect(targetFraction) {
+        animProgress.animateTo(
+            targetValue = targetFraction,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            )
+        )
+    }
+
+    val density = LocalDensity.current
+    val trackBgColor = remember { Color(0x22FFFFFF) }
+    val zoneBgColor = remember { Color(0x3300E676) }
+    val zoneBorderColor = remember { Color(0x6600E676) }
+    val pointerColor = remember { Color.White }
+    val tickStrokeWidth = remember(density) { with(density) { 1.5.dp.toPx() } }
+
+    val dipGradientBrush = remember {
+        Brush.horizontalGradient(
+            listOf(
+                Color(0xFF47CDFF),
+                Color(0xFF5E72E4),
+                Color(0xFF00E676)
+            )
+        )
+    }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        // 1. Draw base track
+        drawRoundRect(
+            color = trackBgColor,
+            size = size,
+            cornerRadius = corner
+        )
+
+        // 2. Highlight restorative dip zone (10% to 20% on 0%..30% scale)
+        val zoneStartX = size.width * (10f / 30f)
+        val zoneWidth = size.width * (10f / 30f)
+        drawRect(
+            color = zoneBgColor,
+            topLeft = Offset(zoneStartX, 0f),
+            size = Size(zoneWidth, size.height)
+        )
+        drawLine(
+            color = zoneBorderColor,
+            start = Offset(zoneStartX, 0f),
+            end = Offset(zoneStartX, size.height),
+            strokeWidth = tickStrokeWidth
+        )
+        drawLine(
+            color = zoneBorderColor,
+            start = Offset(zoneStartX + zoneWidth, 0f),
+            end = Offset(zoneStartX + zoneWidth, size.height),
+            strokeWidth = tickStrokeWidth
+        )
+
+        // 3. Draw animated progress fill
+        val progressW = size.width * animProgress.value
+        if (progressW > 0f) {
+            drawRoundRect(
+                brush = dipGradientBrush,
+                topLeft = Offset(0f, 0f),
+                size = Size(progressW, size.height),
+                cornerRadius = corner
+            )
+            drawLine(
+                color = pointerColor,
+                start = Offset(progressW, 0f),
+                end = Offset(progressW, size.height),
+                strokeWidth = tickStrokeWidth * 1.5f
+            )
+        }
+    }
+}
+
 @Preview(
     device = "id:wearos_small_round",
     showSystemUi = true
@@ -1105,7 +1623,12 @@ fun SleepDetailPreview() {
             sleepAwakeMins = 25,
             lastHeartRate = 56,
             lastSpo2 = 98,
-            isConnected = true
+            isConnected = true,
+            odiDropsPerHour = 2.4f,
+            minSleepingSpo2 = 95,
+            sleepingHrDipPct = 14.8f,
+            napMinutes = 25,
+            bedtimeWindow = "23:00 - 23:45"
         )
     )
 }

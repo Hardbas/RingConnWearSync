@@ -48,12 +48,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -533,7 +538,12 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 }
             }
 
-            // 5. Perspectiva RingConn (Floating Typography)
+            // 5. Card: Active Stand Hours (StandSyncModel)
+            item {
+                StandHoursCard(standHours = vitals.standHours)
+            }
+
+            // 6. Perspectiva RingConn (Floating Typography)
             item {
                 Column(
                     modifier = Modifier
@@ -812,6 +822,213 @@ private fun ActivityProgressBar(progress: Float, color: Color) {
     }
 }
 
+/**
+ * StandSyncModel - Interactive Stand Hours Card
+ * Shows Active Stand Hours (${vitals.standHours} / 12 h) with a 12-segment horizontal capsule bar.
+ * Filled segments glow in CyanActive, and tapping/dragging across segments triggers HapticFeedbackType.TextHandleMove.
+ */
+@Composable
+private fun StandHoursCard(
+    standHours: Int,
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+    var touchedSegment by remember { mutableStateOf<Int?>(null) }
+    var lastSegment by remember { mutableStateOf(-1) }
+    val targetHours = 12
+    val clampedHours = standHours.coerceIn(0, targetHours)
+    val progress = (clampedHours.toFloat() / targetHours).coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(CyanActive)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Stand Hours",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(CyanActive.copy(alpha = 0.26f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        fontSize = TextCaption,
+                        style = TabularNums,
+                        color = CyanActive,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "$standHours",
+                        fontSize = TextBig,
+                        style = TabularNums,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "/ 12 h",
+                        fontSize = TextLabel,
+                        style = TabularNums,
+                        color = LabelSilver,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+
+                if (touchedSegment != null) {
+                    val segIdx = touchedSegment!!
+                    val isStanding = segIdx < standHours
+                    Text(
+                        text = "Hr ${segIdx + 1}: ${if (isStanding) "Active" else "Idle"}",
+                        fontSize = TextCaption,
+                        color = if (isStanding) CyanActive else LabelSilver,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val density = LocalDensity.current
+            val spacingPx = with(density) { 2.5.dp.toPx() }
+            val glowRadiusPx = with(density) { 2.dp.toPx() }
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(18.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = { offset ->
+                                val seg = (offset.x / (size.width / 12f)).toInt().coerceIn(0, 11)
+                                touchedSegment = seg
+                                if (seg != lastSegment) {
+                                    lastSegment = seg
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                tryAwaitRelease()
+                                touchedSegment = null
+                                lastSegment = -1
+                            }
+                        )
+                    }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                val seg = (offset.x / (size.width / 12f)).toInt().coerceIn(0, 11)
+                                touchedSegment = seg
+                                if (seg != lastSegment) {
+                                    lastSegment = seg
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            },
+                            onDragEnd = {
+                                touchedSegment = null
+                                lastSegment = -1
+                            },
+                            onDragCancel = {
+                                touchedSegment = null
+                                lastSegment = -1
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                change.consume()
+                                val seg = (change.position.x / (size.width / 12f)).toInt().coerceIn(0, 11)
+                                touchedSegment = seg
+                                if (seg != lastSegment) {
+                                    lastSegment = seg
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            }
+                        )
+                    }
+            ) {
+                val totalWidth = size.width
+                val totalHeight = size.height
+                val segWidth = (totalWidth - (spacingPx * 11)) / 12f
+                val cornerRadius = CornerRadius(totalHeight / 2f, totalHeight / 2f)
+
+                for (i in 0 until 12) {
+                    val left = i * (segWidth + spacingPx)
+                    val isFilled = i < standHours
+                    val isHovered = touchedSegment == i
+
+                    if (isFilled || isHovered) {
+                        drawRoundRect(
+                            color = CyanActive.copy(alpha = if (isHovered) 0.55f else 0.28f),
+                            topLeft = Offset(left - glowRadiusPx, -glowRadiusPx),
+                            size = Size(segWidth + (glowRadiusPx * 2f), totalHeight + (glowRadiusPx * 2f)),
+                            cornerRadius = CornerRadius((totalHeight + glowRadiusPx * 2f) / 2f)
+                        )
+                    }
+
+                    val segColor = when {
+                        isHovered && isFilled -> Color.White
+                        isHovered -> CyanActive.copy(alpha = 0.6f)
+                        isFilled -> CyanActive
+                        else -> Color(0x33FFFFFF)
+                    }
+
+                    drawRoundRect(
+                        color = segColor,
+                        topLeft = Offset(left, 0f),
+                        size = Size(segWidth, totalHeight),
+                        cornerRadius = cornerRadius
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (standHours >= 12) "Stand goal reached! 12/12 hours" else "${12 - standHours} more stand hours to goal",
+                fontSize = TextCaption,
+                color = LabelSilver
+            )
+        }
+    }
+}
+
 @Preview(
     device = "id:wearos_small_round",
     showSystemUi = true
@@ -826,7 +1043,8 @@ fun DailySummaryDetailPreview() {
             liveCalorie = 340,
             targetCalorie = 500,
             activityScore = 78,
-            isConnected = true
+            isConnected = true,
+            standHours = 8
         )
     )
 }

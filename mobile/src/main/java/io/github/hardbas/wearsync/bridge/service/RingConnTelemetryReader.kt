@@ -75,6 +75,12 @@ object RingConnTelemetryReader {
     const val KEY_ACTIVITY_INSIGHT = "activity_insight"
     const val KEY_VITALS_INSIGHT = "vitals_insight"
     const val KEY_LAST_MORNING_PEEK_EPOCH_DAY = "last_morning_peek_epoch_day"
+    const val KEY_ODI_DROPS_PER_HOUR = "odiDropsPerHour"
+    const val KEY_MIN_SLEEPING_SPO2 = "minSleepingSpo2"
+    const val KEY_SLEEPING_HR_DIP_PCT = "sleepingHrDipPct"
+    const val KEY_NAP_MINUTES = "napMinutes"
+    const val KEY_BEDTIME_WINDOW = "bedtimeWindow"
+    const val KEY_STAND_HOURS = "standHours"
 
     val CORE_HEALTH_PERMISSIONS = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -647,6 +653,139 @@ object RingConnTelemetryReader {
         val finalLight = if (hasValidStages) lightMins.toInt() else existing.sleepLightMins
         val finalAwake = if (hasValidStages) awakeMins.toInt() else existing.sleepAwakeMins
 
+        // --- Reverse-Engineered Biomarkers Calculation (AHISpo2Data, CalSleepHeartRateData, SleepNapModel, BedScheduleModel, StandSyncModel) ---
+        // 1. Sleep Sessions (SleepNapModel & BedScheduleModel)
+        val allSleepRecords = if (sleepResponse != null) {
+            val ringSleep = sleepResponse.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            ringSleep.ifEmpty { sleepResponse.records }
+        } else emptyList()
+
+        val longSleepSessions = allSleepRecords.filter {
+            Duration.between(it.startTime, it.endTime).toMinutes() >= 180L
+        }
+        val primarySleepSession: SleepSessionRecord? = if (longSleepSessions.isNotEmpty()) {
+            longSleepSessions.filter { it.endTime >= todayStart }.maxByOrNull { it.endTime }
+                ?: longSleepSessions.maxByOrNull { it.endTime }
+        } else {
+            allSleepRecords.filter { it.endTime >= todayStart }.maxByOrNull { Duration.between(it.startTime, it.endTime).toMinutes() }
+                ?: allSleepRecords.maxByOrNull { Duration.between(it.startTime, it.endTime).toMinutes() }
+        }
+
+        val napSessions = allSleepRecords.filter { session ->
+            session != primarySleepSession &&
+            (session.startTime >= todayStart || session.endTime >= todayStart) &&
+            Duration.between(session.startTime, session.endTime).toMinutes() in 15..179
+        }
+        val computedNapMinutes = napSessions.sumOf {
+            Duration.between(it.startTime, it.endTime).toMinutes().toInt()
+        }
+        val finalNapMinutes = if (computedNapMinutes > 0) computedNapMinutes else existing.napMinutes
+
+        val localZone = ZoneId.systemDefault()
+        var computedBedtimeWindow = ""
+        if (primarySleepSession != null) {
+            val sleepOnsetLocal = primarySleepSession.startTime.atZone(localZone)
+            val windowStart = sleepOnsetLocal.minusMinutes(15)
+            val windowEnd = sleepOnsetLocal.plusMinutes(30)
+            val bedFmt = DateTimeFormatter.ofPattern("HH:mm")
+            computedBedtimeWindow = "${windowStart.format(bedFmt)} - ${windowEnd.format(bedFmt)}"
+        }
+        val finalBedtimeWindow = computedBedtimeWindow.ifBlank { existing.bedtimeWindow }
+
+        // 2. Nocturnal SpO2 & Apnea ODI (AHISpo2Data)
+        val effectiveSpo2Records = if (spo2Response != null) {
+            val ringSpo2 = spo2Response.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            ringSpo2.ifEmpty { spo2Response.records }
+        } else emptyList()
+
+        val todayMidnight = ZonedDateTime.now(localZone).toLocalDate().atStartOfDay(localZone).toInstant()
+        val today0700 = ZonedDateTime.now(localZone).toLocalDate().atTime(7, 0).atZone(localZone).toInstant()
+
+        val nocturnalSpo2Records = effectiveSpo2Records.filter { rec ->
+            if (primarySleepSession != null) {
+                rec.time >= primarySleepSession.startTime && rec.time <= primarySleepSession.endTime
+            } else {
+                rec.time >= todayMidnight && rec.time <= today0700
+            }
+        }
+
+        val sleepDurationHours: Float = if (primarySleepSession != null) {
+            val mins = Duration.between(primarySleepSession.startTime, primarySleepSession.endTime).toMinutes().toFloat()
+            mins / 60.0f
+        } else {
+            7.0f
+        }
+
+        var computedMinSleepingSpo2 = 0
+        var computedOdi = 0.0f
+        if (nocturnalSpo2Records.isNotEmpty()) {
+            val spo2Values = nocturnalSpo2Records.map { rec ->
+                val v = rec.percentage.value
+                if (v <= 1.0) v * 100.0 else v
+            }
+            computedMinSleepingSpo2 = spo2Values.minOrNull()?.roundToInt() ?: 0
+            val meanSleepingSpo2 = spo2Values.average()
+            val dropThreshold = meanSleepingSpo2 - 3.0
+            val dropCount = spo2Values.count { it <= dropThreshold || it < 92.0 }
+            val effectiveHours = maxOf(1.0f, sleepDurationHours)
+            val rawOdi = dropCount.toFloat() / effectiveHours
+            computedOdi = (rawOdi * 10f).roundToInt() / 10f
+        } else {
+            computedMinSleepingSpo2 = if (lastSpo2 > 0) lastSpo2 else finalSpo2
+        }
+        val finalMinSleepingSpo2 = if (computedMinSleepingSpo2 > 0) computedMinSleepingSpo2 else existing.minSleepingSpo2
+        val finalOdi = if (computedOdi > 0f) computedOdi else existing.odiDropsPerHour
+
+        // 3. Nocturnal Heart Rate Dip (CalSleepHeartRateData)
+        var computedSleepingHrDipPct = 0.0f
+        val effectiveHrRecords = if (hrResponse != null) {
+            val ringHr = hrResponse.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            ringHr.ifEmpty { hrResponse.records }
+        } else emptyList()
+
+        val allHrSamples = effectiveHrRecords.flatMap { it.samples }
+        if (primarySleepSession != null && allHrSamples.isNotEmpty()) {
+            val sleepHrSamples = allHrSamples.filter {
+                it.time >= primarySleepSession.startTime && it.time <= primarySleepSession.endTime
+            }
+            val awakeHrSamples = allHrSamples.filter {
+                it.time < primarySleepSession.startTime || it.time > primarySleepSession.endTime
+            }
+            if (sleepHrSamples.isNotEmpty() && awakeHrSamples.isNotEmpty()) {
+                val sleepMeanHr = sleepHrSamples.map { it.beatsPerMinute.toDouble() }.average()
+                val awakeMeanHr = awakeHrSamples.map { it.beatsPerMinute.toDouble() }.average()
+                if (awakeMeanHr > 0.0) {
+                    val dip = (((awakeMeanHr - sleepMeanHr) / awakeMeanHr) * 100.0).toFloat().coerceIn(0f, 35f)
+                    computedSleepingHrDipPct = (dip * 10f).roundToInt() / 10f
+                }
+            }
+        }
+        if (computedSleepingHrDipPct == 0.0f) {
+            val refAvg = if (finalAvgHr > 0) finalAvgHr else existing.avgHeartRate
+            val refMin = if (finalMinHr > 0) finalMinHr else existing.minHeartRate
+            if (refAvg > 0 && refMin > 0 && refAvg > refMin) {
+                val dip = (((refAvg - refMin) * 0.65f / refAvg.toFloat()) * 100f).coerceIn(0f, 30f)
+                computedSleepingHrDipPct = (dip * 10f).roundToInt() / 10f
+            }
+        }
+        val finalSleepingHrDipPct = if (computedSleepingHrDipPct > 0f) computedSleepingHrDipPct else existing.sleepingHrDipPct
+
+        // 4. Stand Hours (StandSyncModel)
+        var computedStandHours = 0
+        if (stepsResponse != null) {
+            val ringSteps = stepsResponse.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            val effectiveSteps = ringSteps.ifEmpty { stepsResponse.records }
+            val distinctHours = effectiveSteps.filter { it.count >= 25L && it.startTime >= todayStart }
+                .map { it.startTime.atZone(localZone).hour }
+                .distinct()
+            computedStandHours = distinctHours.size.coerceIn(0, 12)
+        }
+        val refSteps = if (finalSteps > 0) finalSteps else existing.liveSteps
+        if (refSteps > 0 && computedStandHours == 0) {
+            computedStandHours = (refSteps / 650).coerceIn(1, 12)
+        }
+        val finalStandHours = if (computedStandHours > 0) computedStandHours else existing.standHours
+
         val vitals = RingConnVitals(
             lastHeartRate = finalHr,
             avgHeartRate = finalAvgHr,
@@ -682,11 +821,17 @@ object RingConnTelemetryReader {
             sleepInsight = existing.sleepInsight,
             stressInsight = existing.stressInsight,
             activityInsight = existing.activityInsight,
-            vitalsInsight = existing.vitalsInsight
+            vitalsInsight = existing.vitalsInsight,
+            odiDropsPerHour = finalOdi,
+            minSleepingSpo2 = finalMinSleepingSpo2,
+            sleepingHrDipPct = finalSleepingHrDipPct,
+            napMinutes = finalNapMinutes,
+            bedtimeWindow = finalBedtimeWindow,
+            standHours = finalStandHours
         )
 
         saveToPreferences(context, vitals, source = sourceLabel)
-        Log.i(TAG, "[$sourceLabel] Fresh vitals loaded: HR=$finalHr, Min=$finalMinHr, Max=$finalMaxHr, SpO2=$finalSpo2, Steps=$finalSteps, Sleep=$finalSleep, HRV=$finalHrv")
+        Log.i(TAG, "[$sourceLabel] Fresh vitals loaded: HR=$finalHr, Min=$finalMinHr, Max=$finalMaxHr, SpO2=$finalSpo2, Steps=$finalSteps, Sleep=$finalSleep, HRV=$finalHrv, ODI=$finalOdi, MinSleepSpO2=$finalMinSleepingSpo2, HrDip=$finalSleepingHrDipPct%, Naps=${finalNapMinutes}m, BedWindow=$finalBedtimeWindow, Stand=${finalStandHours}h")
         return@coroutineScope vitals
     }
 
@@ -825,7 +970,13 @@ object RingConnTelemetryReader {
                 sleepInsight = mergedSleepInsight,
                 stressInsight = mergedStressInsight,
                 activityInsight = mergedActivityInsight,
-                vitalsInsight = mergedVitalsInsight
+                vitalsInsight = mergedVitalsInsight,
+                odiDropsPerHour = hcVitals?.odiDropsPerHour?.takeIf { it > 0f } ?: (if (widgetVitals.odiDropsPerHour > 0f) widgetVitals.odiDropsPerHour else cached.odiDropsPerHour),
+                minSleepingSpo2 = hcVitals?.minSleepingSpo2?.takeIf { it > 0 } ?: (if (widgetVitals.minSleepingSpo2 > 0) widgetVitals.minSleepingSpo2 else cached.minSleepingSpo2),
+                sleepingHrDipPct = hcVitals?.sleepingHrDipPct?.takeIf { it > 0f } ?: (if (widgetVitals.sleepingHrDipPct > 0f) widgetVitals.sleepingHrDipPct else cached.sleepingHrDipPct),
+                napMinutes = hcVitals?.napMinutes?.takeIf { it > 0 } ?: (if (widgetVitals.napMinutes > 0) widgetVitals.napMinutes else cached.napMinutes),
+                bedtimeWindow = hcVitals?.bedtimeWindow?.takeIf { it.isNotBlank() } ?: (if (widgetVitals.bedtimeWindow.isNotBlank()) widgetVitals.bedtimeWindow else cached.bedtimeWindow),
+                standHours = hcVitals?.standHours?.takeIf { it > 0 } ?: (if (widgetVitals.standHours > 0) widgetVitals.standHours else cached.standHours)
             )
             val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
             saveToPreferences(context, merged, source = sourceLabel)
@@ -843,7 +994,13 @@ object RingConnTelemetryReader {
                 sleepInsight = hcVitals.sleepInsight.ifBlank { cached.sleepInsight },
                 stressInsight = hcVitals.stressInsight.ifBlank { cached.stressInsight },
                 activityInsight = hcVitals.activityInsight.ifBlank { cached.activityInsight },
-                vitalsInsight = hcVitals.vitalsInsight.ifBlank { cached.vitalsInsight }
+                vitalsInsight = hcVitals.vitalsInsight.ifBlank { cached.vitalsInsight },
+                odiDropsPerHour = if (hcVitals.odiDropsPerHour > 0f) hcVitals.odiDropsPerHour else cached.odiDropsPerHour,
+                minSleepingSpo2 = if (hcVitals.minSleepingSpo2 > 0) hcVitals.minSleepingSpo2 else cached.minSleepingSpo2,
+                sleepingHrDipPct = if (hcVitals.sleepingHrDipPct > 0f) hcVitals.sleepingHrDipPct else cached.sleepingHrDipPct,
+                napMinutes = if (hcVitals.napMinutes > 0) hcVitals.napMinutes else cached.napMinutes,
+                bedtimeWindow = hcVitals.bedtimeWindow.ifBlank { cached.bedtimeWindow },
+                standHours = if (hcVitals.standHours > 0) hcVitals.standHours else cached.standHours
             )
             return@coroutineScope finalHcVitals
         }
@@ -944,6 +1101,12 @@ object RingConnTelemetryReader {
             putString(KEY_STRESS_INSIGHT, vitals.stressInsight.ifBlank { prefs.getString(KEY_STRESS_INSIGHT, "") ?: "" })
             putString(KEY_ACTIVITY_INSIGHT, vitals.activityInsight.ifBlank { prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "" })
             putString(KEY_VITALS_INSIGHT, vitals.vitalsInsight.ifBlank { prefs.getString(KEY_VITALS_INSIGHT, "") ?: "" })
+            putFloat(KEY_ODI_DROPS_PER_HOUR, if (vitals.odiDropsPerHour > 0f) vitals.odiDropsPerHour else prefs.getFloat(KEY_ODI_DROPS_PER_HOUR, 0.0f))
+            putInt(KEY_MIN_SLEEPING_SPO2, if (vitals.minSleepingSpo2 > 0) vitals.minSleepingSpo2 else prefs.getInt(KEY_MIN_SLEEPING_SPO2, 0))
+            putFloat(KEY_SLEEPING_HR_DIP_PCT, if (vitals.sleepingHrDipPct > 0f) vitals.sleepingHrDipPct else prefs.getFloat(KEY_SLEEPING_HR_DIP_PCT, 0.0f))
+            putInt(KEY_NAP_MINUTES, if (vitals.napMinutes > 0) vitals.napMinutes else prefs.getInt(KEY_NAP_MINUTES, 0))
+            putString(KEY_BEDTIME_WINDOW, vitals.bedtimeWindow.ifBlank { prefs.getString(KEY_BEDTIME_WINDOW, "") ?: "" })
+            putInt(KEY_STAND_HOURS, if (vitals.standHours > 0) vitals.standHours else prefs.getInt(KEY_STAND_HOURS, 0))
             putString(KEY_LAST_SYNC_SOURCE, source)
             putString(KEY_LAST_SYNC_TIME_STR, timeStr)
             apply()
@@ -986,7 +1149,13 @@ object RingConnTelemetryReader {
             sleepInsight = prefs.getString(KEY_SLEEP_INSIGHT, "") ?: "",
             stressInsight = prefs.getString(KEY_STRESS_INSIGHT, "") ?: "",
             activityInsight = prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "",
-            vitalsInsight = prefs.getString(KEY_VITALS_INSIGHT, "") ?: ""
+            vitalsInsight = prefs.getString(KEY_VITALS_INSIGHT, "") ?: "",
+            odiDropsPerHour = prefs.getFloat(KEY_ODI_DROPS_PER_HOUR, 0.0f),
+            minSleepingSpo2 = prefs.getInt(KEY_MIN_SLEEPING_SPO2, 0),
+            sleepingHrDipPct = prefs.getFloat(KEY_SLEEPING_HR_DIP_PCT, 0.0f),
+            napMinutes = prefs.getInt(KEY_NAP_MINUTES, 0),
+            bedtimeWindow = prefs.getString(KEY_BEDTIME_WINDOW, "") ?: "",
+            standHours = prefs.getInt(KEY_STAND_HOURS, 0)
         )
     }
 

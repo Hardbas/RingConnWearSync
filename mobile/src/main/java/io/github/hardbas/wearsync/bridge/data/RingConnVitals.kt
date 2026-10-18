@@ -35,7 +35,13 @@ data class RingConnVitals(
     val sleepInsight: String = "",
     val stressInsight: String = "",
     val activityInsight: String = "",
-    val vitalsInsight: String = ""
+    val vitalsInsight: String = "",
+    val odiDropsPerHour: Float = 0.0f,
+    val minSleepingSpo2: Int = 0,
+    val sleepingHrDipPct: Float = 0.0f,
+    val napMinutes: Int = 0,
+    val bedtimeWindow: String = "",
+    val standHours: Int = 0
 ) {
     val isStale: Boolean
         get() = (System.currentTimeMillis() / 1000L) - refreshTimestamp > 1800L // > 30 mins

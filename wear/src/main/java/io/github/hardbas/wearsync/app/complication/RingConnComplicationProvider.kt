@@ -184,6 +184,12 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             val stressInsight = prefs.getString("stress_insight", "") ?: ""
             val activityInsight = prefs.getString("activity_insight", "") ?: ""
             val vitalsInsight = prefs.getString("vitals_insight", "") ?: ""
+            val odiDropsPerHour = prefs.getFloat("odi_drops_per_hour", 0.0f)
+            val minSleepingSpo2 = prefs.getInt("min_sleeping_spo2", 0)
+            val sleepingHrDipPct = prefs.getFloat("sleeping_hr_dip_pct", 0.0f)
+            val napMinutes = prefs.getInt("nap_minutes", 0)
+            val bedtimeWindow = prefs.getString("bedtime_window", "") ?: ""
+            val standHours = prefs.getInt("stand_hours", 0)
 
             return RingConnVitals(
                 lastHeartRate = hr,
@@ -220,7 +226,13 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 sleepInsight = sleepInsight,
                 stressInsight = stressInsight,
                 activityInsight = activityInsight,
-                vitalsInsight = vitalsInsight
+                vitalsInsight = vitalsInsight,
+                odiDropsPerHour = odiDropsPerHour,
+                minSleepingSpo2 = minSleepingSpo2,
+                sleepingHrDipPct = sleepingHrDipPct,
+                napMinutes = napMinutes,
+                bedtimeWindow = bedtimeWindow,
+                standHours = standHours
             )
         }
 
@@ -269,6 +281,12 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putString("stress_insight", vitals.stressInsight)
                 putString("activity_insight", vitals.activityInsight)
                 putString("vitals_insight", vitals.vitalsInsight)
+                putFloat("odi_drops_per_hour", vitals.odiDropsPerHour)
+                putInt("min_sleeping_spo2", vitals.minSleepingSpo2)
+                putFloat("sleeping_hr_dip_pct", vitals.sleepingHrDipPct)
+                putInt("nap_minutes", vitals.napMinutes)
+                putString("bedtime_window", vitals.bedtimeWindow)
+                putInt("stand_hours", vitals.standHours)
                 apply()
             }
 
@@ -285,7 +303,8 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 SleepScoreComplicationProvider::class.java,
                 StepsComplicationProvider::class.java,
                 StressComplicationProvider::class.java,
-                TemperatureComplicationProvider::class.java
+                TemperatureComplicationProvider::class.java,
+                ReadinessComplicationService::class.java
             )
             for (provider in complicationProviders) {
                 try {
@@ -606,6 +625,61 @@ class TemperatureComplicationProvider : SuspendingComplicationDataSourceService(
             currentValue = offset.coerceIn(-2.0f, 2.0f),
             minValue = -2.0f,
             maxValue = 2.0f,
+            tapIntent = tapIntent
+        )
+    }
+}
+
+/**
+ * 8. Readiness Complication Provider (0..100)
+ */
+class ReadinessComplicationService : SuspendingComplicationDataSourceService() {
+
+    override fun getPreviewData(type: ComplicationType): ComplicationData? {
+        val title = try {
+            getString(R.string.readiness_title)
+        } catch (e: Exception) {
+            "Readiness"
+        }
+        return ComplicationDataFactory.build(
+            context = this,
+            type = type,
+            shortText = "85",
+            title = title,
+            longText = "$title: 85",
+            contentDesc = "$title: 85",
+            iconRes = R.drawable.ic_vitals_hr,
+            currentValue = 85f,
+            minValue = 0f,
+            maxValue = 100f
+        )
+    }
+
+    override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
+        val vitals = RingConnComplicationProvider.getLatestVitals(this)
+        val readiness = RingConnHistoryStore.computeReadinessScore(vitals)
+        val textValue = if (readiness > 0) "$readiness" else "--"
+        val title = try {
+            getString(R.string.readiness_title)
+        } catch (e: Exception) {
+            "Readiness"
+        }
+        val tapIntent = PendingIntent.getActivity(
+            this, 208, Intent(this, VitalsDetailActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return ComplicationDataFactory.build(
+            context = this,
+            type = request.complicationType,
+            shortText = textValue,
+            title = title,
+            longText = if (readiness > 0) "$title: $readiness" else title,
+            contentDesc = "$title: $textValue",
+            iconRes = R.drawable.ic_vitals_hr,
+            currentValue = if (readiness > 0) readiness.toFloat().coerceIn(0f, 100f) else 0f,
+            minValue = 0f,
+            maxValue = 100f,
             tapIntent = tapIntent
         )
     }

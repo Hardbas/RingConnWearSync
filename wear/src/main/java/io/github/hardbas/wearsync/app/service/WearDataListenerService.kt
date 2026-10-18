@@ -200,6 +200,12 @@ class WearDataListenerService : WearableListenerService() {
             val stressInsight = if (dataMap.containsKey("stress_insight")) dataMap.getString("stress_insight") ?: "" else ""
             val activityInsight = if (dataMap.containsKey("activity_insight")) dataMap.getString("activity_insight") ?: "" else ""
             val vitalsInsight = if (dataMap.containsKey("vitals_insight")) dataMap.getString("vitals_insight") ?: "" else ""
+            val odiDropsPerHour = if (dataMap.containsKey("odi_drops_per_hour")) dataMap.getFloat("odi_drops_per_hour") else 0.0f
+            val minSleepingSpo2 = if (dataMap.containsKey("min_sleeping_spo2")) dataMap.getInt("min_sleeping_spo2") else 0
+            val sleepingHrDipPct = if (dataMap.containsKey("sleeping_hr_dip_pct")) dataMap.getFloat("sleeping_hr_dip_pct") else 0.0f
+            val napMinutes = if (dataMap.containsKey("nap_minutes")) dataMap.getInt("nap_minutes") else 0
+            val bedtimeWindow = if (dataMap.containsKey("bedtime_window")) dataMap.getString("bedtime_window") ?: "" else ""
+            val standHours = if (dataMap.containsKey("stand_hours")) dataMap.getInt("stand_hours") else 0
 
             return RingConnVitals(
                 lastHeartRate = hrLast,
@@ -236,7 +242,13 @@ class WearDataListenerService : WearableListenerService() {
                 sleepInsight = sleepInsight,
                 stressInsight = stressInsight,
                 activityInsight = activityInsight,
-                vitalsInsight = vitalsInsight
+                vitalsInsight = vitalsInsight,
+                odiDropsPerHour = odiDropsPerHour,
+                minSleepingSpo2 = minSleepingSpo2,
+                sleepingHrDipPct = sleepingHrDipPct,
+                napMinutes = napMinutes,
+                bedtimeWindow = bedtimeWindow,
+                standHours = standHours
             )
         }
 
@@ -276,7 +288,13 @@ class WearDataListenerService : WearableListenerService() {
                 sleepInsight = json.optString("sleep_insight", ""),
                 stressInsight = json.optString("stress_insight", ""),
                 activityInsight = json.optString("activity_insight", ""),
-                vitalsInsight = json.optString("vitals_insight", "")
+                vitalsInsight = json.optString("vitals_insight", ""),
+                odiDropsPerHour = json.optDouble("odi_drops_per_hour", 0.0).toFloat(),
+                minSleepingSpo2 = json.optInt("min_sleeping_spo2", 0),
+                sleepingHrDipPct = json.optDouble("sleeping_hr_dip_pct", 0.0).toFloat(),
+                napMinutes = json.optInt("nap_minutes", 0),
+                bedtimeWindow = json.optString("bedtime_window", ""),
+                standHours = json.optInt("stand_hours", 0)
             )
         }
     }

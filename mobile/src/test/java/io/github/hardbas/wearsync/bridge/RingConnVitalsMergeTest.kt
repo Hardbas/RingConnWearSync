@@ -2,6 +2,7 @@ package io.github.hardbas.wearsync.bridge
 
 import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.service.RingConnTelemetryParser
+import io.github.hardbas.wearsync.bridge.service.WearDataSyncService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -18,6 +19,12 @@ class RingConnVitalsMergeTest {
         assertEquals(0.0f, vitals.skinTempBaseline, 0.01f)
         assertEquals(0.0f, vitals.skinTempOffset, 0.01f)
         assertFalse(vitals.isConnected)
+        assertEquals(0.0f, vitals.odiDropsPerHour, 0.01f)
+        assertEquals(0, vitals.minSleepingSpo2)
+        assertEquals(0.0f, vitals.sleepingHrDipPct, 0.01f)
+        assertEquals(0, vitals.napMinutes)
+        assertEquals("", vitals.bedtimeWindow)
+        assertEquals(0, vitals.standHours)
     }
 
     @Test
@@ -57,15 +64,7 @@ class RingConnVitalsMergeTest {
 
     @Test
     fun signatureFields_detectChangesProperly() {
-        fun makeSignature(vitals: RingConnVitals): String {
-            return "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.avgSpo2}_${vitals.lastHrv}_${vitals.avgHrv}_" +
-                "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
-                "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
-                "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
-                "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
-                "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
-                "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}"
-        }
+        fun makeSignature(vitals: RingConnVitals): String = WearDataSyncService.computeSignature(vitals)
 
         val base = RingConnVitals(avgSpo2 = 98, avgHrv = 45, isConnected = true, targetSteps = 10000, targetCalorie = 500, refreshTimestamp = 1000L)
         val sigBase = makeSignature(base)
@@ -78,6 +77,31 @@ class RingConnVitalsMergeTest {
         assertNotEquals(sigBase, makeSignature(base.copy(refreshTimestamp = 2000L)))
         assertNotEquals(sigBase, makeSignature(base.copy(sleepInsight = "Great sleep")))
         assertNotEquals(sigBase, makeSignature(base.copy(stressInsight = "Calm")))
+        assertNotEquals(sigBase, makeSignature(base.copy(odiDropsPerHour = 2.1f)))
+        assertNotEquals(sigBase, makeSignature(base.copy(minSleepingSpo2 = 91)))
+        assertNotEquals(sigBase, makeSignature(base.copy(sleepingHrDipPct = 12.0f)))
+        assertNotEquals(sigBase, makeSignature(base.copy(napMinutes = 45)))
+        assertNotEquals(sigBase, makeSignature(base.copy(bedtimeWindow = "23:00 - 23:45")))
+        assertNotEquals(sigBase, makeSignature(base.copy(standHours = 9)))
+    }
+
+    @Test
+    fun reverseEngineeredBiomarkers_defaultProperlyAndTriggerSignatureUpdates() {
+        val vitals = RingConnVitals()
+        assertEquals(0.0f, vitals.odiDropsPerHour, 0.001f)
+        assertEquals(0, vitals.minSleepingSpo2)
+        assertEquals(0.0f, vitals.sleepingHrDipPct, 0.001f)
+        assertEquals(0, vitals.napMinutes)
+        assertEquals("", vitals.bedtimeWindow)
+        assertEquals(0, vitals.standHours)
+
+        val baseSig = WearDataSyncService.computeSignature(vitals)
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(odiDropsPerHour = 1.4f)))
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(minSleepingSpo2 = 93)))
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(sleepingHrDipPct = 15.5f)))
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(napMinutes = 25)))
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(bedtimeWindow = "22:15 - 23:00")))
+        assertNotEquals(baseSig, WearDataSyncService.computeSignature(vitals.copy(standHours = 7)))
     }
 
     @Test

@@ -14,13 +14,7 @@ class WearDataSyncService(private val context: Context) {
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
 
     suspend fun syncVitalsToWatch(vitals: RingConnVitals, force: Boolean = false): Boolean {
-        val signature = "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.avgSpo2}_${vitals.lastHrv}_${vitals.avgHrv}_" +
-            "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
-            "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
-            "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
-            "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
-            "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
-            "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}"
+        val signature = computeSignature(vitals)
         val now = System.currentTimeMillis()
 
         if (!force && signature == lastSyncedSignature && (now - lastSyncedTimeMs) < MIN_HEARTBEAT_INTERVAL_MS) {
@@ -70,6 +64,12 @@ class WearDataSyncService(private val context: Context) {
                 dataMap.putString(KEY_STRESS_INSIGHT, vitals.stressInsight)
                 dataMap.putString(KEY_ACTIVITY_INSIGHT, vitals.activityInsight)
                 dataMap.putString(KEY_VITALS_INSIGHT, vitals.vitalsInsight)
+                dataMap.putFloat(KEY_ODI_DROPS_PER_HOUR, vitals.odiDropsPerHour)
+                dataMap.putInt(KEY_MIN_SLEEPING_SPO2, vitals.minSleepingSpo2)
+                dataMap.putFloat(KEY_SLEEPING_HR_DIP_PCT, vitals.sleepingHrDipPct)
+                dataMap.putInt(KEY_NAP_MINUTES, vitals.napMinutes)
+                dataMap.putString(KEY_BEDTIME_WINDOW, vitals.bedtimeWindow)
+                dataMap.putInt(KEY_STAND_HOURS, vitals.standHours)
             }.asPutDataRequest().setUrgent()
 
             dataClient.putDataItem(request).await()
@@ -116,6 +116,12 @@ class WearDataSyncService(private val context: Context) {
                 put(KEY_STRESS_INSIGHT, vitals.stressInsight)
                 put(KEY_ACTIVITY_INSIGHT, vitals.activityInsight)
                 put(KEY_VITALS_INSIGHT, vitals.vitalsInsight)
+                put(KEY_ODI_DROPS_PER_HOUR, vitals.odiDropsPerHour.toDouble())
+                put(KEY_MIN_SLEEPING_SPO2, vitals.minSleepingSpo2)
+                put(KEY_SLEEPING_HR_DIP_PCT, vitals.sleepingHrDipPct.toDouble())
+                put(KEY_NAP_MINUTES, vitals.napMinutes)
+                put(KEY_BEDTIME_WINDOW, vitals.bedtimeWindow)
+                put(KEY_STAND_HOURS, vitals.standHours)
             }.toString().toByteArray(Charsets.UTF_8)
 
             val nodes = nodeClient.connectedNodes.await()
@@ -141,6 +147,18 @@ class WearDataSyncService(private val context: Context) {
         private const val MIN_HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes if data unchanged
         @Volatile private var lastSyncedSignature: String = ""
         @Volatile private var lastSyncedTimeMs: Long = 0L
+
+        fun computeSignature(vitals: RingConnVitals): String {
+            return "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.avgSpo2}_${vitals.lastHrv}_${vitals.avgHrv}_" +
+                "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
+                "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
+                "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
+                "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
+                "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
+                "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}_" +
+                "${vitals.odiDropsPerHour}_${vitals.minSleepingSpo2}_${vitals.sleepingHrDipPct}_" +
+                "${vitals.napMinutes}_${vitals.bedtimeWindow}_${vitals.standHours}"
+        }
 
         const val PATH_RINGCONN_VITALS = "/ringconn/vitals"
         const val PATH_RINGCONN_MESSAGE = "/ringconn/vitals_message"
@@ -181,5 +199,11 @@ class WearDataSyncService(private val context: Context) {
         const val KEY_STRESS_INSIGHT = "stress_insight"
         const val KEY_ACTIVITY_INSIGHT = "activity_insight"
         const val KEY_VITALS_INSIGHT = "vitals_insight"
+        const val KEY_ODI_DROPS_PER_HOUR = "odi_drops_per_hour"
+        const val KEY_MIN_SLEEPING_SPO2 = "min_sleeping_spo2"
+        const val KEY_SLEEPING_HR_DIP_PCT = "sleeping_hr_dip_pct"
+        const val KEY_NAP_MINUTES = "nap_minutes"
+        const val KEY_BEDTIME_WINDOW = "bedtime_window"
+        const val KEY_STAND_HOURS = "stand_hours"
     }
 }
