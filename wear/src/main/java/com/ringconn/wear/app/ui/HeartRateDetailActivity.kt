@@ -195,7 +195,7 @@ fun HeartRateDetailContent(
     onMeasureClick: () -> Unit = {}
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -248,32 +248,34 @@ fun HeartRateDetailContent(
     Scaffold(
         timeText = { TimeText() },
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
-        positionIndicator = { PositionIndicator(scrollState = scrollState) }
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
-                        scrollState.scrollBy(it.verticalScrollPixels)
+                        listState.scrollBy(it.verticalScrollPixels)
                     }
                     true
                 }
                 .focusRequester(focusRequester)
-                .focusable()
-                .verticalScroll(scrollState)
-                .padding(top = 28.dp, bottom = 44.dp),
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // =========================================================================
             // a) Header: "Frecuencia Cardíaca" + "Anillo RingConn Gen 2"
             // =========================================================================
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
                 Text(
                     text = stringResource(R.string.tile_heart_rate_title),
                     fontSize = TextBody,
@@ -287,83 +289,86 @@ fun HeartRateDetailContent(
                     color = HrSubtitlePink
                 )
             }
+        }
 
             // =========================================================================
             // b) Hero Stadium Card: Live BPM, pulsing heart, Min-Max range & Measure button
             // =========================================================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapeStadium)
-                    .background(VitalsHrBrush)
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        PulsingHeartIcon(isMeasuring = isMeasuring)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = hrDisplay,
-                                fontSize = TextHero,
-                                style = TabularNums,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeStadium)
+                        .background(VitalsHrBrush)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            PulsingHeartIcon(isMeasuring = isMeasuring)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = hrDisplay,
+                                    fontSize = TextHero,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.bpm_unit),
+                                    fontSize = TextBody,
+                                    color = HrBpmWarm,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Min-Max range bar with smooth Canvas draw animation
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(minHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                            AnimatedMinMaxBar(
+                                progress = if (hasMinMax && maxHr > minHr && hasHr) {
+                                    ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
+                                } else if (hasHr) 0.65f else 0f,
+                                color = HrMinMaxPink,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(6.dp)
+                                    .padding(horizontal = 8.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(maxHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // "Medir Ahora" pill button
+                        Box(
+                            modifier = Modifier
+                                .clip(ShapePill)
+                                .background(GlassBlack50)
+                                .clickable {
+                                    onMeasureClick()
+                                }
+                                .padding(horizontal = 24.dp, vertical = 7.dp)
+                        ) {
                             Text(
-                                text = stringResource(R.string.bpm_unit),
-                                fontSize = TextBody,
-                                color = HrBpmWarm,
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
+                                fontSize = TextLabel,
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Min-Max range bar with smooth Canvas draw animation
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(minHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
-                        AnimatedMinMaxBar(
-                            progress = if (hasMinMax && maxHr > minHr && hasHr) {
-                                ((currentHr - minHr).toFloat() / (maxHr - minHr).toFloat()).coerceIn(0.05f, 1f)
-                            } else if (hasHr) 0.65f else 0f,
-                            color = HrMinMaxPink,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(6.dp)
-                                .padding(horizontal = 8.dp)
-                        )
-                        Text(maxHrText, fontSize = TextLabel, style = TabularNums, color = HrSubtitlePink)
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // "Medir Ahora" pill button
-                    Box(
-                        modifier = Modifier
-                            .clip(ShapePill)
-                            .background(GlassBlack50)
-                            .clickable {
-                                onMeasureClick()
-                            }
-                            .padding(horizontal = 24.dp, vertical = 7.dp)
-                    ) {
-                        Text(
-                            text = if (isMeasuring) stringResource(R.string.measuring) else stringResource(R.string.measure_now),
-                            fontSize = TextLabel,
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold
-                        )
                     }
                 }
             }
@@ -371,13 +376,14 @@ fun HeartRateDetailContent(
             // =========================================================================
             // c) Insights Card: Ritmo y Reposo
             // =========================================================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapePod)
-                    .background(CardBg)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -457,101 +463,104 @@ fun HeartRateDetailContent(
                     }
                 }
             }
+        }
 
             // =========================================================================
             // d) Variabilidad Cardíaca (HRV / VFC)
             // =========================================================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapePod)
-                    .background(CardBg)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.hrv_title),
-                            fontSize = TextBody,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "RMSSD",
-                            fontSize = TextCaption,
-                            color = LabelSilver,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.Bottom) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = hrvDisplay,
-                                fontSize = TextBig,
-                                style = TabularNums,
+                                text = stringResource(R.string.hrv_title),
+                                fontSize = TextBody,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "ms",
-                                fontSize = TextBody,
-                                color = CyanActive,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 4.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(ShapePill)
-                                .background(hrvStatusColor.copy(alpha = 0.22f))
-                                .padding(horizontal = 10.dp, vertical = 3.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = hrvStatusLabel,
+                                text = "RMSSD",
                                 fontSize = TextCaption,
-                                style = TabularNums,
-                                color = hrvStatusColor,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1
+                                color = LabelSilver,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    // Visual HRV status gauge with current dot indicator
-                    HrvStatusGauge(
-                        hrvValue = hrvVal,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(10.dp)
-                    )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = hrvDisplay,
+                                    fontSize = TextBig,
+                                    style = TabularNums,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "ms",
+                                    fontSize = TextBody,
+                                    color = CyanActive,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapePill)
+                                    .background(hrvStatusColor.copy(alpha = 0.22f))
+                                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = hrvStatusLabel,
+                                    fontSize = TextCaption,
+                                    style = TabularNums,
+                                    color = hrvStatusColor,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
+                                )
+                            }
+                        }
 
-                    // Gauge legends
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("< 40 ms", fontSize = TextCaption, style = TabularNums, color = HrMinMaxPink, fontWeight = FontWeight.Medium)
-                        Text("40 - 60 ms", fontSize = TextCaption, style = TabularNums, color = CyanActive, fontWeight = FontWeight.Medium)
-                        Text("> 60 ms", fontSize = TextCaption, style = TabularNums, color = LimeSteps, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Visual HRV status gauge with current dot indicator
+                        HrvStatusGauge(
+                            hrvValue = hrvVal,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Gauge legends
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("< 40 ms", fontSize = TextCaption, style = TabularNums, color = HrMinMaxPink, fontWeight = FontWeight.Medium)
+                            Text("40 - 60 ms", fontSize = TextCaption, style = TabularNums, color = CyanActive, fontWeight = FontWeight.Medium)
+                            Text("> 60 ms", fontSize = TextCaption, style = TabularNums, color = LimeSteps, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             }
@@ -559,80 +568,82 @@ fun HeartRateDetailContent(
             // =========================================================================
             // e) Zonas Cardíacas (Heart Rate Zones): 5 standard One UI zones
             // =========================================================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .clip(ShapePod)
-                    .background(CardBg)
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins
-                val z1Pct = if (totalZoneMins > 0) vitals.zone1Mins.toFloat() / totalZoneMins.toFloat() else 0f
-                val z2Pct = if (totalZoneMins > 0) vitals.zone2Mins.toFloat() / totalZoneMins.toFloat() else 0f
-                val z3Pct = if (totalZoneMins > 0) vitals.zone3Mins.toFloat() / totalZoneMins.toFloat() else 0f
-                val z4Pct = if (totalZoneMins > 0) vitals.zone4Mins.toFloat() / totalZoneMins.toFloat() else 0f
-                val z5Pct = if (totalZoneMins > 0) vitals.zone5Mins.toFloat() / totalZoneMins.toFloat() else 0f
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins
+                    val z1Pct = if (totalZoneMins > 0) vitals.zone1Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                    val z2Pct = if (totalZoneMins > 0) vitals.zone2Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                    val z3Pct = if (totalZoneMins > 0) vitals.zone3Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                    val z4Pct = if (totalZoneMins > 0) vitals.zone4Mins.toFloat() / totalZoneMins.toFloat() else 0f
+                    val z5Pct = if (totalZoneMins > 0) vitals.zone5Mins.toFloat() / totalZoneMins.toFloat() else 0f
 
-                Column {
-                    Text(
-                        text = stringResource(R.string.hr_zones_title),
-                        fontSize = TextBody,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Column {
+                        Text(
+                            text = stringResource(R.string.hr_zones_title),
+                            fontSize = TextBody,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    val bpmUnit = stringResource(R.string.bpm_unit)
+                        val bpmUnit = stringResource(R.string.bpm_unit)
 
-                    // Zone 1: Reposo (< 100 bpm)
-                    ZoneItemRow(
-                        zoneName = stringResource(R.string.zone_rest),
-                        bpmRange = "< 100 $bpmUnit",
-                        durationText = formatZoneDuration(vitals.zone1Mins, totalZoneMins),
-                        zoneColor = ZoneRestColor,
-                        distributionPct = z1Pct,
-                        isActive = hasHr && currentHr < 100
-                    )
+                        // Zone 1: Reposo (< 100 bpm)
+                        ZoneItemRow(
+                            zoneName = stringResource(R.string.zone_rest),
+                            bpmRange = "< 100 $bpmUnit",
+                            durationText = formatZoneDuration(vitals.zone1Mins, totalZoneMins),
+                            zoneColor = ZoneRestColor,
+                            distributionPct = z1Pct,
+                            isActive = hasHr && currentHr < 100
+                        )
 
-                    // Zone 2: Calentamiento (100 - 120 bpm)
-                    ZoneItemRow(
-                        zoneName = stringResource(R.string.zone_warmup),
-                        bpmRange = "100 - 120 $bpmUnit",
-                        durationText = formatZoneDuration(vitals.zone2Mins, totalZoneMins),
-                        zoneColor = ZoneWarmupColor,
-                        distributionPct = z2Pct,
-                        isActive = hasHr && currentHr in 100..120
-                    )
+                        // Zone 2: Calentamiento (100 - 120 bpm)
+                        ZoneItemRow(
+                            zoneName = stringResource(R.string.zone_warmup),
+                            bpmRange = "100 - 120 $bpmUnit",
+                            durationText = formatZoneDuration(vitals.zone2Mins, totalZoneMins),
+                            zoneColor = ZoneWarmupColor,
+                            distributionPct = z2Pct,
+                            isActive = hasHr && currentHr in 100..120
+                        )
 
-                    // Zone 3: Quema de grasa (120 - 140 bpm)
-                    ZoneItemRow(
-                        zoneName = stringResource(R.string.zone_fat_burn),
-                        bpmRange = "121 - 140 $bpmUnit",
-                        durationText = formatZoneDuration(vitals.zone3Mins, totalZoneMins),
-                        zoneColor = ZoneFatBurnColor,
-                        distributionPct = z3Pct,
-                        isActive = hasHr && currentHr in 121..140
-                    )
+                        // Zone 3: Quema de grasa (120 - 140 bpm)
+                        ZoneItemRow(
+                            zoneName = stringResource(R.string.zone_fat_burn),
+                            bpmRange = "121 - 140 $bpmUnit",
+                            durationText = formatZoneDuration(vitals.zone3Mins, totalZoneMins),
+                            zoneColor = ZoneFatBurnColor,
+                            distributionPct = z3Pct,
+                            isActive = hasHr && currentHr in 121..140
+                        )
 
-                    // Zone 4: Cardio (140 - 160 bpm)
-                    ZoneItemRow(
-                        zoneName = stringResource(R.string.zone_cardio),
-                        bpmRange = "141 - 160 $bpmUnit",
-                        durationText = formatZoneDuration(vitals.zone4Mins, totalZoneMins),
-                        zoneColor = ZoneCardioColor,
-                        distributionPct = z4Pct,
-                        isActive = hasHr && currentHr in 141..160
-                    )
+                        // Zone 4: Cardio (140 - 160 bpm)
+                        ZoneItemRow(
+                            zoneName = stringResource(R.string.zone_cardio),
+                            bpmRange = "141 - 160 $bpmUnit",
+                            durationText = formatZoneDuration(vitals.zone4Mins, totalZoneMins),
+                            zoneColor = ZoneCardioColor,
+                            distributionPct = z4Pct,
+                            isActive = hasHr && currentHr in 141..160
+                        )
 
-                    // Zone 5: Pico (> 160 bpm)
-                    ZoneItemRow(
-                        zoneName = stringResource(R.string.zone_peak),
-                        bpmRange = "> 160 $bpmUnit",
-                        durationText = formatZoneDuration(vitals.zone5Mins, totalZoneMins),
-                        zoneColor = ZonePeakColor,
-                        distributionPct = z5Pct,
-                        isActive = hasHr && currentHr > 160
-                    )
+                        // Zone 5: Pico (> 160 bpm)
+                        ZoneItemRow(
+                            zoneName = stringResource(R.string.zone_peak),
+                            bpmRange = "> 160 $bpmUnit",
+                            durationText = formatZoneDuration(vitals.zone5Mins, totalZoneMins),
+                            zoneColor = ZonePeakColor,
+                            distributionPct = z5Pct,
+                            isActive = hasHr && currentHr > 160
+                        )
+                    }
                 }
             }
         }

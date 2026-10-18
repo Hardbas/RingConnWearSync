@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -53,7 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.material.*
 import com.ringconn.wear.app.R
 import com.ringconn.wear.app.complication.RingConnComplicationProvider
 import com.ringconn.wear.app.data.RingConnVitals
@@ -117,7 +118,7 @@ fun TemperatureDetailScreen(context: Context) {
 
 @Composable
 fun TemperatureDetailContent(vitals: RingConnVitals) {
-    val scrollState = rememberScrollState()
+    val listState = rememberScalingLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
 
@@ -145,237 +146,244 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
         else -> TempCool
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .onRotaryScrollEvent {
-                coroutineScope.launch {
-                    scrollState.scrollBy(it.verticalScrollPixels * 1.5f)
-                }
-                true
-            }
-            .focusRequester(focusRequester)
-            .focusable()
+    Scaffold(
+        timeText = { TimeText() },
+        vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
+        positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        Column(
+        ScalingLazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(start = 14.dp, end = 14.dp, top = 34.dp, bottom = 44.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(Color.Black)
+                .onRotaryScrollEvent {
+                    coroutineScope.launch {
+                        listState.scrollBy(it.verticalScrollPixels * 1.5f)
+                    }
+                    true
+                }
+                .focusRequester(focusRequester)
+                .focusable(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 44.dp, start = 8.dp, end = 8.dp)
         ) {
             // Header: Clean title with circular clearance
-            Text(
-                text = stringResource(R.string.skin_temp),
-                color = Color.White,
-                fontSize = TextBody,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            item {
+                Text(
+                    text = stringResource(R.string.skin_temp),
+                    color = Color.White,
+                    fontSize = TextBody,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
 
             // 1. Hero Stadium Capsule Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapePod)
-                    .background(TempHeroGradient)
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    // Badge status pill
-                    Box(
-                        modifier = Modifier
-                            .clip(ShapeChip)
-                            .background(statusColor.copy(alpha = 0.22f))
-                            .padding(horizontal = 12.dp, vertical = 3.5.dp)
-                    ) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapePod)
+                        .background(TempHeroGradient)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        // Badge status pill
+                        Box(
+                            modifier = Modifier
+                                .clip(ShapeChip)
+                                .background(statusColor.copy(alpha = 0.22f))
+                                .padding(horizontal = 12.dp, vertical = 3.5.dp)
+                        ) {
+                            Text(
+                                text = statusLabel,
+                                color = statusColor,
+                                fontSize = TextLabel,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Big Offset Value
                         Text(
-                            text = statusLabel,
-                            color = statusColor,
-                            fontSize = TextLabel,
+                            text = offsetFormatted,
+                            color = Color.White,
+                            fontSize = TextHero,
+                            style = TabularNums,
                             fontWeight = FontWeight.Bold
                         )
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Text(
+                            text = stringResource(R.string.temp_baseline_format, baseline),
+                            color = Color(0xFFD1FAE5),
+                            fontSize = TextLabel,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Real-time Deviation Scale Bar (-1.0°C to +1.0°C)
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                        ) {
+                            val totalW = size.width
+                            val h = size.height
+
+                            // Track Background
+                            drawRoundRect(
+                                color = Color(0x33FFFFFF),
+                                topLeft = Offset(0f, 0f),
+                                size = Size(totalW, h),
+                                cornerRadius = CornerRadius(h / 2f, h / 2f)
+                            )
+
+                            // Optimal Middle Zone (-0.5°C to +0.5°C, 25% to 75%)
+                            val optStart = totalW * 0.25f
+                            val optWidth = totalW * 0.5f
+                            drawRoundRect(
+                                color = TempOptimal.copy(alpha = 0.45f),
+                                topLeft = Offset(optStart, 0f),
+                                size = Size(optWidth, h),
+                                cornerRadius = CornerRadius(h / 2f, h / 2f)
+                            )
+
+                            // Center Reference Mark (0.0°C)
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(totalW * 0.5f, -2.dp.toPx()),
+                                end = Offset(totalW * 0.5f, h + 2.dp.toPx()),
+                                strokeWidth = 2.dp.toPx()
+                            )
+
+                            // Marker Indicator Dot
+                            val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
+                            val markerX = normOffset * totalW
+                            drawCircle(
+                                color = Color.White,
+                                radius = 5.dp.toPx(),
+                                center = Offset(markerX.coerceIn(5.dp.toPx(), totalW - 5.dp.toPx()), h / 2f)
+                            )
+                        }
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            // 2. Nocturnal Circadian Thermal Curve Chart
+            item {
+                CircadianThermalCurveCard(offset = offset)
+            }
 
-                    // Big Offset Value
-                    Text(
-                        text = offsetFormatted,
-                        color = Color.White,
-                        fontSize = TextHero,
-                        style = TabularNums,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = stringResource(R.string.temp_baseline_format, baseline),
-                        color = Color(0xFFD1FAE5),
-                        fontSize = TextLabel,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Real-time Deviation Scale Bar (-1.0°C to +1.0°C)
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                    ) {
-                        val totalW = size.width
-                        val h = size.height
-
-                        // Track Background
-                        drawRoundRect(
-                            color = Color(0x33FFFFFF),
-                            topLeft = Offset(0f, 0f),
-                            size = Size(totalW, h),
-                            cornerRadius = CornerRadius(h / 2f, h / 2f)
-                        )
-
-                        // Optimal Middle Zone (-0.5°C to +0.5°C, 25% to 75%)
-                        val optStart = totalW * 0.25f
-                        val optWidth = totalW * 0.5f
-                        drawRoundRect(
-                            color = TempOptimal.copy(alpha = 0.45f),
-                            topLeft = Offset(optStart, 0f),
-                            size = Size(optWidth, h),
-                            cornerRadius = CornerRadius(h / 2f, h / 2f)
-                        )
-
-                        // Center Reference Mark (0.0°C)
-                        drawLine(
-                            color = Color.White,
-                            start = Offset(totalW * 0.5f, -2.dp.toPx()),
-                            end = Offset(totalW * 0.5f, h + 2.dp.toPx()),
-                            strokeWidth = 2.dp.toPx()
-                        )
-
-                        // Marker Indicator Dot
-                        val normOffset = ((offset + 1.0f) / 2.0f).coerceIn(0f, 1f)
-                        val markerX = normOffset * totalW
-                        drawCircle(
-                            color = Color.White,
-                            radius = 5.dp.toPx(),
-                            center = Offset(markerX.coerceIn(5.dp.toPx(), totalW - 5.dp.toPx()), h / 2f)
+            // 3. Card: Perspectiva Fisiológica Samsung Health
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardGradient)
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Image(
+                                painter = painterResource(id = R.drawable.ic_comp_temp),
+                                contentDescription = stringResource(R.string.temp_delta_explanation_title),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Text(
+                                text = stringResource(R.string.temp_delta_explanation_title),
+                                color = TempEmeraldSoft,
+                                fontSize = TextBody,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text(
+                            text = stringResource(R.string.temp_delta_explanation_desc),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextLabel,
+                            lineHeight = TextBody
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 2. Nocturnal Circadian Thermal Curve Chart
-            CircadianThermalCurveCard(offset = offset)
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 3. Card: Perspectiva Fisiológica Samsung Health
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapeCard)
-                    .background(CardGradient)
-                    .padding(14.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_comp_temp),
-                            contentDescription = stringResource(R.string.temp_delta_explanation_title),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(7.dp))
+            // 4. Card: Rangos de Termorregulación Circadiana
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardGradient)
+                        .padding(14.dp)
+                ) {
+                    Column {
                         Text(
-                            text = stringResource(R.string.temp_delta_explanation_title),
+                            text = stringResource(R.string.temp_thermoregulation_title),
+                            color = Color.White,
+                            fontSize = TextBody,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        TempBandRow(
+                            label = stringResource(R.string.optimal),
+                            range = "±0.5 °C",
+                            desc = stringResource(R.string.euthermia_desc),
+                            color = TempOptimal,
+                            isActive = offset in -0.5f..0.5f
+                        )
+                        Spacer(modifier = Modifier.height(5.dp))
+                        TempBandRow(
+                            label = stringResource(R.string.elevated),
+                            range = "> +0.5 °C",
+                            desc = stringResource(R.string.elevated_temp_desc),
+                            color = TempWarmAlert,
+                            isActive = offset > 0.5f
+                        )
+                        Spacer(modifier = Modifier.height(5.dp))
+                        TempBandRow(
+                            label = stringResource(R.string.temp_cool),
+                            range = "< -0.5 °C",
+                            desc = stringResource(R.string.cool_temp_desc),
+                            color = TempCool,
+                            isActive = offset < -0.5f
+                        )
+                    }
+                }
+            }
+
+            // 5. Card: Alerta Inmune Temprana
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(Color(0xFF162B24))
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.temp_recovery_title),
                             color = TempEmeraldSoft,
                             fontSize = TextBody,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.temp_recovery_desc),
+                            color = Color(0xFFCFD8DC),
+                            fontSize = TextLabel,
+                            lineHeight = TextBody
+                        )
                     }
-                    Spacer(modifier = Modifier.height(5.dp))
-                    Text(
-                        text = stringResource(R.string.temp_delta_explanation_desc),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 4. Card: Rangos de Termorregulación Circadiana
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapeCard)
-                    .background(CardGradient)
-                    .padding(14.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.temp_thermoregulation_title),
-                        color = Color.White,
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TempBandRow(
-                        label = stringResource(R.string.optimal),
-                        range = "±0.5 °C",
-                        desc = stringResource(R.string.euthermia_desc),
-                        color = TempOptimal,
-                        isActive = offset in -0.5f..0.5f
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    TempBandRow(
-                        label = stringResource(R.string.elevated),
-                        range = "> +0.5 °C",
-                        desc = stringResource(R.string.elevated_temp_desc),
-                        color = TempWarmAlert,
-                        isActive = offset > 0.5f
-                    )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    TempBandRow(
-                        label = stringResource(R.string.temp_cool),
-                        range = "< -0.5 °C",
-                        desc = stringResource(R.string.cool_temp_desc),
-                        color = TempCool,
-                        isActive = offset < -0.5f
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 5. Card: Alerta Inmune Temprana
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(ShapeCard)
-                    .background(Color(0xFF162B24))
-                    .padding(14.dp)
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.temp_recovery_title),
-                        color = TempEmeraldSoft,
-                        fontSize = TextBody,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.temp_recovery_desc),
-                        color = Color(0xFFCFD8DC),
-                        fontSize = TextLabel,
-                        lineHeight = TextBody
-                    )
                 }
             }
         }
