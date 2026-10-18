@@ -1,21 +1,27 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="184dp"
-    android:height="132dp"
-    android:viewportWidth="184"
-    android:viewportHeight="132">
+    android:width="190dp"
+    android:height="138dp"
+    android:viewportWidth="190"
+    android:viewportHeight="138">
+    <!-- Base dark obsidian wine crimson gradient fill (Exact Samsung Health One UI palette) -->
     <path
-        android:pathData="M66,0 L118,0 A66,66 0 0,1 184,66 A66,66 0 0,1 118,132 L66,132 A66,66 0 0,1 0,66 A66,66 0 0,1 66,0 Z">
+        android:pathData="M69,0 L121,0 A69,69 0 0,1 190,69 A69,69 0 0,1 121,138 L69,138 A69,69 0 0,1 0,69 A69,69 0 0,1 69,0 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="0"
                 android:startY="0"
-                android:endX="184"
-                android:endY="132"
+                android:endX="190"
+                android:endY="138"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#FFCB6089" />
-                <item android:offset="1.0" android:color="#FF662E43" />
+                <item android:offset="0.0" android:color="#FF381A28" />
+                <item android:offset="1.0" android:color="#FF160C11" />
             </gradient>
         </aapt:attr>
     </path>
+    <!-- Subtle top glass rim border for AMOLED definition -->
+    <path
+        android:pathData="M69,0.75 L121,0.75 A68.25,68.25 0 0,1 189.25,69 A68.25,68.25 0 0,1 121,137.25 L69,137.25 A68.25,68.25 0 0,1 0.75,69 A68.25,68.25 0 0,1 69,0.75 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#28FF5D99" />
 </vector>
