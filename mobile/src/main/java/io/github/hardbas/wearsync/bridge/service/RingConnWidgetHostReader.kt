@@ -31,6 +31,91 @@ object RingConnWidgetHostReader {
     private var appWidgetHost: AppWidgetHost? = null
     private var isListening = false
     private val boundWidgetMap = mutableMapOf<ComponentName, Int>()
+    private var pendingBindWidgetId: Int = -1
+    private var pendingBindProvider: ComponentName? = null
+
+    fun hasAnyBoundWidget(context: Context): Boolean {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        for (comp in RINGCONN_PROVIDERS) {
+            val widgetId = boundWidgetMap[comp] ?: prefs.getInt("widget_id_${comp.className}", -1)
+            if (widgetId != -1) {
+                val info = appWidgetManager.getAppWidgetInfo(widgetId)
+                if (info != null && info.provider == comp) {
+                    boundWidgetMap[comp] = widgetId
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Tries to bind all installed RingConn widget providers silently via bindAppWidgetIdIfAllowed.
+     * If Android requires explicit user authorization (e.g. after installing APK without ADB grantbind),
+     * returns an ACTION_APPWIDGET_BIND Intent for the Activity to launch the native Android permission dialog.
+     */
+    fun prepareNextBindIntent(context: Context): Intent? {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val host = getHost(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+        for (comp in RINGCONN_PROVIDERS) {
+            val providerInfo = appWidgetManager.installedProviders.firstOrNull { it.provider == comp } ?: continue
+            var widgetId = boundWidgetMap[comp] ?: prefs.getInt("widget_id_${comp.className}", -1)
+            if (widgetId != -1) {
+                val existingInfo = appWidgetManager.getAppWidgetInfo(widgetId)
+                if (existingInfo != null && existingInfo.provider == comp) {
+                    boundWidgetMap[comp] = widgetId
+                    continue
+                } else {
+                    try { host.deleteAppWidgetId(widgetId) } catch (_: Exception) {}
+                    prefs.edit().remove("widget_id_${comp.className}").apply()
+                    boundWidgetMap.remove(comp)
+                    widgetId = -1
+                }
+            }
+
+            widgetId = host.allocateAppWidgetId()
+            val bound = appWidgetManager.bindAppWidgetIdIfAllowed(widgetId, providerInfo.provider)
+            if (bound) {
+                boundWidgetMap[comp] = widgetId
+                prefs.edit().putInt("widget_id_${comp.className}", widgetId).apply()
+                Log.i(TAG, "Silently bound widget ID $widgetId to $comp")
+            } else {
+                pendingBindWidgetId = widgetId
+                pendingBindProvider = comp
+                prefs.edit().putInt("widget_id_${comp.className}", widgetId).apply()
+                Log.i(TAG, "Requesting native user bind dialog for widget ID $widgetId ($comp)")
+                return Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, comp)
+                }
+            }
+        }
+        return null
+    }
+
+    fun onWidgetBindResult(context: Context, resultOk: Boolean) {
+        val widgetId = pendingBindWidgetId
+        val comp = pendingBindProvider
+        pendingBindWidgetId = -1
+        pendingBindProvider = null
+        if (widgetId == -1 || comp == null) return
+
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val existingInfo = appWidgetManager.getAppWidgetInfo(widgetId)
+        if (existingInfo != null && existingInfo.provider == comp) {
+            boundWidgetMap[comp] = widgetId
+            prefs.edit().putInt("widget_id_${comp.className}", widgetId).apply()
+            Log.i(TAG, "User authorized widget bind for ID $widgetId ($comp)")
+        } else if (!resultOk) {
+            prefs.edit().remove("widget_id_${comp.className}").apply()
+            boundWidgetMap.remove(comp)
+            try { getHost(context).deleteAppWidgetId(widgetId) } catch (_: Exception) {}
+        }
+    }
 
     private fun getHost(context: Context): AppWidgetHost {
         var h = appWidgetHost
@@ -57,6 +142,10 @@ object RingConnWidgetHostReader {
      * and extracts 100% exact live numbers from RingConn's RemoteViews.
      */
     suspend fun readRingConnWidgets(context: Context): RingConnVitals? = withContext(Dispatchers.Main) {
+        if (pendingBindWidgetId != -1) {
+            Log.d(TAG, "Skipping background widget read while user bind dialog is open")
+            return@withContext null
+        }
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val host = getHost(context)
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -93,6 +182,8 @@ object RingConnWidgetHostReader {
                     if (existingInfo == null || existingInfo.provider != comp) {
                         Log.d(TAG, "Cached widget ID $widgetId invalid or mismatched for $comp; reallocating.")
                         try { host.deleteAppWidgetId(widgetId) } catch (_: Exception) {}
+                        prefs.edit().remove("widget_id_${comp.className}").apply()
+                        boundWidgetMap.remove(comp)
                         widgetId = -1
                     }
                 }

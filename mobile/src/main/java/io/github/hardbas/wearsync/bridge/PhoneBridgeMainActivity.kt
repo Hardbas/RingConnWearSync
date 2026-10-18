@@ -79,6 +79,26 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         loadAndSyncVitals(forceHealthConnect = true)
     }
 
+    // Native Android AppWidget Bind Permission Launcher (Zero ADB required)
+    private val bindWidgetLauncher: androidx.activity.result.ActivityResultLauncher<Intent> = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val granted = result.resultCode == android.app.Activity.RESULT_OK
+        RingConnWidgetHostReader.onWidgetBindResult(this, granted)
+        // If user checked "Always allow", this call silently binds all remaining RingConn widgets
+        val nextIntent = RingConnWidgetHostReader.prepareNextBindIntent(this)
+        checkAndUpdateAccessibilityStatus()
+        if (RingConnWidgetHostReader.hasAnyBoundWidget(this)) {
+            directWidgetExtraction()
+        } else if (granted && nextIntent != null) {
+            launchWidgetBind(nextIntent)
+        }
+    }
+
+    private fun launchWidgetBind(intent: Intent) {
+        bindWidgetLauncher.launch(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -557,7 +577,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(batteryOptBtn)
 
         val footerText = TextView(this).apply {
-            text = "RingConn Wear Sync • v1.0.0 (Health Connect Engine)"
+            text = "WearSync for RingConn (Unofficial) • v1.6.1"
             textSize = 11f
             setTextColor(Color.parseColor("#505666"))
             gravity = Gravity.CENTER
@@ -650,38 +670,86 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     }
 
     private fun checkAndUpdateAccessibilityStatus() {
-        val isEnabled = isAccessibilityServiceEnabled()
-        if (isEnabled) {
-            accessibilityStatusText.text = "• WidgetHost: Activo (BIND_APPWIDGET)\n• Accesibilidad: Activa (100% Exacto) ✅"
-            accessibilityStatusText.setTextColor(Color.parseColor("#00E676"))
+        val isAccEnabled = isAccessibilityServiceEnabled()
+        val isWidgetBound = RingConnWidgetHostReader.hasAnyBoundWidget(this)
+        val widgetLine = if (isWidgetBound) {
+            "• WidgetHost: Vinculado y Activo ✅"
         } else {
-            accessibilityStatusText.text = "• WidgetHost: Activo (BIND_APPWIDGET)\n• Accesibilidad: Requiere habilitar vía ADB / Ajustes"
-            accessibilityStatusText.setTextColor(Color.parseColor("#FFD60A"))
+            "• WidgetHost: Toca 'Leer Widgets Directos' para autorizar (1 toque)"
         }
+        val accLine = if (isAccEnabled) {
+            "• Accesibilidad: Activa (100% Exacto) ✅"
+        } else {
+            "• Accesibilidad: Toca 'Sincronizar (Accesibilidad)' para activar en Ajustes"
+        }
+        accessibilityStatusText.text = "$widgetLine\n$accLine"
+        accessibilityStatusText.setTextColor(
+            if (isWidgetBound && isAccEnabled) Color.parseColor("#00E676") else Color.parseColor("#FFD60A")
+        )
     }
 
     private fun directWidgetExtraction() {
         scope.launch {
+            if (!RingConnWidgetHostReader.hasAnyBoundWidget(this@PhoneBridgeMainActivity)) {
+                val bindIntent = RingConnWidgetHostReader.prepareNextBindIntent(this@PhoneBridgeMainActivity)
+                if (bindIntent != null) {
+                    Toast.makeText(
+                        this@PhoneBridgeMainActivity,
+                        "Marca 'Permitir siempre' y toca Crear para vincular los widgets de RingConn",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    bindWidgetLauncher.launch(bindIntent)
+                    return@launch
+                }
+            }
+
             syncStatusText.text = "Leyendo widgets de RingConn (AppWidgetHost)..."
             val vitals = withContext(Dispatchers.IO) {
                 RingConnWidgetHostReader.readRingConnWidgets(this@PhoneBridgeMainActivity)
             }
+            checkAndUpdateAccessibilityStatus()
             if (vitals != null) {
-                updateMetricCards(vitals)
+                val merged = withContext(Dispatchers.IO) {
+                    val best = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneBridgeMainActivity)
+                    WearDataSyncService(this@PhoneBridgeMainActivity).syncVitalsToWatch(best, force = true)
+                    best
+                }
+                updateMetricCards(merged)
                 sourceBadgeText.text = "Fuente: RingConn WidgetHost (100% Exacto)"
                 syncStatusText.text = "✅ Sincronizado directo desde widgets"
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
                 Toast.makeText(this@PhoneBridgeMainActivity, "¡Datos exactos leídos de widgets!", Toast.LENGTH_SHORT).show()
             } else {
-                syncStatusText.text = "⚠️ No se detectaron valores en widgets"
-                syncStatusText.setTextColor(Color.parseColor("#FF9F0A"))
-                Toast.makeText(this@PhoneBridgeMainActivity, "Verifica que el widget de RingConn esté configurado", Toast.LENGTH_SHORT).show()
+                val bindIntent = RingConnWidgetHostReader.prepareNextBindIntent(this@PhoneBridgeMainActivity)
+                if (bindIntent != null) {
+                    Toast.makeText(
+                        this@PhoneBridgeMainActivity,
+                        "Autoriza el acceso a widgets de RingConn (marca 'Permitir siempre')",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    bindWidgetLauncher.launch(bindIntent)
+                } else {
+                    syncStatusText.text = "⚠️ Abre RingConn 1 vez para inicializar sus widgets"
+                    syncStatusText.setTextColor(Color.parseColor("#FF9F0A"))
+                    Toast.makeText(this@PhoneBridgeMainActivity, "Abre la app oficial de RingConn un segundo para inicializar sus datos", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
 
     private fun scrapeFromRingConnApp() {
         scope.launch {
+            if (!isAccessibilityServiceEnabled()) {
+                Toast.makeText(
+                    this@PhoneBridgeMainActivity,
+                    "Activa 'WearSync' en Aplicaciones Instaladas de Accesibilidad",
+                    Toast.LENGTH_LONG
+                ).show()
+                try {
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                } catch (_: Exception) {}
+                return@launch
+            }
             val scraped = RingConnAccessibilityService.triggerImmediateScrape()
             if (scraped != null) {
                 updateMetricCards(scraped)
