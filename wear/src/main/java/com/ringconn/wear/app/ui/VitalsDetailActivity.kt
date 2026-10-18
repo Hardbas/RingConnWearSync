@@ -44,6 +44,13 @@ import kotlinx.coroutines.launch
 
 private val VitalsBrush = Brush.verticalGradient(listOf(VitalsGradientStart, VitalsGradientEnd))
 
+// 5 Standard One UI Heart Rate Zone Colors
+private val ZoneRestColor = Color(0xFF47CDFF)      // Reposo (< 100 bpm)
+private val ZoneWarmupColor = Color(0xFFA0F116)    // Calentamiento (100 - 120 bpm)
+private val ZoneFatBurnColor = Color(0xFFFFB703)   // Quema de grasa (121 - 140 bpm)
+private val ZoneCardioColor = Color(0xFFFB8500)    // Cardio (141 - 160 bpm)
+private val ZonePeakColor = Color(0xFFFF5D99)      // Pico (> 160 bpm)
+
 class VitalsDetailActivity : ComponentActivity() {
     private var triggerMeasureOnStart by mutableStateOf(false)
 
@@ -161,6 +168,7 @@ fun VitalsDetailContent(
     }
 
     val currentHr = vitals.lastHeartRate
+    val hasHr = currentHr > 0
     val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
     val minHr = if (hasMinMax) vitals.minHeartRate else (if (currentHr > 0) currentHr else 0)
     val maxHr = if (hasMinMax) vitals.maxHeartRate else (if (currentHr > 0) currentHr else 0)
@@ -298,11 +306,13 @@ fun VitalsDetailContent(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    ZoneRow(stringResource(R.string.zone_rest_range), currentHr < 60)
-                    ZoneRow(stringResource(R.string.zone_fat_burn_range), currentHr in 60..100)
-                    ZoneRow(stringResource(R.string.zone_cardio_range), currentHr in 101..140)
-                    ZoneRow(stringResource(R.string.zone_peak_range), currentHr > 140)
+                    ZoneRow(stringResource(R.string.zone_rest_range), hasHr && currentHr < 100, ZoneRestColor)
+                    ZoneRow(stringResource(R.string.zone_warmup_range), hasHr && currentHr in 100..120, ZoneWarmupColor)
+                    ZoneRow(stringResource(R.string.zone_fat_burn_range), hasHr && currentHr in 121..140, ZoneFatBurnColor)
+                    ZoneRow(stringResource(R.string.zone_cardio_range), hasHr && currentHr in 141..160, ZoneCardioColor)
+                    ZoneRow(stringResource(R.string.zone_peak_range), hasHr && currentHr > 160, ZonePeakColor)
                 }
+
             }
 
             // Telemetry indicators row (SpO2, HRV, Ring Battery)
@@ -390,7 +400,7 @@ private fun AnimatedMinMaxBar(
 }
 
 @Composable
-private fun ZoneRow(label: String, isActive: Boolean) {
+private fun ZoneRow(label: String, isActive: Boolean, activeColor: Color = VitalsGold) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -401,13 +411,13 @@ private fun ZoneRow(label: String, isActive: Boolean) {
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(if (isActive) VitalsGold else PipeGray)
+                .background(if (isActive) activeColor else PipeGray)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
             fontSize = TextLabel,
-            color = if (isActive) Color.White else LabelSilver,
+            color = if (isActive) activeColor else LabelSilver,
             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal
         )
     }

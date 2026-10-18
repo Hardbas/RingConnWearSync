@@ -19,9 +19,9 @@
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Subtle top glass rim border for AMOLED definition -->
+    <!-- Luminous One UI 8 glass rim border for AMOLED definition -->
     <path
         android:pathData="M69,0.75 L121,0.75 A68.25,68.25 0 0,1 189.25,69 A68.25,68.25 0 0,1 121,137.25 L69,137.25 A68.25,68.25 0 0,1 0.75,69 A68.25,68.25 0 0,1 69,0.75 Z"
         android:strokeWidth="1.5"
-        android:strokeColor="#28FF5D99" />
+        android:strokeColor="#99FF5D99" />
 </vector>
