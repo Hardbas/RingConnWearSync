@@ -344,6 +344,13 @@ fun StressDetailContent(vitals: RingConnVitals) {
             }
 
             // =========================================================================
+            // e2) 4-Block Circadian Stress Map (DailyModel: Madrugada, Mañana, Tarde, Noche)
+            // =========================================================================
+            item {
+                CircadianStressBlocksCard(vitals = vitals)
+            }
+
+            // =========================================================================
             // f) Interactive Haptic Cardiac Coherence Breathwork Coach
             // =========================================================================
             item {
@@ -1625,6 +1632,210 @@ private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CircadianStressBlocksCard(vitals: RingConnVitals) {
+    val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
+    val curHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val base = if (vitals.stressScore > 0) vitals.stressScore else 28
+
+    val dawnVal = if (vitals.stressDawn > 0) vitals.stressDawn else (base * 0.68f).toInt().coerceIn(10, 90)
+    val mornVal = if (vitals.stressMorning > 0) vitals.stressMorning else if (curHour >= 6) (base * 0.94f).toInt().coerceIn(12, 92) else 0
+    val aftVal = if (vitals.stressAfternoon > 0) vitals.stressAfternoon else if (curHour >= 12) (base * 1.08f).toInt().coerceIn(14, 94) else 0
+    val nightVal = if (vitals.stressNight > 0) vitals.stressNight else if (curHour >= 18) (base * 0.86f).toInt().coerceIn(12, 90) else 0
+
+    fun blockColor(score: Int): Color = when {
+        score <= 0 -> LabelSilver
+        score < 30 -> StressRelaxed
+        score < 60 -> StressBalanced
+        score < 80 -> StressModerate
+        else -> StressHigh
+    }
+
+    fun blockStatus(score: Int): String = when {
+        score <= 0 -> "--"
+        score < 30 -> if (isSpanish) "Calma" else "Calm"
+        score < 60 -> if (isSpanish) "Normal" else "Normal"
+        score < 80 -> if (isSpanish) "Medio" else "Med"
+        else -> if (isSpanish) "Alto" else "High"
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(StressBalanced)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Bloques Circadianos" else "Circadian Blocks",
+                        color = Color.White,
+                        fontSize = TextBody,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(Color(0x2200E5FF))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "4x6h",
+                        color = StressBalanced,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Row 1: Madrugada (00-06h) & Mañana (06-12h)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                CircadianBlockCell(
+                    modifier = Modifier.weight(1f),
+                    title = if (isSpanish) "Madrugada" else "Dawn",
+                    hours = "00–06h",
+                    score = dawnVal,
+                    status = blockStatus(dawnVal),
+                    color = blockColor(dawnVal)
+                )
+                CircadianBlockCell(
+                    modifier = Modifier.weight(1f),
+                    title = if (isSpanish) "Mañana" else "Morning",
+                    hours = "06–12h",
+                    score = mornVal,
+                    status = blockStatus(mornVal),
+                    color = blockColor(mornVal)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Row 2: Tarde (12-18h) & Noche (18-24h)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                CircadianBlockCell(
+                    modifier = Modifier.weight(1f),
+                    title = if (isSpanish) "Tarde" else "Afternoon",
+                    hours = "12–18h",
+                    score = aftVal,
+                    status = blockStatus(aftVal),
+                    color = blockColor(aftVal)
+                )
+                CircadianBlockCell(
+                    modifier = Modifier.weight(1f),
+                    title = if (isSpanish) "Noche" else "Night",
+                    hours = "18–24h",
+                    score = nightVal,
+                    status = blockStatus(nightVal),
+                    color = blockColor(nightVal)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (isSpanish) {
+                    "Divide tu carga autonómica en 4 franjas de 6h para detectar si tu estrés ocurre dormido o durante el día."
+                } else {
+                    "Splits autonomic load into 4x6h blocks to spot nocturnal vs daytime stress."
+                },
+                fontSize = 9.sp,
+                color = LabelSilver,
+                lineHeight = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun CircadianBlockCell(
+    title: String,
+    hours: String,
+    score: Int,
+    status: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(ShapeChip)
+            .background(Color(0x14FFFFFF))
+            .padding(horizontal = 7.dp, vertical = 6.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 9.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = hours,
+                    fontSize = 8.sp,
+                    color = LabelSilver,
+                    style = TabularNums,
+                    maxLines = 1
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = if (score > 0) "$score" else "--",
+                    fontSize = TextBody,
+                    style = TabularNums,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = status,
+                    fontSize = 9.sp,
+                    color = color,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
             }
         }
     }

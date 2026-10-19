@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -625,6 +626,13 @@ fun VitalsDetailContent(
             // =========================================================================
             item {
                 PhysiologicalStrainRadarCard(vitals = vitals)
+            }
+
+            // =========================================================================
+            // d3) Early Illness & Immune Strain Radar vs 7-Day Baseline (VitalSignsAbnormal)
+            // =========================================================================
+            item {
+                ImmuneEarlyWarningCard(vitals = vitals)
             }
 
             // =========================================================================
@@ -1237,6 +1245,153 @@ private fun RadarNodeCell(
                 color = color,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImmuneEarlyWarningCard(vitals: RingConnVitals) {
+    val context = LocalContext.current
+    val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
+    val history = remember(vitals) { RingConnHistoryStore.getHistory(context, vitals) }
+
+    val avg7dHrv = remember(history, vitals) {
+        val valid = history.map { it.hrv }.filter { it > 0 }
+        if (valid.isNotEmpty()) valid.average().toInt() else if (vitals.avgHrv > 0) vitals.avgHrv else 48
+    }
+    val avg7dRhr = remember(history, vitals) {
+        val valid = history.map { it.rhr }.filter { it > 0 }
+        if (valid.isNotEmpty()) valid.average().toInt() else if (vitals.minHeartRate > 0) vitals.minHeartRate else 58
+    }
+
+    val curHrv = if (vitals.lastHrv > 0) vitals.lastHrv else vitals.avgHrv
+    val curRhr = if (vitals.minHeartRate > 0) vitals.minHeartRate else vitals.avgHeartRate
+    val respRate = if (vitals.respiratoryRate > 0f) vitals.respiratoryRate else 14.5f
+    val tempOff = vitals.skinTempOffset
+
+    val tempAlert = tempOff >= 0.4f
+    val hrvAlert = curHrv > 0 && avg7dHrv > 0 && curHrv < (avg7dHrv * 0.85f).toInt()
+    val rhrAlert = curRhr > 0 && avg7dRhr > 0 && (curRhr - avg7dRhr) >= 5
+    val rrAlert = respRate >= 17.5f
+
+    val alertCount = (if (tempAlert) 1 else 0) + (if (hrvAlert) 1 else 0) + (if (rhrAlert) 1 else 0) + (if (rrAlert) 1 else 0)
+
+    val (badgeText, accentColor) = when {
+        alertCount >= 2 -> Pair(if (isSpanish) "Alerta $alertCount/4" else "Alert $alertCount/4", HrMinMaxPink)
+        alertCount == 1 -> Pair(if (isSpanish) "Vigilancia" else "Watch 1/4", ZoneFatBurnColor)
+        else -> Pair(if (isSpanish) "Estable 0/4" else "Stable 0/4", LimeSteps)
+    }
+
+    val hrvDiff = if (curHrv > 0 && avg7dHrv > 0) curHrv - avg7dHrv else 0
+    val rhrDiff = if (curRhr > 0 && avg7dRhr > 0) curRhr - avg7dRhr else 0
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(BorderStroke(1.dp, accentColor.copy(alpha = 0.25f)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(accentColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Alerta Inmune (7d)" else "Immune Radar (7d)",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(accentColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontSize = 9.sp,
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isSpanish) "Δ TEMP" else "Δ TEMP",
+                    value = String.format(Locale.US, "%s%.1f°C", if (tempOff >= 0f) "+" else "", tempOff),
+                    status = if (tempAlert) (if (isSpanish) "Alza" else "High") else "Normal",
+                    color = if (tempAlert) HrMinMaxPink else LimeSteps
+                )
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = "HRV vs 7d",
+                    value = if (curHrv > 0) "${if (hrvDiff >= 0) "+" else ""}${hrvDiff}ms" else "--",
+                    status = if (hrvAlert) (if (isSpanish) "Caída" else "Drop") else (if (isSpanish) "Estable" else "Stable"),
+                    color = if (hrvAlert) HrMinMaxPink else LimeSteps
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isSpanish) "FC vs 7d" else "RHR vs 7d",
+                    value = if (curRhr > 0) "${if (rhrDiff >= 0) "+" else ""}${rhrDiff}lpm" else "--",
+                    status = if (rhrAlert) (if (isSpanish) "Subida" else "Elevated") else (if (isSpanish) "Estable" else "Stable"),
+                    color = if (rhrAlert) HrMinMaxPink else CyanActive
+                )
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isSpanish) "RESPIRACIÓN" else "BREATH",
+                    value = String.format(Locale.US, "%.1f rpm", respRate),
+                    status = if (rrAlert) (if (isSpanish) "Alta" else "High") else "Normal",
+                    color = if (rrAlert) HrMinMaxPink else CyanActive
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (isSpanish) {
+                    "Cruza temperatura, HRV, pulso basal y respiración contra tu base de 7 días para anticipar fiebre o fatiga."
+                } else {
+                    "Cross-checks temp, HRV, RHR, and breath rate vs your 7-day baseline to spot early illness or strain."
+                },
+                fontSize = 9.sp,
+                color = LabelSilver,
+                lineHeight = 12.sp
             )
         }
     }

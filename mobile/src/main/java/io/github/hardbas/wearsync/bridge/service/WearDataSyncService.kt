@@ -70,6 +70,17 @@ class WearDataSyncService(private val context: Context) {
                 dataMap.putInt(KEY_NAP_MINUTES, vitals.napMinutes)
                 dataMap.putString(KEY_BEDTIME_WINDOW, vitals.bedtimeWindow)
                 dataMap.putInt(KEY_STAND_HOURS, vitals.standHours)
+                dataMap.putInt(KEY_HR_PHASE_DEEP, vitals.hrPhaseDeep)
+                dataMap.putInt(KEY_HR_PHASE_REM, vitals.hrPhaseRem)
+                dataMap.putInt(KEY_HR_PHASE_LIGHT, vitals.hrPhaseLight)
+                dataMap.putInt(KEY_SLEEP_EFFICIENCY_PCT, vitals.sleepEfficiencyPct)
+                dataMap.putInt(KEY_STRESS_DAWN, vitals.stressDawn)
+                dataMap.putInt(KEY_STRESS_MORNING, vitals.stressMorning)
+                dataMap.putInt(KEY_STRESS_AFTERNOON, vitals.stressAfternoon)
+                dataMap.putInt(KEY_STRESS_NIGHT, vitals.stressNight)
+                dataMap.putInt(KEY_BASAL_CALORIES, vitals.basalCalories)
+                dataMap.putFloat(KEY_DISTANCE_KM, vitals.distanceKm)
+                dataMap.putFloat(KEY_RESPIRATORY_RATE, vitals.respiratoryRate)
             }.asPutDataRequest().setUrgent()
 
             dataClient.putDataItem(request).await()
@@ -122,6 +133,17 @@ class WearDataSyncService(private val context: Context) {
                 put(KEY_NAP_MINUTES, vitals.napMinutes)
                 put(KEY_BEDTIME_WINDOW, vitals.bedtimeWindow)
                 put(KEY_STAND_HOURS, vitals.standHours)
+                put(KEY_HR_PHASE_DEEP, vitals.hrPhaseDeep)
+                put(KEY_HR_PHASE_REM, vitals.hrPhaseRem)
+                put(KEY_HR_PHASE_LIGHT, vitals.hrPhaseLight)
+                put(KEY_SLEEP_EFFICIENCY_PCT, vitals.sleepEfficiencyPct)
+                put(KEY_STRESS_DAWN, vitals.stressDawn)
+                put(KEY_STRESS_MORNING, vitals.stressMorning)
+                put(KEY_STRESS_AFTERNOON, vitals.stressAfternoon)
+                put(KEY_STRESS_NIGHT, vitals.stressNight)
+                put(KEY_BASAL_CALORIES, vitals.basalCalories)
+                put(KEY_DISTANCE_KM, vitals.distanceKm.toDouble())
+                put(KEY_RESPIRATORY_RATE, vitals.respiratoryRate.toDouble())
             }.toString().toByteArray(Charsets.UTF_8)
 
             val nodes = nodeClient.connectedNodes.await()
@@ -157,7 +179,10 @@ class WearDataSyncService(private val context: Context) {
                 "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_${vitals.refreshTimestamp}_" +
                 "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}_" +
                 "${vitals.odiDropsPerHour}_${vitals.minSleepingSpo2}_${vitals.sleepingHrDipPct}_" +
-                "${vitals.napMinutes}_${vitals.bedtimeWindow}_${vitals.standHours}"
+                "${vitals.napMinutes}_${vitals.bedtimeWindow}_${vitals.standHours}_" +
+                "${vitals.hrPhaseDeep}_${vitals.hrPhaseRem}_${vitals.hrPhaseLight}_${vitals.sleepEfficiencyPct}_" +
+                "${vitals.stressDawn}_${vitals.stressMorning}_${vitals.stressAfternoon}_${vitals.stressNight}_" +
+                "${vitals.basalCalories}_${vitals.distanceKm}_${vitals.respiratoryRate}"
         }
 
         const val PATH_RINGCONN_VITALS = "/ringconn/vitals"
@@ -205,5 +230,16 @@ class WearDataSyncService(private val context: Context) {
         const val KEY_NAP_MINUTES = "nap_minutes"
         const val KEY_BEDTIME_WINDOW = "bedtime_window"
         const val KEY_STAND_HOURS = "stand_hours"
+        const val KEY_HR_PHASE_DEEP = "hr_phase_deep"
+        const val KEY_HR_PHASE_REM = "hr_phase_rem"
+        const val KEY_HR_PHASE_LIGHT = "hr_phase_light"
+        const val KEY_SLEEP_EFFICIENCY_PCT = "sleep_efficiency_pct"
+        const val KEY_STRESS_DAWN = "stress_dawn"
+        const val KEY_STRESS_MORNING = "stress_morning"
+        const val KEY_STRESS_AFTERNOON = "stress_afternoon"
+        const val KEY_STRESS_NIGHT = "stress_night"
+        const val KEY_BASAL_CALORIES = "basal_calories"
+        const val KEY_DISTANCE_KM = "distance_km"
+        const val KEY_RESPIRATORY_RATE = "respiratory_rate"
     }
 }

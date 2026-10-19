@@ -190,6 +190,17 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             val napMinutes = prefs.getInt("nap_minutes", 0)
             val bedtimeWindow = prefs.getString("bedtime_window", "") ?: ""
             val standHours = prefs.getInt("stand_hours", 0)
+            val hrPhaseDeep = prefs.getInt("hr_phase_deep", 0)
+            val hrPhaseRem = prefs.getInt("hr_phase_rem", 0)
+            val hrPhaseLight = prefs.getInt("hr_phase_light", 0)
+            val sleepEfficiencyPct = prefs.getInt("sleep_efficiency_pct", 0)
+            val stressDawn = prefs.getInt("stress_dawn", 0)
+            val stressMorning = prefs.getInt("stress_morning", 0)
+            val stressAfternoon = prefs.getInt("stress_afternoon", 0)
+            val stressNight = prefs.getInt("stress_night", 0)
+            val basalCalories = prefs.getInt("basal_calories", 0)
+            val distanceKm = prefs.getFloat("distance_km", 0.0f)
+            val respiratoryRate = prefs.getFloat("respiratory_rate", 0.0f)
 
             return RingConnVitals(
                 lastHeartRate = hr,
@@ -232,7 +243,18 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 sleepingHrDipPct = sleepingHrDipPct,
                 napMinutes = napMinutes,
                 bedtimeWindow = bedtimeWindow,
-                standHours = standHours
+                standHours = standHours,
+                hrPhaseDeep = hrPhaseDeep,
+                hrPhaseRem = hrPhaseRem,
+                hrPhaseLight = hrPhaseLight,
+                sleepEfficiencyPct = sleepEfficiencyPct,
+                stressDawn = stressDawn,
+                stressMorning = stressMorning,
+                stressAfternoon = stressAfternoon,
+                stressNight = stressNight,
+                basalCalories = basalCalories,
+                distanceKm = distanceKm,
+                respiratoryRate = respiratoryRate
             )
         }
 
@@ -287,6 +309,17 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putInt("nap_minutes", vitals.napMinutes)
                 putString("bedtime_window", vitals.bedtimeWindow)
                 putInt("stand_hours", vitals.standHours)
+                putInt("hr_phase_deep", vitals.hrPhaseDeep)
+                putInt("hr_phase_rem", vitals.hrPhaseRem)
+                putInt("hr_phase_light", vitals.hrPhaseLight)
+                putInt("sleep_efficiency_pct", vitals.sleepEfficiencyPct)
+                putInt("stress_dawn", vitals.stressDawn)
+                putInt("stress_morning", vitals.stressMorning)
+                putInt("stress_afternoon", vitals.stressAfternoon)
+                putInt("stress_night", vitals.stressNight)
+                putInt("basal_calories", vitals.basalCalories)
+                putFloat("distance_km", vitals.distanceKm)
+                putFloat("respiratory_rate", vitals.respiratoryRate)
                 apply()
             }
 

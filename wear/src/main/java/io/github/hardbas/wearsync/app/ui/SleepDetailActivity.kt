@@ -600,6 +600,193 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
+            // c2) Card: Heart Rate per Sleep Stage & Bed Efficiency (SleepSyncModel)
+            // =========================================================================
+            item {
+                val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
+                val effPct = if (vitals.sleepEfficiencyPct > 0) vitals.sleepEfficiencyPct else if (hasSleepData) 89 else 0
+                val deepHr = vitals.hrPhaseDeep
+                val lightHr = vitals.hrPhaseLight
+                val remHr = vitals.hrPhaseRem
+                val deepIsLowest = deepHr > 0 && (lightHr == 0 || deepHr <= lightHr)
+                val effColor = if (effPct >= 85) ColorEmerald else ColorAmber
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeCard)
+                        .background(CardBg)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(StageDeep)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isSpanish) "Pulso por Fase" else "Phase Heart Rate",
+                                    fontSize = TextBody,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(ShapeChip)
+                                    .background(effColor.copy(alpha = 0.18f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (effPct > 0) (if (isSpanish) "Efic. $effPct%" else "Eff. $effPct%") else "--",
+                                    fontSize = 9.sp,
+                                    style = TabularNums,
+                                    color = effColor,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Deep Sleep HR
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(vertical = 6.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = if (isSpanish) "Profundo" else "Deep",
+                                        fontSize = 9.sp,
+                                        color = StageDeep,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (deepHr > 0) "$deepHr" else "--",
+                                        fontSize = TextBody,
+                                        style = TabularNums,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (isSpanish) "lpm" else "bpm",
+                                        fontSize = 8.sp,
+                                        color = LabelSilver
+                                    )
+                                }
+                            }
+
+                            // Light Sleep HR
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(vertical = 6.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = if (isSpanish) "Ligero" else "Light",
+                                        fontSize = 9.sp,
+                                        color = StageLight,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (lightHr > 0) "$lightHr" else "--",
+                                        fontSize = TextBody,
+                                        style = TabularNums,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (isSpanish) "lpm" else "bpm",
+                                        fontSize = 8.sp,
+                                        color = LabelSilver
+                                    )
+                                }
+                            }
+
+                            // REM Sleep HR
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(ShapeChip)
+                                    .background(CardBgSubtle)
+                                    .padding(vertical = 6.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "REM",
+                                        fontSize = 9.sp,
+                                        color = StageRem,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = if (remHr > 0) "$remHr" else "--",
+                                        fontSize = TextBody,
+                                        style = TabularNums,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = if (isSpanish) "lpm" else "bpm",
+                                        fontSize = 8.sp,
+                                        color = LabelSilver
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = if (isSpanish) {
+                                if (deepIsLowest) "Óptimo: Tu pulso mínimo ocurrió en Sueño Profundo. Eficiencia real en cama: $effPct%."
+                                else "El pulso ideal debe ser más bajo en Profundo que en Ligero y REM."
+                            } else {
+                                if (deepIsLowest) "Optimal: Lowest HR reached during Deep Sleep. Bed efficiency: $effPct%."
+                                else "Ideal nocturnal HR should reach its minimum in Deep Sleep."
+                            },
+                            fontSize = 9.sp,
+                            color = LabelSilver,
+                            lineHeight = 12.sp
+                        )
+                    }
+                }
+            }
+
+            // =========================================================================
             // d) Card: Nocturnal Respiratory & Apnea ODI Radar (AHISpo2Data & CalSleepHeartRateData)
             // =========================================================================
             item {

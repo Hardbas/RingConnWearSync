@@ -206,6 +206,17 @@ class WearDataListenerService : WearableListenerService() {
             val napMinutes = if (dataMap.containsKey("nap_minutes")) dataMap.getInt("nap_minutes") else 0
             val bedtimeWindow = if (dataMap.containsKey("bedtime_window")) dataMap.getString("bedtime_window") ?: "" else ""
             val standHours = if (dataMap.containsKey("stand_hours")) dataMap.getInt("stand_hours") else 0
+            val hrPhaseDeep = if (dataMap.containsKey("hr_phase_deep")) dataMap.getInt("hr_phase_deep") else 0
+            val hrPhaseRem = if (dataMap.containsKey("hr_phase_rem")) dataMap.getInt("hr_phase_rem") else 0
+            val hrPhaseLight = if (dataMap.containsKey("hr_phase_light")) dataMap.getInt("hr_phase_light") else 0
+            val sleepEfficiencyPct = if (dataMap.containsKey("sleep_efficiency_pct")) dataMap.getInt("sleep_efficiency_pct") else 0
+            val stressDawn = if (dataMap.containsKey("stress_dawn")) dataMap.getInt("stress_dawn") else 0
+            val stressMorning = if (dataMap.containsKey("stress_morning")) dataMap.getInt("stress_morning") else 0
+            val stressAfternoon = if (dataMap.containsKey("stress_afternoon")) dataMap.getInt("stress_afternoon") else 0
+            val stressNight = if (dataMap.containsKey("stress_night")) dataMap.getInt("stress_night") else 0
+            val basalCalories = if (dataMap.containsKey("basal_calories")) dataMap.getInt("basal_calories") else 0
+            val distanceKm = if (dataMap.containsKey("distance_km")) dataMap.getFloat("distance_km") else 0.0f
+            val respiratoryRate = if (dataMap.containsKey("respiratory_rate")) dataMap.getFloat("respiratory_rate") else 0.0f
 
             return RingConnVitals(
                 lastHeartRate = hrLast,
@@ -248,7 +259,18 @@ class WearDataListenerService : WearableListenerService() {
                 sleepingHrDipPct = sleepingHrDipPct,
                 napMinutes = napMinutes,
                 bedtimeWindow = bedtimeWindow,
-                standHours = standHours
+                standHours = standHours,
+                hrPhaseDeep = hrPhaseDeep,
+                hrPhaseRem = hrPhaseRem,
+                hrPhaseLight = hrPhaseLight,
+                sleepEfficiencyPct = sleepEfficiencyPct,
+                stressDawn = stressDawn,
+                stressMorning = stressMorning,
+                stressAfternoon = stressAfternoon,
+                stressNight = stressNight,
+                basalCalories = basalCalories,
+                distanceKm = distanceKm,
+                respiratoryRate = respiratoryRate
             )
         }
 
@@ -294,7 +316,18 @@ class WearDataListenerService : WearableListenerService() {
                 sleepingHrDipPct = json.optDouble("sleeping_hr_dip_pct", 0.0).toFloat(),
                 napMinutes = json.optInt("nap_minutes", 0),
                 bedtimeWindow = json.optString("bedtime_window", ""),
-                standHours = json.optInt("stand_hours", 0)
+                standHours = json.optInt("stand_hours", 0),
+                hrPhaseDeep = json.optInt("hr_phase_deep", 0),
+                hrPhaseRem = json.optInt("hr_phase_rem", 0),
+                hrPhaseLight = json.optInt("hr_phase_light", 0),
+                sleepEfficiencyPct = json.optInt("sleep_efficiency_pct", 0),
+                stressDawn = json.optInt("stress_dawn", 0),
+                stressMorning = json.optInt("stress_morning", 0),
+                stressAfternoon = json.optInt("stress_afternoon", 0),
+                stressNight = json.optInt("stress_night", 0),
+                basalCalories = json.optInt("basal_calories", 0),
+                distanceKm = json.optDouble("distance_km", 0.0).toFloat(),
+                respiratoryRate = json.optDouble("respiratory_rate", 0.0).toFloat()
             )
         }
     }

@@ -538,6 +538,11 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 }
             }
 
+            // 4b. Card: Gasto Total TDEE (Basal + Activas) y Distancia (CalorieSyncModel & StepsInfo)
+            item {
+                TotalMetabolismAndDistanceCard(vitals = vitals)
+            }
+
             // 5. Card: Active Stand Hours (StandSyncModel)
             item {
                 StandHoursCard(standHours = vitals.standHours)
@@ -1028,6 +1033,176 @@ private fun StandHoursCard(
                 fontSize = TextCaption,
                 color = LabelSilver
             )
+        }
+    }
+}
+
+@Composable
+private fun TotalMetabolismAndDistanceCard(vitals: RingConnVitals) {
+    val isSpanish = remember { java.util.Locale.getDefault().language.startsWith("es") }
+    val curCal = java.util.Calendar.getInstance()
+    val minsNow = (curCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + curCal.get(java.util.Calendar.MINUTE)).coerceAtLeast(60)
+    val basal = if (vitals.basalCalories > 0) vitals.basalCalories else (minsNow * 1.166).toInt().coerceIn(120, 1850)
+    val active = vitals.liveCalorie.coerceAtLeast(0)
+    val totalTdee = basal + active
+    val distKm = if (vitals.distanceKm > 0f) vitals.distanceKm else ((vitals.liveSteps * 0.000762f * 100f).toInt() / 100f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(LimeSteps)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Gasto Total y Km" else "Total TDEE & Km",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(LimeSteps.copy(alpha = 0.20f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "TDEE",
+                        fontSize = 9.sp,
+                        color = LimeSteps,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = "$totalTdee",
+                    fontSize = TextBig,
+                    style = TabularNums,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (isSpanish) "kcal totales hoy" else "total kcal today",
+                    fontSize = TextCaption,
+                    color = LabelSilver,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Basal BMR
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(Color(0x14FFFFFF))
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isSpanish) "Basal" else "Basal",
+                            fontSize = 9.sp,
+                            color = LabelSilver,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$basal",
+                            fontSize = TextLabel,
+                            style = TabularNums,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(text = "kcal", fontSize = 8.sp, color = LabelSilver)
+                    }
+                }
+
+                // Active Calories
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(Color(0x14FFFFFF))
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isSpanish) "Activas" else "Active",
+                            fontSize = 9.sp,
+                            color = VioletCalorie,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$active",
+                            fontSize = TextLabel,
+                            style = TabularNums,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(text = "kcal", fontSize = 8.sp, color = LabelSilver)
+                    }
+                }
+
+                // Distance Km
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(Color(0x14FFFFFF))
+                        .padding(vertical = 6.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isSpanish) "Distancia" else "Distance",
+                            fontSize = 9.sp,
+                            color = LimeSteps,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = String.format(java.util.Locale.US, "%.2f", distKm),
+                            fontSize = TextLabel,
+                            style = TabularNums,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(text = "km", fontSize = 8.sp, color = LabelSilver)
+                    }
+                }
+            }
         }
     }
 }
