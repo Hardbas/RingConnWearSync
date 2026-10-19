@@ -213,39 +213,40 @@
     <string name="trend_7day_title">Tendencia 7 Días</string>
 
     <!-- Nocturnal Respiratory & Apnea ODI Radar -->
-    <string name="apnea_odi_title">Radar Respiratorio y ODI</string>
-    <string name="odi_index">Índice ODI</string>
-    <string name="odi_events_per_hr">ev/h</string>
-    <string name="odi_status_optimal">Óptimo (&lt; 5)</string>
-    <string name="odi_status_mild">Leve (5–14.9)</string>
-    <string name="odi_status_elevated">Elevado (≥ 15)</string>
-    <string name="min_sleeping_spo2">SpO2 Mín al Dormir</string>
-    <string name="spo2_stable">Estable (≥ 94%)</string>
-    <string name="spo2_unstable">Bajo (&lt; 94%)</string>
-    <string name="sleeping_hr_dip">Descenso FC Nocturno</string>
-    <string name="hr_dip_optimal">Descenso Reparador</string>
-    <string name="hr_dip_reduced">Descenso Reducido</string>
-    <string name="hr_dip_extreme">Descenso Extremo</string>
-    <string name="hr_dip_optimal_range">meta 10–20%</string>
+    <string name="apnea_odi_title">Apnea y Oxígeno (ODI)</string>
+    <string name="apnea_odi_explanation">ODI mide caídas de oxígeno ≥3% por hora al dormir: &lt;5 Normal (sin apnea), 5–15 Leve, ≥15 Alerta. El Dip FC (10–20%) mide cuánto descansa tu corazón de noche.</string>
+    <string name="odi_index">Apnea (ODI)</string>
+    <string name="odi_events_per_hr">/h</string>
+    <string name="odi_status_optimal">Normal &lt;5</string>
+    <string name="odi_status_mild">Leve 5–15</string>
+    <string name="odi_status_elevated">Alerta ≥15</string>
+    <string name="min_sleeping_spo2">SpO2 Mín.</string>
+    <string name="spo2_stable">Normal ≥94%</string>
+    <string name="spo2_unstable">Bajo &lt;94%</string>
+    <string name="sleeping_hr_dip">Dip FC Nocturno</string>
+    <string name="hr_dip_optimal">Óptimo</string>
+    <string name="hr_dip_reduced">Reducido</string>
+    <string name="hr_dip_extreme">Alto</string>
+    <string name="hr_dip_optimal_range">Meta 10–20%</string>
 
     <!-- Sleep Debt, Daytime Naps & Circadian Bedtime Coach -->
-    <string name="sleep_coach_title">Deuda de Sueño y Horario</string>
-    <string name="bedtime_window">Ventana Ideal de Descanso</string>
-    <string name="sleep_balance_label">Balance de Sueño</string>
-    <string name="sleep_debt_surplus">+%1$dm superávit</string>
-    <string name="sleep_debt_deficit">-%1$dm déficit</string>
-    <string name="sleep_target_balanced">En meta (8h)</string>
-    <string name="daytime_naps">Siestas Diurnas</string>
+    <string name="sleep_coach_title">Deuda y Horario Ideal</string>
+    <string name="bedtime_window">Ventana ideal para dormir hoy</string>
+    <string name="sleep_balance_label">Balance (8h)</string>
+    <string name="sleep_debt_surplus">+%1$d min</string>
+    <string name="sleep_debt_deficit">-%1$d min</string>
+    <string name="sleep_target_balanced">En meta</string>
+    <string name="daytime_naps">Siestas</string>
     <string name="nap_minutes_format">%1$d min</string>
     <string name="no_naps_recorded">0 min</string>
 
     <!-- Cardiac Coherence Breathwork -->
     <string name="cardiac_coherence_title">Coherencia Cardíaca</string>
     <string name="cardiac_coherence_subtitle">Respiración de Resonancia (0.1 Hz)</string>
-    <string name="cardiac_coherence_guide">Inhalá 5s, exhalá 5s (6 respiraciones/min) para maximizar la VFC y el tono vagal.</string>
+    <string name="cardiac_coherence_guide">Inhalá 4s, exhalá 6s (6 resp/min) para maximizar la VFC y el tono vagal.</string>
     <string name="coherence_inhale">Inhalá</string>
     <string name="coherence_exhale">Exhalá</string>
     <string name="coherence_hold">Sostené</string>
     <string name="coherence_completed">Sesión completada</string>
-    <string name="coherence_start">Iniciar respiración guiada</string>
+    <string name="coherence_start">Iniciar respiración</string>
 </resources>

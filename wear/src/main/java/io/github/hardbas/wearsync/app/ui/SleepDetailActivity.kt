@@ -845,6 +845,15 @@ fun SleepDetailContent(
                                 color = LabelSilver
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = stringResource(R.string.apnea_odi_explanation),
+                            fontSize = 9.sp,
+                            color = LabelSilver,
+                            lineHeight = 12.sp
+                        )
                     }
                 }
             }

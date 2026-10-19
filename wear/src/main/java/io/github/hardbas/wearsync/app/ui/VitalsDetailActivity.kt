@@ -1013,10 +1013,11 @@ fun PhysiologicalStrainRadarCard(
                        (if (spo2Optimal) 1 else 0) +
                        (if (tempOptimal) 1 else 0)
 
+    val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
     val (radarStatus, radarColor, radarBg) = when {
-        optimalScore >= 3 -> Triple("Optimal Recovery", Color(0xFF00E676), Color(0x2200E676))
-        optimalScore == 2 -> Triple("Moderate Strain", Color(0xFFFFB703), Color(0x22FFB703))
-        else -> Triple("Recovery Alert", Color(0xFFFF5D99), Color(0x22FF5D99))
+        optimalScore >= 3 -> Triple(if (isSpanish) "Óptimo" else "Optimal", Color(0xFF00E676), Color(0x2200E676))
+        optimalScore == 2 -> Triple(if (isSpanish) "Moderado" else "Moderate", Color(0xFFFFB703), Color(0x22FFB703))
+        else -> Triple(if (isSpanish) "Alerta" else "Alert", Color(0xFFFF5D99), Color(0x22FF5D99))
     }
 
     val density = LocalDensity.current
@@ -1053,7 +1054,7 @@ fun PhysiologicalStrainRadarCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Strain Radar",
+                        text = if (isSpanish) "Radar Biométrico" else "Strain Radar",
                         fontSize = TextBody,
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold,
@@ -1146,14 +1147,14 @@ fun PhysiologicalStrainRadarCard(
                             modifier = Modifier.weight(1f),
                             label = "HRV",
                             value = if (vitals.lastHrv > 0) "${vitals.lastHrv}ms" else "--",
-                            status = if (hrvOptimal) "Optimal" else "Strained",
+                            status = if (hrvOptimal) (if (isSpanish) "Óptimo" else "Optimal") else (if (isSpanish) "Tenso" else "Strain"),
                             color = if (hrvOptimal) LimeSteps else HrMinMaxPink
                         )
                         RadarNodeCell(
                             modifier = Modifier.weight(1f),
-                            label = "HEART",
+                            label = if (isSpanish) "PULSO" else "HEART",
                             value = if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate}bpm" else "--",
-                            status = if (hrOptimal) "Resting" else "Elevated",
+                            status = if (hrOptimal) (if (isSpanish) "Reposo" else "Resting") else (if (isSpanish) "Alto" else "High"),
                             color = if (hrOptimal) ZoneRestColor else HrMinMaxPink
                         )
                     }
@@ -1169,7 +1170,7 @@ fun PhysiologicalStrainRadarCard(
                             modifier = Modifier.weight(1f),
                             label = "SpO2",
                             value = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--",
-                            status = if (spo2Optimal) "Normal" else "Low",
+                            status = if (spo2Optimal) "Normal" else (if (isSpanish) "Bajo" else "Low"),
                             color = if (spo2Optimal) CyanActive else HrMinMaxPink
                         )
                         val hasTemp = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
@@ -1179,7 +1180,7 @@ fun PhysiologicalStrainRadarCard(
                             modifier = Modifier.weight(1f),
                             label = "TEMP",
                             value = tempVal,
-                            status = if (!hasTemp) "--" else if (tempOptimal) "In Range" else "Offset",
+                            status = if (!hasTemp) "--" else if (tempOptimal) "Normal" else (if (isSpanish) "Desvío" else "Offset"),
                             color = if (tempOptimal) Color(0xFF68D391) else ZoneFatBurnColor
                         )
                     }

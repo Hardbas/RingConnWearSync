@@ -1271,7 +1271,7 @@ private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isSpanish) "Coherencia Cardíaca · Guía Háptica" else "Cardiac Coherence · Haptic Guide",
+                        text = if (isSpanish) "Coherencia Cardíaca" else "Cardiac Coherence",
                         color = Color.White,
                         fontSize = TextBody,
                         fontWeight = FontWeight.SemiBold,

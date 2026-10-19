@@ -213,39 +213,40 @@
     <string name="trend_7day_title">7-Day Trend</string>
 
     <!-- Nocturnal Respiratory & Apnea ODI Radar -->
-    <string name="apnea_odi_title">Respiratory &amp; ODI Radar</string>
-    <string name="odi_index">ODI Index</string>
-    <string name="odi_events_per_hr">ev/h</string>
-    <string name="odi_status_optimal">Optimal (&lt; 5)</string>
-    <string name="odi_status_mild">Mild (5–14.9)</string>
-    <string name="odi_status_elevated">Elevated (≥ 15)</string>
-    <string name="min_sleeping_spo2">Min Sleep SpO2</string>
-    <string name="spo2_stable">Stable (≥ 94%)</string>
-    <string name="spo2_unstable">Low (&lt; 94%)</string>
+    <string name="apnea_odi_title">Apnea &amp; SpO2 (ODI)</string>
+    <string name="apnea_odi_explanation">ODI tracks ≥3% oxygen drops per hour of sleep: &lt;5 Normal, 5–15 Mild, ≥15 Alert. HR Dip (10–20%) reflects nocturnal cardiac recovery.</string>
+    <string name="odi_index">Apnea (ODI)</string>
+    <string name="odi_events_per_hr">/h</string>
+    <string name="odi_status_optimal">Normal &lt;5</string>
+    <string name="odi_status_mild">Mild 5–15</string>
+    <string name="odi_status_elevated">Alert ≥15</string>
+    <string name="min_sleeping_spo2">Min SpO2</string>
+    <string name="spo2_stable">Normal ≥94%</string>
+    <string name="spo2_unstable">Low &lt;94%</string>
     <string name="sleeping_hr_dip">Nocturnal HR Dip</string>
-    <string name="hr_dip_optimal">Restorative Dip</string>
-    <string name="hr_dip_reduced">Reduced Dip</string>
-    <string name="hr_dip_extreme">Extreme Dip</string>
-    <string name="hr_dip_optimal_range">10–20% target</string>
+    <string name="hr_dip_optimal">Optimal</string>
+    <string name="hr_dip_reduced">Reduced</string>
+    <string name="hr_dip_extreme">High</string>
+    <string name="hr_dip_optimal_range">10–20% goal</string>
 
     <!-- Sleep Debt, Daytime Naps & Circadian Bedtime Coach -->
-    <string name="sleep_coach_title">Sleep Debt &amp; Bedtime Coach</string>
+    <string name="sleep_coach_title">Sleep Debt &amp; Bedtime</string>
     <string name="bedtime_window">Tonight\'s Bedtime Window</string>
-    <string name="sleep_balance_label">Sleep Balance</string>
-    <string name="sleep_debt_surplus">+%1$dm surplus</string>
-    <string name="sleep_debt_deficit">-%1$dm debt</string>
-    <string name="sleep_target_balanced">On target (8h)</string>
-    <string name="daytime_naps">Daytime Naps</string>
+    <string name="sleep_balance_label">Balance (8h)</string>
+    <string name="sleep_debt_surplus">+%1$d min</string>
+    <string name="sleep_debt_deficit">-%1$d min</string>
+    <string name="sleep_target_balanced">On target</string>
+    <string name="daytime_naps">Naps</string>
     <string name="nap_minutes_format">%1$d min</string>
     <string name="no_naps_recorded">0 min</string>
 
     <!-- Cardiac Coherence Breathwork -->
     <string name="cardiac_coherence_title">Cardiac Coherence</string>
     <string name="cardiac_coherence_subtitle">Resonance Breathing (0.1 Hz)</string>
-    <string name="cardiac_coherence_guide">Inhale 5s, exhale 5s (6 breaths/min) to maximize HRV and vagal nerve tone.</string>
+    <string name="cardiac_coherence_guide">Inhale 4s, exhale 6s (6 breaths/min) to maximize HRV and vagal nerve tone.</string>
     <string name="coherence_inhale">Inhale</string>
     <string name="coherence_exhale">Exhale</string>
     <string name="coherence_hold">Hold</string>
     <string name="coherence_completed">Session Complete</string>
-    <string name="coherence_start">Start Paced Breathing</string>
+    <string name="coherence_start">Start Breathing</string>
 </resources>

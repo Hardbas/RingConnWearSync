@@ -862,9 +862,10 @@ private fun StandHoursCard(
                             .clip(CircleShape)
                             .background(CyanActive)
                     )
+                    val isSpanish = remember { java.util.Locale.getDefault().language.startsWith("es") }
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Stand Hours",
+                        text = if (isSpanish) "Horas Activas" else "Stand Hours",
                         fontSize = TextBody,
                         color = Color.White,
                         fontWeight = FontWeight.SemiBold,
@@ -918,8 +919,9 @@ private fun StandHoursCard(
                 if (touchedSegment != null) {
                     val segIdx = touchedSegment!!
                     val isStanding = segIdx < standHours
+                    val isSpanish = java.util.Locale.getDefault().language.startsWith("es")
                     Text(
-                        text = "Hr ${segIdx + 1}: ${if (isStanding) "Active" else "Idle"}",
+                        text = "H${segIdx + 1}: ${if (isStanding) (if (isSpanish) "Activa" else "Active") else (if (isSpanish) "Pausa" else "Idle")}",
                         fontSize = TextCaption,
                         color = if (isStanding) CyanActive else LabelSilver,
                         fontWeight = FontWeight.Medium,
@@ -1020,8 +1022,9 @@ private fun StandHoursCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            val isSpanishFooter = java.util.Locale.getDefault().language.startsWith("es")
             Text(
-                text = if (standHours >= 12) "Stand goal reached! 12/12 hours" else "${12 - standHours} more stand hours to goal",
+                text = if (standHours >= 12) (if (isSpanishFooter) "¡Meta lograda! 12/12 h" else "Goal reached! 12/12 h") else (if (isSpanishFooter) "Faltan ${12 - standHours} h para la meta" else "${12 - standHours} h left to goal"),
                 fontSize = TextCaption,
                 color = LabelSilver
             )

@@ -35,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.*
@@ -250,24 +251,25 @@ fun WearAppContent(
                 val readinessClamped = readiness.coerceIn(0, 100)
                 val hasReadiness = readiness > 0
 
+                val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
                 val (statusLabel, statusColor, cardBgBrush) = when {
                     !hasReadiness -> Triple(
-                        "Syncing Vitals...",
+                        if (isSpanish) "Sincronizando..." else "Syncing...",
                         LabelSilver,
                         Brush.horizontalGradient(listOf(Color(0xFF22262C), Color(0xFF181A1D)))
                     )
                     readinessClamped >= 75 -> Triple(
-                        "Optimal Energy",
+                        if (isSpanish) "Energía Óptima" else "Optimal Energy",
                         Color(0xFF00E676),
                         Brush.horizontalGradient(listOf(Color(0xFF0F3025), Color(0xFF071C15)))
                     )
                     readinessClamped in 45..74 -> Triple(
-                        "Balanced Charge",
+                        if (isSpanish) "Carga Equilibrada" else "Balanced Charge",
                         Color(0xFFFFB703),
                         Brush.horizontalGradient(listOf(Color(0xFF33260A), Color(0xFF1C1505)))
                     )
                     else -> Triple(
-                        "Depleted · Rest",
+                        if (isSpanish) "Baja · Descanso" else "Low · Rest",
                         Color(0xFFFF5D99),
                         Brush.horizontalGradient(listOf(Color(0xFF331420), Color(0xFF1C0A12)))
                     )
@@ -298,25 +300,32 @@ fun WearAppContent(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "BODY BATTERY",
+                                text = if (isSpanish) "ENERGÍA CORPORAL" else "BODY BATTERY",
                                 fontSize = TextCaption,
                                 color = statusColor,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = statusLabel,
                                 fontSize = TextBody,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             val hrvText = if (vitals.lastHrv > 0) "HRV ${vitals.lastHrv}ms" else "HRV --"
-                            val sleepText = if (vitals.sleepScore > 0) "Sleep ${vitals.sleepScore}" else "Sleep --"
+                            val sleepWord = if (isSpanish) "Sueño" else "Sleep"
+                            val sleepText = if (vitals.sleepScore > 0) "$sleepWord ${vitals.sleepScore}" else "$sleepWord --"
                             Text(
                                 text = "$hrvText  ·  $sleepText",
                                 fontSize = TextCaption,
                                 style = TabularNums,
-                                color = LabelSilver
+                                color = LabelSilver,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
