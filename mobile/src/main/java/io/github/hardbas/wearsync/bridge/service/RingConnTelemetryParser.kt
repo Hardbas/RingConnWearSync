@@ -147,17 +147,17 @@ object RingConnTelemetryParser {
             // --- Composite contentDescription matches (e.g. "Sleep 88", "Battery 70%") ---
             COMPOSITE_SLEEP_REGEX.find(token)?.let {
                 it.groupValues[1].toIntOrNull()?.let { score ->
-                    if (score in 20..100) sleepScore = score
+                    if (score in 0..100) sleepScore = score
                 }
             }
             COMPOSITE_ACT_REGEX.find(token)?.let {
                 it.groupValues[1].toIntOrNull()?.let { score ->
-                    if (score in 1..100) activityScore = score
+                    if (score in 0..100) activityScore = score
                 }
             }
             COMPOSITE_STRESS_REGEX.find(token)?.let {
                 it.groupValues[1].toIntOrNull()?.let { score ->
-                    if (score in 1..100) stressScore = score
+                    if (score in 0..100) stressScore = score
                 }
             }
             COMPOSITE_BAT_REGEX.find(token)?.let {
@@ -175,7 +175,7 @@ object RingConnTelemetryParser {
                 val next = cleanTokens.getOrNull(i + 1)
                 val prevNum = prev?.toIntOrNull()
                 val nextNum = next?.toIntOrNull()
-                if (prev == "--" || next == "--") {
+                if (prev == "--" || next == "--" || prevNum == 0 || nextNum == 0) {
                     sleepScore = 0
                 } else if (prevNum != null && prevNum in 20..100) {
                     sleepScore = prevNum
@@ -190,7 +190,7 @@ object RingConnTelemetryParser {
                 val next = cleanTokens.getOrNull(i + 1)
                 val prevNum = prev?.toIntOrNull()
                 val nextNum = next?.toIntOrNull()
-                if (prev == "--" || next == "--") {
+                if (prev == "--" || next == "--" || prevNum == 0 || nextNum == 0) {
                     activityScore = 0
                 } else if (prevNum != null && prevNum in 1..100) {
                     activityScore = prevNum
@@ -308,9 +308,11 @@ object RingConnTelemetryParser {
             // Steps Header (strictly "steps" or "pasos", NEVER matching compound titles)
             if (lower == "steps" || lower == "pasos") {
                 val next = cleanTokens.getOrNull(i + 1)
-                if (next != null && next != "--" && !next.startsWith("/")) {
+                if (next == "--") {
+                    liveSteps = 0
+                } else if (next != null && !next.startsWith("/")) {
                     val num = next.replace(",", "").replace(".", "").trim().toIntOrNull()
-                    if (num != null && num in 1..150000) liveSteps = num
+                    if (num != null && num in 0..150000) liveSteps = num
                 }
                 // Check for / targetSteps
                 val candidateSlash = cleanTokens.getOrNull(i + 2)
@@ -329,9 +331,11 @@ object RingConnTelemetryParser {
             // ONLY look forward immediately after the header; NEVER look backward (which holds target steps 6000)
             if (lower == "calories(kcal)" || lower == "calories" || lower == "calorías" || lower == "calorias" || lower == "calorías(kcal)" || lower == "kcal") {
                 val next = cleanTokens.getOrNull(i + 1)
-                if (next != null && next != "--" && !next.startsWith("/")) {
+                if (next == "--") {
+                    liveCalorie = 0
+                } else if (next != null && !next.startsWith("/")) {
                     val num = next.replace(",", "").replace(".", "").trim().toIntOrNull()
-                    if (num != null && num in 1..25000) liveCalorie = num
+                    if (num != null && num in 0..25000) liveCalorie = num
                 }
                 // Check for / targetCalorie
                 val candidateSlash = cleanTokens.getOrNull(i + 2)
@@ -401,7 +405,25 @@ object RingConnTelemetryParser {
             }
         }
 
-        // 4. Sanitize liveCalorie if it was contaminated by targetSteps (e.g. 6000)
+        // 4. Midnight Rollover Guard: If widget timestamp belongs to a previous calendar day,
+        // suppress daily-cumulative scores/counters from the unrefreshed yesterday widget snapshot.
+        val todayEpochDay = ZonedDateTime.now(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+        val widgetSampleEpochDay = parsedWidgetTimestamp?.let { ts ->
+            java.time.Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault()).toLocalDate().toEpochDay()
+        }
+        if (widgetSampleEpochDay != null && widgetSampleEpochDay < todayEpochDay) {
+            Log.i(TAG, "Midnight Rollover Guard: Widget sample time is from previous day ($widgetSampleEpochDay < $todayEpochDay). Suppressing yesterday's cumulative widget counters.")
+            liveSteps = baseVitals.liveSteps
+            liveCalorie = baseVitals.liveCalorie
+            activityScore = baseVitals.activityScore
+            sleepScore = baseVitals.sleepScore
+            sleepInsight = baseVitals.sleepInsight
+            activityInsight = baseVitals.activityInsight
+            stressInsight = baseVitals.stressInsight
+            vitalsInsight = baseVitals.vitalsInsight
+        }
+
+        // 5. Sanitize liveCalorie if it was contaminated by targetSteps (e.g. 6000)
         if (liveCalorie >= targetSteps && targetSteps > 0 || (liveCalorie > 3000 && targetCalorie <= 1000)) {
             liveCalorie = if (liveSteps > 0) {
                 (liveSteps * 0.045).roundToInt().coerceAtLeast(1)

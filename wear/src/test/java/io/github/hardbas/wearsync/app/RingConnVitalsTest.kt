@@ -134,4 +134,90 @@ class RingConnVitalsTest {
         assertTrue("Active recovery score must be between 1 and 100, got: $activeScore", activeScore in 1..100)
         assertTrue("High recovery vitals should produce high readiness score", activeScore >= 75)
     }
+
+    @Test
+    fun watchMidnightRollover_resetsDailyCountersAndPreservesDeviceVitals() {
+        val yesterdayVitals = RingConnVitals(
+            lastHeartRate = 72,
+            avgHeartRate = 66,
+            lastSpo2 = 98,
+            avgSpo2 = 97,
+            lastHrv = 48,
+            avgHrv = 44,
+            ringBattery = 82,
+            isCharging = false,
+            isConnected = true,
+            skinTempBaseline = 36.5f,
+            skinTempOffset = 0.1f,
+            sleepScore = 82,
+            activityScore = 88,
+            activeMinutes = 65,
+            liveSteps = 9120,
+            liveCalorie = 480,
+            minHeartRate = 52,
+            maxHeartRate = 138,
+            zone1Mins = 310,
+            zone2Mins = 50,
+            sleepDeepMins = 78,
+            sleepRemMins = 82,
+            sleepLightMins = 205,
+            sleepAwakeMins = 20,
+            sleepEfficiencyPct = 92,
+            odiDropsPerHour = 1.1f,
+            minSleepingSpo2 = 94,
+            sleepingHrDipPct = 14.5f,
+            napMinutes = 30,
+            standHours = 10,
+            stressDawn = 22,
+            stressMorning = 40,
+            stressAfternoon = 50,
+            stressNight = 35,
+            basalCalories = 1800,
+            distanceKm = 6.95f,
+            sleepInsight = "Yesterday sleep",
+            activityInsight = "Yesterday activity"
+        )
+
+        val rolled = io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider.rolloverVitalsForNewDay(yesterdayVitals)
+
+        // Instantaneous device values preserved
+        assertEquals(72, rolled.lastHeartRate)
+        assertEquals(82, rolled.ringBattery)
+        assertEquals(98, rolled.lastSpo2)
+        assertEquals(48, rolled.lastHrv)
+        assertEquals(36.5f, rolled.skinTempBaseline, 0.01f)
+        assertEquals(0.1f, rolled.skinTempOffset, 0.01f)
+
+        // Daily-cumulative activity reset to 0
+        assertEquals(0, rolled.liveSteps)
+        assertEquals(0, rolled.liveCalorie)
+        assertEquals(0, rolled.activityScore)
+        assertEquals(0, rolled.activeMinutes)
+        assertEquals(0.0f, rolled.distanceKm, 0.01f)
+        assertEquals(0, rolled.standHours)
+
+        // Sleep score and metrics reset to 0
+        assertEquals(0, rolled.sleepScore)
+        assertEquals(0, rolled.sleepDeepMins)
+        assertEquals(0, rolled.sleepRemMins)
+        assertEquals(0, rolled.sleepLightMins)
+        assertEquals(0, rolled.sleepAwakeMins)
+        assertEquals(0, rolled.sleepEfficiencyPct)
+        assertEquals(0.0f, rolled.odiDropsPerHour, 0.01f)
+        assertEquals(0, rolled.minSleepingSpo2)
+        assertEquals(0.0f, rolled.sleepingHrDipPct, 0.01f)
+        assertEquals(0, rolled.napMinutes)
+
+        // Circadian blocks reset
+        assertEquals(0, rolled.stressDawn)
+        assertEquals(0, rolled.stressMorning)
+        assertEquals(0, rolled.stressAfternoon)
+        assertEquals(0, rolled.stressNight)
+        assertEquals(0, rolled.minHeartRate)
+        assertEquals(0, rolled.maxHeartRate)
+        assertEquals(0, rolled.zone1Mins)
+        assertEquals(0, rolled.basalCalories)
+        assertEquals("", rolled.sleepInsight)
+        assertEquals("", rolled.activityInsight)
+    }
 }

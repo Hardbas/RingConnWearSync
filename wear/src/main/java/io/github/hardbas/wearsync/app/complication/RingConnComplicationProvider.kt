@@ -173,9 +173,103 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
 
     companion object {
         private const val PREFS_NAME = "RingConnWearCache"
+        const val KEY_CACHE_EPOCH_DAY = "cache_epoch_day"
+
+        fun ensureDailyRollover(
+            prefs: android.content.SharedPreferences,
+            todayEpochDay: Long = java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toEpochDay()
+        ): Boolean {
+            val savedEpochDay = prefs.getLong(KEY_CACHE_EPOCH_DAY, -1L)
+            if (savedEpochDay == todayEpochDay) {
+                return false
+            }
+            Log.i("RingConnComplication", "Watch Midnight Rollover (saved=$savedEpochDay -> today=$todayEpochDay): resetting daily counters.")
+            prefs.edit().apply {
+                putInt("steps_live", 0)
+                putInt("cal_live", 0)
+                putInt("activity_score", 0)
+                putInt("active_mins", 0)
+                putInt("sleep_score", 0)
+                putInt("sleep_deep_mins", 0)
+                putInt("sleep_rem_mins", 0)
+                putInt("sleep_light_mins", 0)
+                putInt("sleep_awake_mins", 0)
+                putInt("sleep_efficiency_pct", 0)
+                putInt("hr_phase_deep", 0)
+                putInt("hr_phase_rem", 0)
+                putInt("hr_phase_light", 0)
+                putFloat("odi_drops_per_hour", 0.0f)
+                putInt("min_sleeping_spo2", 0)
+                putFloat("sleeping_hr_dip_pct", 0.0f)
+                putInt("nap_minutes", 0)
+                putInt("stand_hours", 0)
+                putInt("min_hr", 0)
+                putInt("max_hr", 0)
+                putInt("zone1_mins", 0)
+                putInt("zone2_mins", 0)
+                putInt("zone3_mins", 0)
+                putInt("zone4_mins", 0)
+                putInt("zone5_mins", 0)
+                putInt("stress_dawn", 0)
+                putInt("stress_morning", 0)
+                putInt("stress_afternoon", 0)
+                putInt("stress_night", 0)
+                putInt("basal_calories", 0)
+                putFloat("distance_km", 0.0f)
+                putString("sleep_insight", "")
+                putString("activity_insight", "")
+                putString("stress_insight", "")
+                putString("vitals_insight", "")
+                putLong(KEY_CACHE_EPOCH_DAY, todayEpochDay)
+                apply()
+            }
+            RingConnHistoryStore.purgeDaySnapshot(prefs, todayEpochDay)
+            return true
+        }
+
+        fun rolloverVitalsForNewDay(vitals: RingConnVitals): RingConnVitals {
+            return vitals.copy(
+                sleepScore = 0,
+                activityScore = 0,
+                activeMinutes = 0,
+                liveSteps = 0,
+                liveCalorie = 0,
+                minHeartRate = 0,
+                maxHeartRate = 0,
+                zone1Mins = 0,
+                zone2Mins = 0,
+                zone3Mins = 0,
+                zone4Mins = 0,
+                zone5Mins = 0,
+                sleepDeepMins = 0,
+                sleepRemMins = 0,
+                sleepLightMins = 0,
+                sleepAwakeMins = 0,
+                sleepInsight = "",
+                activityInsight = "",
+                stressInsight = "",
+                vitalsInsight = "",
+                odiDropsPerHour = 0.0f,
+                minSleepingSpo2 = 0,
+                sleepingHrDipPct = 0.0f,
+                napMinutes = 0,
+                standHours = 0,
+                hrPhaseDeep = 0,
+                hrPhaseRem = 0,
+                hrPhaseLight = 0,
+                sleepEfficiencyPct = 0,
+                stressDawn = 0,
+                stressMorning = 0,
+                stressAfternoon = 0,
+                stressNight = 0,
+                basalCalories = 0,
+                distanceKm = 0.0f
+            )
+        }
 
         fun getLatestVitals(context: Context): RingConnVitals {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            ensureDailyRollover(prefs)
             val hr = prefs.getInt("hr_last", 0)
             val battery = prefs.getInt("ring_battery", 0)
             val sleep = prefs.getInt("sleep_score", 0)
@@ -279,7 +373,11 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             io.github.hardbas.wearsync.app.service.WearDataListenerService.parseVitalsFromJson(json)
 
         fun saveAndBroadcastVitals(context: Context, vitals: RingConnVitals) {
-            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val todayEpochDay = java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toEpochDay()
+            ensureDailyRollover(prefs, todayEpochDay)
+            prefs.edit().apply {
+                putLong(KEY_CACHE_EPOCH_DAY, todayEpochDay)
                 putInt("hr_last", vitals.lastHeartRate)
                 putInt("hr_avg", vitals.avgHeartRate)
                 putInt("spo2_last", vitals.lastSpo2)

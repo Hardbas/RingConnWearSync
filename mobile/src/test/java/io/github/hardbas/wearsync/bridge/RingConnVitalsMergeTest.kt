@@ -2,6 +2,7 @@ package io.github.hardbas.wearsync.bridge
 
 import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.service.RingConnTelemetryParser
+import io.github.hardbas.wearsync.bridge.service.RingConnTelemetryReader
 import io.github.hardbas.wearsync.bridge.service.WearDataSyncService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -124,6 +125,129 @@ class RingConnVitalsMergeTest {
         assertEquals("Nivel de estrés relajado durante la mayor parte del día.", parsed.stressInsight)
         assertEquals("You reached your daily steps and active movement goal!", parsed.activityInsight)
         assertEquals("Baseline skin temperature remained normal overnight.", parsed.vitalsInsight)
+    }
+
+    @Test
+    fun midnightRollover_resetsDailyCumulativeCountersAndPreservesInstantVitals() {
+        val yesterdayVitals = RingConnVitals(
+            lastHeartRate = 68,
+            avgHeartRate = 64,
+            lastSpo2 = 98,
+            avgSpo2 = 97,
+            lastHrv = 52,
+            avgHrv = 49,
+            ringBattery = 75,
+            skinTempOffset = 0.2f,
+            skinTempBaseline = 36.4f,
+            sleepScore = 86,
+            activityScore = 91,
+            activeMinutes = 74,
+            liveSteps = 8450,
+            liveCalorie = 420,
+            minHeartRate = 51,
+            maxHeartRate = 142,
+            zone1Mins = 320,
+            zone2Mins = 45,
+            zone3Mins = 12,
+            zone4Mins = 0,
+            zone5Mins = 0,
+            sleepDeepMins = 85,
+            sleepRemMins = 90,
+            sleepLightMins = 210,
+            sleepAwakeMins = 18,
+            sleepEfficiencyPct = 94,
+            hrPhaseDeep = 52,
+            hrPhaseRem = 58,
+            hrPhaseLight = 55,
+            odiDropsPerHour = 1.2f,
+            minSleepingSpo2 = 93,
+            sleepingHrDipPct = 16.5f,
+            napMinutes = 35,
+            standHours = 11,
+            stressDawn = 24,
+            stressMorning = 38,
+            stressAfternoon = 45,
+            stressNight = 32,
+            basalCalories = 1750,
+            distanceKm = 6.44f,
+            sleepInsight = "Yesterday sleep",
+            activityInsight = "Yesterday activity",
+            stressInsight = "Yesterday stress",
+            vitalsInsight = "Yesterday vitals"
+        )
+
+        // Simulate crossing midnight at 01:10 AM
+        val rolledOver = RingConnTelemetryReader.rolloverVitalsForNewDay(yesterdayVitals, nowHour = 1, nowMinute = 10)
+
+        // Instantaneous vitals and battery MUST be preserved
+        assertEquals(68, rolledOver.lastHeartRate)
+        assertEquals(64, rolledOver.avgHeartRate)
+        assertEquals(98, rolledOver.lastSpo2)
+        assertEquals(97, rolledOver.avgSpo2)
+        assertEquals(52, rolledOver.lastHrv)
+        assertEquals(49, rolledOver.avgHrv)
+        assertEquals(75, rolledOver.ringBattery)
+        assertEquals(0.2f, rolledOver.skinTempOffset, 0.01f)
+        assertEquals(36.4f, rolledOver.skinTempBaseline, 0.01f)
+
+        // Daily-cumulative activity counters MUST be 0 on the new day
+        assertEquals(0, rolledOver.liveSteps)
+        assertEquals(0, rolledOver.liveCalorie)
+        assertEquals(0, rolledOver.activityScore)
+        assertEquals(0, rolledOver.activeMinutes)
+        assertEquals(0.0f, rolledOver.distanceKm, 0.01f)
+        assertEquals(0, rolledOver.standHours)
+
+        // Sleep score and stages MUST be 0 on the new day until sleep concludes today
+        assertEquals(0, rolledOver.sleepScore)
+        assertEquals(0, rolledOver.sleepDeepMins)
+        assertEquals(0, rolledOver.sleepRemMins)
+        assertEquals(0, rolledOver.sleepLightMins)
+        assertEquals(0, rolledOver.sleepAwakeMins)
+        assertEquals(0, rolledOver.sleepEfficiencyPct)
+        assertEquals(0, rolledOver.hrPhaseDeep)
+        assertEquals(0, rolledOver.hrPhaseRem)
+        assertEquals(0, rolledOver.hrPhaseLight)
+        assertEquals(0.0f, rolledOver.odiDropsPerHour, 0.01f)
+        assertEquals(0, rolledOver.minSleepingSpo2)
+        assertEquals(0.0f, rolledOver.sleepingHrDipPct, 0.01f)
+        assertEquals(0, rolledOver.napMinutes)
+
+        // Circadian stress blocks and min/max HR MUST be reset
+        assertEquals(0, rolledOver.stressDawn)
+        assertEquals(0, rolledOver.stressMorning)
+        assertEquals(0, rolledOver.stressAfternoon)
+        assertEquals(0, rolledOver.stressNight)
+        assertEquals(0, rolledOver.minHeartRate)
+        assertEquals(0, rolledOver.maxHeartRate)
+        assertEquals(0, rolledOver.zone1Mins)
+        assertEquals(0, rolledOver.zone2Mins)
+
+        // Basal calories at 01:10 AM should only reflect today's BMR accrued so far (~120 kcal)
+        assertTrue("Basal calories at 01:10 AM must be reset to today (~120 kcal), got: ${rolledOver.basalCalories}", rolledOver.basalCalories in 100..200)
+
+        // Insights from yesterday must be empty
+        assertEquals("", rolledOver.sleepInsight)
+        assertEquals("", rolledOver.activityInsight)
+        assertEquals("", rolledOver.stressInsight)
+        assertEquals("", rolledOver.vitalsInsight)
+    }
+
+    @Test
+    fun parser_allowsZeroResetForStepsAndCalories() {
+        val base = RingConnVitals(liveSteps = 5000, liveCalorie = 250, sleepScore = 80, activityScore = 75)
+        val tokensWithDashes = listOf("Steps", "--", "Calories", "--", "Sleep", "--", "Activity", "--")
+        val parsedDashes = RingConnTelemetryParser.parseTokens(tokensWithDashes, base)
+        assertEquals(0, parsedDashes.liveSteps)
+        assertEquals(0, parsedDashes.liveCalorie)
+        assertEquals(0, parsedDashes.sleepScore)
+        assertEquals(0, parsedDashes.activityScore)
+
+        val tokensWithZeros = listOf("Steps", "0", "Calories", "0", "Activity", "0")
+        val parsedZeros = RingConnTelemetryParser.parseTokens(tokensWithZeros, base)
+        assertEquals(0, parsedZeros.liveSteps)
+        assertEquals(0, parsedZeros.liveCalorie)
+        assertEquals(0, parsedZeros.activityScore)
     }
 }
 

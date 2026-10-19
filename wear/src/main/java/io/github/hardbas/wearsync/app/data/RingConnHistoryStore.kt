@@ -216,6 +216,27 @@ object RingConnHistoryStore {
     }
 
     /**
+     * Removes a specific epochDay entry from the 7-day rolling history cache when a midnight rollover
+     * purges stale previous-day data that had leaked into the start of the new day.
+     */
+    fun purgeDaySnapshot(prefs: SharedPreferences, targetEpochDay: Long) {
+        try {
+            val jsonStr = prefs.getString(KEY_HISTORY_JSON, null) ?: return
+            val jsonArray = JSONArray(jsonStr)
+            val outputArray = JSONArray()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.optJSONObject(i) ?: continue
+                if (obj.optLong("epochDay", -1L) != targetEpochDay) {
+                    outputArray.put(obj)
+                }
+            }
+            prefs.edit().putString(KEY_HISTORY_JSON, outputArray.toString()).apply()
+        } catch (e: Exception) {
+            Log.e("RingConnHistoryStore", "Failed to purge day snapshot for $targetEpochDay", e)
+        }
+    }
+
+    /**
      * Reads up to 7 stored daily snapshots from SharedPreferences.
      * If the cache is empty and currentVitals is provided, synthesizes a 1-day entry for today.
      */
