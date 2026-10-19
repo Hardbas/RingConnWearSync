@@ -1,0 +1,128 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="220dp"
+    android:height="220dp"
+    android:viewportWidth="220"
+    android:viewportHeight="220">
+
+    <!-- Deep obsidian twilight backdrop with radial nebula glow -->
+    <path
+        android:pathData="M110,0 A110,110 0 1,1 110,220 A110,110 0 1,1 110,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="110"
+                android:centerY="100"
+                android:gradientRadius="110"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#FF151B3D" />
+                <item android:offset="0.45" android:color="#FF0D1126" />
+                <item android:offset="0.8" android:color="#FF070914" />
+                <item android:offset="1.0" android:color="#FF030408" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Faint celestial constellation alignment lines -->
+    <path
+        android:pathData="M54,46 L95,34 L128,38 L166,52"
+        android:strokeColor="#1FA5C9FF"
+        android:strokeWidth="0.8" />
+    <path
+        android:pathData="M36,118 L48,142 L78,172"
+        android:strokeColor="#18A5C9FF"
+        android:strokeWidth="0.7" />
+    <path
+        android:pathData="M184,126 L168,150 L146,174"
+        android:strokeColor="#18A5C9FF"
+        android:strokeWidth="0.7" />
+
+    <!-- 4-pointed shimmering stars -->
+    <!-- Star 1: Golden Twinkle Top-Left -->
+    <path
+        android:fillColor="#FFEAA7"
+        android:fillAlpha="0.9"
+        android:pathData="M54,41 Q54,46 59,46 Q54,46 54,51 Q54,46 49,46 Q54,46 54,41 Z" />
+
+    <!-- Star 2: Periwinkle Twinkle Top-Right -->
+    <path
+        android:fillColor="#A5C9FF"
+        android:fillAlpha="0.9"
+        android:pathData="M166,47 Q166,52 171,52 Q166,52 166,57 Q166,52 161,52 Q166,52 166,47 Z" />
+
+    <!-- Star 3: Diamond Starlight Mid-Left -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.8"
+        android:pathData="M36,114 Q36,118 40,118 Q36,118 36,122 Q36,118 32,118 Q36,118 36,114 Z" />
+
+    <!-- Star 4: Diamond Starlight Mid-Right -->
+    <path
+        android:fillColor="#E0E7FF"
+        android:fillAlpha="0.85"
+        android:pathData="M184,122 Q184,126 188,126 Q184,126 184,130 Q184,126 180,126 Q184,126 184,122 Z" />
+
+    <!-- Star 5: Golden Starlight Lower-Left -->
+    <path
+        android:fillColor="#FFEAA7"
+        android:fillAlpha="0.75"
+        android:pathData="M78,168 Q78,172 82,172 Q78,172 78,176 Q78,172 74,172 Q78,172 78,168 Z" />
+
+    <!-- Star 6: Cyan Starlight Lower-Right -->
+    <path
+        android:fillColor="#A5C9FF"
+        android:fillAlpha="0.7"
+        android:pathData="M146,170 Q146,174 150,174 Q146,174 146,178 Q146,174 142,174 Q146,174 146,170 Z" />
+
+    <!-- Fine celestial stardust nodes -->
+    <path
+        android:fillColor="#FFEAA7"
+        android:pathData="M95,32.5 A1.5,1.5 0 1,1 95,35.5 A1.5,1.5 0 1,1 95,32.5 Z" />
+    <path
+        android:fillColor="#A5C9FF"
+        android:pathData="M128,36.6 A1.4,1.4 0 1,1 128,39.4 A1.4,1.4 0 1,1 128,36.6 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.75"
+        android:pathData="M38,71 A1.1,1.1 0 1,1 38,73.2 A1.1,1.1 0 1,1 38,71 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.7"
+        android:pathData="M182,83 A1.2,1.2 0 1,1 182,85.4 A1.2,1.2 0 1,1 182,83 Z" />
+    <path
+        android:fillColor="#E0E7FF"
+        android:fillAlpha="0.65"
+        android:pathData="M28,149 A1.0,1.0 0 1,1 28,151 A1.0,1.0 0 1,1 28,149 Z" />
+    <path
+        android:fillColor="#E0E7FF"
+        android:fillAlpha="0.65"
+        android:pathData="M192,157 A1.0,1.0 0 1,1 192,159 A1.0,1.0 0 1,1 192,157 Z" />
+    <path
+        android:fillColor="#FFEAA7"
+        android:fillAlpha="0.8"
+        android:pathData="M110,190.7 A1.3,1.3 0 1,1 110,193.3 A1.3,1.3 0 1,1 110,190.7 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M46,167 A0.9,0.9 0 1,1 46,168.8 A0.9,0.9 0 1,1 46,167 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.5"
+        android:pathData="M174,165 A0.9,0.9 0 1,1 174,166.8 A0.9,0.9 0 1,1 174,165 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.45"
+        android:pathData="M88,55.2 A0.8,0.8 0 1,1 88,56.8 A0.8,0.8 0 1,1 88,55.2 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.45"
+        android:pathData="M132,59.2 A0.8,0.8 0 1,1 132,60.8 A0.8,0.8 0 1,1 132,59.2 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.4"
+        android:pathData="M72,107.3 A0.7,0.7 0 1,1 72,108.7 A0.7,0.7 0 1,1 72,107.3 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.4"
+        android:pathData="M148,111.3 A0.7,0.7 0 1,1 148,112.7 A0.7,0.7 0 1,1 148,111.3 Z" />
+
+</vector>

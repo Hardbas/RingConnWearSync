@@ -27,8 +27,8 @@ import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.DailySummaryTileService
 import io.github.hardbas.wearsync.app.tile.HeartRateTileService
+import io.github.hardbas.wearsync.app.tile.SleepTileService
 import io.github.hardbas.wearsync.app.tile.StressTileService
-import io.github.hardbas.wearsync.app.tile.TemperatureTileService
 import io.github.hardbas.wearsync.app.tile.VitalsTileService
 import io.github.hardbas.wearsync.app.ui.DailySummaryDetailActivity
 import io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity
@@ -470,7 +470,7 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             TileService.getUpdater(context).requestUpdate(DailySummaryTileService::class.java)
             TileService.getUpdater(context).requestUpdate(HeartRateTileService::class.java)
             TileService.getUpdater(context).requestUpdate(StressTileService::class.java)
-            TileService.getUpdater(context).requestUpdate(TemperatureTileService::class.java)
+            TileService.getUpdater(context).requestUpdate(SleepTileService::class.java)
         }
     }
 }

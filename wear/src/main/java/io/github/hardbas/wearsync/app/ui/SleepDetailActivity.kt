@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntAsState
@@ -285,6 +286,9 @@ fun SleepDetailContent(
                             },
                         contentAlignment = Alignment.Center
                     ) {
+                        StarrySkyCanvas(
+                            modifier = Modifier.size(134.dp)
+                        )
                         BiometricHeroAura(
                             color = StageDeep,
                             modifier = Modifier.size(134.dp)
@@ -1289,6 +1293,13 @@ fun SleepDetailContent(
             }
 
             // =========================================================================
+            // g) Card: Nocturnal Skin Temperature Integration
+            // =========================================================================
+            item {
+                NocturnalTemperatureCard(vitals = vitals)
+            }
+
+            // =========================================================================
             // e) Card: RingConn Coaching & Insights
             // =========================================================================
             item {
@@ -1804,6 +1815,412 @@ private fun NocturnalDipGauge(
     }
 }
 
+/**
+ * Dedicated Nocturnal Skin Temperature Card integrating nocturnal thermoregulation
+ * and euthermia recovery metrics into the Sleep ecosystem.
+ */
+@Composable
+private fun NocturnalTemperatureCard(vitals: RingConnVitals) {
+    val offset = vitals.skinTempOffset
+    val hasData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
+    val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
+
+    val offsetStr = if (hasData) {
+        when {
+            offset in -0.05f..0.05f -> "±0.0"
+            offset > 0.05f -> String.format(Locale.US, "+%.1f", offset)
+            else -> String.format(Locale.US, "%.1f", offset)
+        }
+    } else {
+        "--"
+    }
+
+    val statusColor = when {
+        !hasData -> LabelSilver
+        offset in -0.5f..0.5f -> ColorEmerald
+        offset > 0.5f -> ColorCoral
+        else -> ColorCyanRadar
+    }
+
+    val statusText = when {
+        !hasData -> stringResource(R.string.no_data)
+        offset in -0.5f..0.5f -> stringResource(R.string.temp_in_range)
+        offset > 0.5f -> stringResource(R.string.temp_warm)
+        else -> stringResource(R.string.temp_cool)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.nocturnal_temperature_title),
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(statusColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = statusText.uppercase(),
+                        fontSize = 9.sp,
+                        color = statusColor,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Deviation Box
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(CardBgSubtle)
+                        .padding(horizontal = 6.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.temp_deviation_stat),
+                            fontSize = TextCaption,
+                            color = LabelSilver,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = offsetStr,
+                                fontSize = TextBody,
+                                style = TabularNums,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (hasData) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = "°C",
+                                    fontSize = TextCaption,
+                                    color = statusColor,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Baseline Box
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(CardBgSubtle)
+                        .padding(horizontal = 6.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.baseline_stat),
+                            fontSize = TextCaption,
+                            color = LabelSilver,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (hasData) String.format(Locale.US, "%.1f °C", baseline) else "--",
+                            fontSize = TextBody,
+                            style = TabularNums,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            NocturnalTempDeviationGauge(
+                offset = if (hasData) offset else 0f,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(ShapeBar)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "-1.5°C",
+                    fontSize = 8.sp,
+                    color = LabelSilver
+                )
+                Text(
+                    text = stringResource(R.string.optimal_euthermia),
+                    fontSize = 8.sp,
+                    color = ColorEmerald,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "+1.5°C",
+                    fontSize = 8.sp,
+                    color = LabelSilver
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = stringResource(R.string.nocturnal_temp_explanation),
+                fontSize = 9.sp,
+                color = LabelSilver,
+                lineHeight = 12.sp
+            )
+        }
+    }
+}
+
+/**
+ * Bi-directional nocturnal temperature deviation gauge from -1.5°C to +1.5°C.
+ * Highlights the optimal ±0.5°C euthermia recovery band with animated marker.
+ */
+@Composable
+private fun NocturnalTempDeviationGauge(
+    offset: Float,
+    modifier: Modifier = Modifier
+) {
+    val clampedOffset = offset.coerceIn(-1.5f, 1.5f)
+    val targetFraction = ((clampedOffset + 1.5f) / 3.0f)
+    val animProgress = remember { Animatable(0.5f) }
+
+    LaunchedEffect(targetFraction) {
+        animProgress.animateTo(
+            targetValue = targetFraction,
+            animationSpec = tween(
+                durationMillis = 650,
+                easing = CubicBezierEasing(0.22f, 0.25f, 0f, 1f)
+            )
+        )
+    }
+
+    val density = LocalDensity.current
+    val trackBgColor = remember { Color(0x22FFFFFF) }
+    val euthermiaZoneColor = remember { Color(0x3300E676) }
+    val euthermiaBorderColor = remember { Color(0x6600E676) }
+    val centerLineColor = remember { Color(0x55FFFFFF) }
+    val pointerColor = remember { Color.White }
+    val tickStrokeWidth = remember(density) { with(density) { 1.5.dp.toPx() } }
+
+    Canvas(modifier = modifier) {
+        val corner = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = trackBgColor, size = size, cornerRadius = corner)
+
+        val zoneStartX = size.width * (1.0f / 3.0f)
+        val zoneWidth = size.width * (1.0f / 3.0f)
+        drawRect(
+            color = euthermiaZoneColor,
+            topLeft = Offset(zoneStartX, 0f),
+            size = Size(zoneWidth, size.height)
+        )
+        drawLine(
+            color = euthermiaBorderColor,
+            start = Offset(zoneStartX, 0f),
+            end = Offset(zoneStartX, size.height),
+            strokeWidth = tickStrokeWidth
+        )
+        drawLine(
+            color = euthermiaBorderColor,
+            start = Offset(zoneStartX + zoneWidth, 0f),
+            end = Offset(zoneStartX + zoneWidth, size.height),
+            strokeWidth = tickStrokeWidth
+        )
+
+        val midX = size.width * 0.5f
+        drawLine(
+            color = centerLineColor,
+            start = Offset(midX, 0f),
+            end = Offset(midX, size.height),
+            strokeWidth = tickStrokeWidth
+        )
+
+        val markerX = size.width * animProgress.value
+        val markerColor = when {
+            offset in -0.5f..0.5f -> Color(0xFF00E676)
+            offset > 0.5f -> Color(0xFFFF6B6B)
+            else -> Color(0xFF00E5FF)
+        }
+        drawCircle(
+            color = markerColor,
+            radius = size.height / 2f,
+            center = Offset(markerX.coerceIn(size.height / 2f, size.width - size.height / 2f), size.height / 2f)
+        )
+        drawCircle(
+            color = pointerColor,
+            radius = size.height / 4f,
+            center = Offset(markerX.coerceIn(size.height / 2f, size.width - size.height / 2f), size.height / 2f)
+        )
+    }
+}
+
+/**
+ * Celestial Twinkling Stars Canvas for Sleep Detail Screen.
+ * Renders shimmering celestial stars with varying phase and sinusoidal luminosity.
+ * Gated strictly on Lifecycle.State.RESUMED for 0.0% idle / AOD battery consumption.
+ */
+@Composable
+private fun StarrySkyCanvas(
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val transition = rememberInfiniteTransition(label = "starrySkyShimmer")
+    val shimmerPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerPhase"
+    )
+
+    val starNodes = remember {
+        listOf(
+            StarNode(0.18f, 0.22f, 1.8f, 0.0f, true),
+            StarNode(0.82f, 0.20f, 1.6f, 0.25f, false),
+            StarNode(0.12f, 0.45f, 1.3f, 0.5f, false),
+            StarNode(0.88f, 0.42f, 1.7f, 0.75f, true),
+            StarNode(0.24f, 0.78f, 1.4f, 0.35f, true),
+            StarNode(0.76f, 0.80f, 1.5f, 0.65f, false),
+            StarNode(0.35f, 0.12f, 1.1f, 0.15f, false),
+            StarNode(0.65f, 0.14f, 1.2f, 0.85f, true),
+            StarNode(0.50f, 0.08f, 1.5f, 0.4f, true),
+            StarNode(0.08f, 0.65f, 1.0f, 0.6f, false),
+            StarNode(0.92f, 0.62f, 1.1f, 0.1f, false),
+            StarNode(0.32f, 0.88f, 1.2f, 0.9f, true),
+            StarNode(0.68f, 0.86f, 1.3f, 0.45f, false),
+            StarNode(0.50f, 0.92f, 1.4f, 0.2f, true)
+        )
+    }
+
+    val goldColor = remember { Color(0xFFFFEAA7) }
+    val cyanColor = remember { Color(0xFFA5C9FF) }
+    val whiteColor = remember { Color(0xFFFFFFFF) }
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        for (star in starNodes) {
+            val cx = star.xNorm * w
+            val cy = star.yNorm * h
+
+            val alpha = if (isResumed) {
+                val cycle = ((shimmerPhase + star.phaseOffset) % 1.0f)
+                val sinVal = kotlin.math.sin(cycle * 2.0 * Math.PI).toFloat()
+                0.25f + 0.35f * (sinVal + 1f)
+            } else {
+                0.35f
+            }
+
+            val baseColor = when {
+                star.isGold -> goldColor
+                star.radiusDp > 1.4f -> cyanColor
+                else -> whiteColor
+            }
+
+            val rPx = star.radiusDp.dp.toPx()
+
+            drawCircle(
+                color = baseColor.copy(alpha = alpha),
+                radius = rPx,
+                center = Offset(cx, cy)
+            )
+
+            if (star.radiusDp >= 1.5f && alpha > 0.55f) {
+                val rayLen = rPx * 2.4f
+                val rayAlpha = (alpha - 0.55f) * 0.8f
+                drawLine(
+                    color = baseColor.copy(alpha = rayAlpha),
+                    start = Offset(cx - rayLen, cy),
+                    end = Offset(cx + rayLen, cy),
+                    strokeWidth = 1.dp.toPx()
+                )
+                drawLine(
+                    color = baseColor.copy(alpha = rayAlpha),
+                    start = Offset(cx, cy - rayLen),
+                    end = Offset(cx, cy + rayLen),
+                    strokeWidth = 1.dp.toPx()
+                )
+            }
+        }
+    }
+}
+
+private data class StarNode(
+    val xNorm: Float,
+    val yNorm: Float,
+    val radiusDp: Float,
+    val phaseOffset: Float,
+    val isGold: Boolean
+)
+
 @Preview(
     device = "id:wearos_small_round",
     showSystemUi = true
@@ -1824,7 +2241,9 @@ fun SleepDetailPreview() {
             minSleepingSpo2 = 95,
             sleepingHrDipPct = 14.8f,
             napMinutes = 25,
-            bedtimeWindow = "23:00 - 23:45"
+            bedtimeWindow = "23:00 - 23:45",
+            skinTempOffset = 0.2f,
+            skinTempBaseline = 36.1f
         )
     )
 }

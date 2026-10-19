@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app.tile
+package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
 import androidx.wear.tiles.tooling.preview.Preview
@@ -80,16 +80,21 @@ fun stressTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "Circular Bezel - Skin Temperature", device = WearDevices.LARGE_ROUND)
-fun temperatureTilePreview(context: Context): TilePreviewData {
+@Preview(name = "Circular Bezel - Starry Night Sleep", device = WearDevices.LARGE_ROUND)
+fun sleepTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
+        sleepScore = 86,
+        sleepDeepMins = 85,
+        sleepRemMins = 110,
+        sleepLightMins = 230,
+        sleepAwakeMins = 25,
         skinTempOffset = 0.2f,
         skinTempBaseline = 36.1f
     )
     return TilePreviewData(
-        onTileResourceRequest = { TemperatureTileService.buildResources() },
+        onTileResourceRequest = { SleepTileService.buildResources() },
         onTileRequest = { requestParams ->
-            TemperatureTileService.buildTile(context, requestParams.deviceConfiguration, sampleVitals)
+            SleepTileService.buildTile(context, requestParams.deviceConfiguration, sampleVitals)
         }
     )
 }

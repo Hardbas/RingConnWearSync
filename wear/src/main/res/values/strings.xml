@@ -31,6 +31,7 @@
     <string name="hrv_title">Variability (HRV)</string>
     <string name="hr_zones_title">Heart Rate Zones</string>
     <string name="tile_stress_title">Stress</string>
+    <string name="tile_sleep_title">Sleep</string>
     <string name="tile_temperature_title">Skin Temperature</string>
     <string name="complication_stress_label">WearSync Stress</string>
     <string name="complication_stress_desc">Stress Index: %1$d</string>
@@ -115,6 +116,11 @@
     <string name="stage_light">Light</string>
     <string name="stage_deep">Deep</string>
     <string name="nocturnal_biometrics">Nocturnal Biometrics</string>
+    <string name="nocturnal_temperature_title">Nocturnal Skin Temp</string>
+    <string name="nocturnal_temp_explanation">Deviation from nighttime baseline (±0.5°C normal euthermia). Temperature drop promotes restorative deep sleep.</string>
+    <string name="optimal_euthermia">Optimal Euthermia (±0.5°C)</string>
+    <string name="temp_warm_alert">Warm departure &gt;+0.5°C</string>
+    <string name="temp_cool_alert">Cool departure &lt;-0.5°C</string>
 
     <!-- Heart Rate Detail -->
     <string name="min_hr_format">Min %1$d</string>

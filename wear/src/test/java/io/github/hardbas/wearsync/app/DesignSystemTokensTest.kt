@@ -1,4 +1,4 @@
-﻿package io.github.hardbas.wearsync.app
+package io.github.hardbas.wearsync.app
 
 import io.github.hardbas.wearsync.app.tile.TileType
 import io.github.hardbas.wearsync.app.ui.TextBig
@@ -124,8 +124,8 @@ class DesignSystemTokensTest {
         val stressRes = io.github.hardbas.wearsync.app.tile.StressTileService.buildResources()
         org.junit.Assert.assertEquals("oneui8-stress-circular-v1", stressRes.version)
 
-        val tempRes = io.github.hardbas.wearsync.app.tile.TemperatureTileService.buildResources()
-        org.junit.Assert.assertEquals("oneui8-temp-circular-v1", tempRes.version)
+        val sleepRes = io.github.hardbas.wearsync.app.tile.SleepTileService.buildResources()
+        org.junit.Assert.assertEquals("oneui8-sleep-circular-v1", sleepRes.version)
 
         val vitalsRes = io.github.hardbas.wearsync.app.tile.VitalsTileService.buildResources()
         org.junit.Assert.assertEquals("oneui8-vitals-circular-v1", vitalsRes.version)
