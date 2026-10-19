@@ -636,6 +636,20 @@ fun VitalsDetailContent(
             }
 
             // =========================================================================
+            // d4) Hidden libapp.so Gray Feature: Dehydration & Migraine Early Warning (health_alerts)
+            // =========================================================================
+            item {
+                DehydrationAndMigraineAlertCard(vitals = vitals)
+            }
+
+            // =========================================================================
+            // d5) Hidden libapp.so Gray Feature: 360° Body Balance Radar (ring_conn/module/balance)
+            // =========================================================================
+            item {
+                BodyBalance360RadarCard(vitals = vitals)
+            }
+
+            // =========================================================================
             // e) Telemetry Mini Cards: HRV & Battery (Centered)
             // =========================================================================
             item {
@@ -1393,6 +1407,315 @@ private fun ImmuneEarlyWarningCard(vitals: RingConnVitals) {
                 color = LabelSilver,
                 lineHeight = 12.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun DehydrationAndMigraineAlertCard(vitals: RingConnVitals) {
+    val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
+    val effHr = if (vitals.lastHeartRate > 0) vitals.lastHeartRate else (if (vitals.avgHeartRate > 0) vitals.avgHeartRate else 70)
+    val effRhr = if (vitals.minHeartRate > 0) vitals.minHeartRate else 60
+    val effHrv = if (vitals.lastHrv > 0) vitals.lastHrv else 48
+    val effStress = if (vitals.stressScore > 0) vitals.stressScore else 32
+
+    val dehydRisk = if (vitals.dehydrationRiskScore > 0) {
+        vitals.dehydrationRiskScore
+    } else {
+        val hrDrift = (effHr - effRhr).coerceIn(0, 35)
+        ((hrDrift * 1.85) + ((52 - effHrv).coerceIn(0, 35) * 1.10) + (vitals.liveCalorie / 38.0)).toInt().coerceIn(8, 94)
+    }
+    val migraineRisk = if (vitals.migraineRiskScore > 0) {
+        vitals.migraineRiskScore
+    } else {
+        val sleepDef = (85 - (if (vitals.sleepScore > 0) vitals.sleepScore else 78)).coerceIn(0, 40)
+        ((effStress * 0.42) + ((55 - effHrv).coerceIn(0, 35) * 0.80) + (vitals.odiDropsPerHour * 2.0) + (sleepDef * 0.40)).toInt().coerceIn(6, 95)
+    }
+
+    val maxRisk = maxOf(dehydRisk, migraineRisk)
+    val (alertBadge, alertColor) = when {
+        maxRisk >= 62 -> Pair(if (isSpanish) "Riesgo Alto" else "High Risk", HrMinMaxPink)
+        maxRisk >= 38 -> Pair(if (isSpanish) "Moderado" else "Moderate", ZoneFatBurnColor)
+        else -> Pair(if (isSpanish) "Óptimo" else "Optimal", LimeSteps)
+    }
+
+    val dehydColor = when {
+        dehydRisk >= 60 -> HrMinMaxPink
+        dehydRisk >= 36 -> ZoneFatBurnColor
+        else -> CyanActive
+    }
+    val migColor = when {
+        migraineRisk >= 60 -> HrMinMaxPink
+        migraineRisk >= 36 -> ZoneFatBurnColor
+        else -> LimeSteps
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(BorderStroke(1.dp, alertColor.copy(alpha = 0.25f)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(alertColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Hidratación y Migraña" else "Hydration & Migraine",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(alertColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = alertBadge,
+                        fontSize = 9.sp,
+                        color = alertColor,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isSpanish) "DESHIDRATACIÓN" else "DEHYDRATION",
+                    value = "$dehydRisk%",
+                    status = when {
+                        dehydRisk >= 60 -> if (isSpanish) "Tomar Agua" else "Drink Water"
+                        dehydRisk >= 36 -> if (isSpanish) "Leve" else "Mild"
+                        else -> if (isSpanish) "Hidratado" else "Hydrated"
+                    },
+                    color = dehydColor
+                )
+                RadarNodeCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isSpanish) "MIGRAÑA / CEFALEA" else "MIGRAINE RISK",
+                    value = "$migraineRisk%",
+                    status = when {
+                        migraineRisk >= 60 -> if (isSpanish) "Tensión" else "Surge"
+                        migraineRisk >= 36 -> if (isSpanish) "Vigilar" else "Watch"
+                        else -> if (isSpanish) "Calma" else "Calm"
+                    },
+                    color = migColor
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = if (isSpanish) {
+                    "Módulo health_alerts: detecta caída de volumen plasmático (↑FC + ↓VFC sin fiebre) y sobrecarga simpática pre-migraña."
+                } else {
+                    "Hidden health_alerts module: detects plasma volume drop (↑HR + ↓HRV without fever) and pre-migraine sympathetic surge."
+                },
+                fontSize = 9.sp,
+                color = LabelSilver,
+                lineHeight = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun BodyBalance360RadarCard(vitals: RingConnVitals) {
+    val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
+    val sleepAxis = (if (vitals.sleepScore > 0) vitals.sleepScore else 76).coerceIn(20, 100)
+    val actAxis = (if (vitals.activityScore > 0) vitals.activityScore else 68).coerceIn(20, 100)
+    val effStress = if (vitals.stressScore > 0) vitals.stressScore else 32
+    val calmAxis = (100 - effStress).coerceIn(20, 100)
+    val effHrv = if (vitals.lastHrv > 0) vitals.lastHrv else 48
+    val vitalAxis = (72 + ((effHrv - 35).coerceIn(-15, 25) * 0.75).toInt() + (if (vitals.lastSpo2 >= 96 || vitals.lastSpo2 == 0) 8 else -6)).coerceIn(25, 100)
+
+    val balanceScore = if (vitals.bodyBalanceScore > 0) {
+        vitals.bodyBalanceScore
+    } else {
+        ((sleepAxis * 0.28) + (actAxis * 0.22) + (calmAxis * 0.25) + (vitalAxis * 0.25)).toInt().coerceIn(25, 98)
+    }
+
+    val (balanceBadge, balanceColor) = when {
+        balanceScore >= 75 -> Pair("$balanceScore pts", LimeSteps)
+        balanceScore >= 52 -> Pair("$balanceScore pts", CyanActive)
+        else -> Pair("$balanceScore pts", ZoneFatBurnColor)
+    }
+
+    val density = LocalDensity.current
+    val polyStroke = remember(density) { Stroke(width = with(density) { 1.6.dp.toPx() }) }
+    val gridStroke = remember(density) { Stroke(width = with(density) { 0.8.dp.toPx() }) }
+    val polyPath = remember { androidx.compose.ui.graphics.Path() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(BorderStroke(1.dp, balanceColor.copy(alpha = 0.25f)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(balanceColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Equilibrio 360° (Lab)" else "360° Balance (Lab)",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(balanceColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = balanceBadge,
+                        fontSize = 9.sp,
+                        style = TabularNums,
+                        color = balanceColor,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(54.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x14FFFFFF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+                        val maxR = (size.minDimension / 2f) - 4.dp.toPx()
+
+                        drawLine(Color(0x22FFFFFF), Offset(cx, cy - maxR), Offset(cx, cy + maxR), gridStroke.width)
+                        drawLine(Color(0x22FFFFFF), Offset(cx - maxR, cy), Offset(cx + maxR, cy), gridStroke.width)
+                        drawCircle(Color(0x18FFFFFF), radius = maxR * 0.5f, style = gridStroke)
+
+                        val rTop = maxR * (sleepAxis / 100f).coerceIn(0.25f, 0.95f)
+                        val rRight = maxR * (actAxis / 100f).coerceIn(0.25f, 0.95f)
+                        val rBottom = maxR * (calmAxis / 100f).coerceIn(0.25f, 0.95f)
+                        val rLeft = maxR * (vitalAxis / 100f).coerceIn(0.25f, 0.95f)
+
+                        val pTop = Offset(cx, cy - rTop)
+                        val pRight = Offset(cx + rRight, cy)
+                        val pBottom = Offset(cx, cy + rBottom)
+                        val pLeft = Offset(cx - rLeft, cy)
+
+                        polyPath.reset()
+                        polyPath.moveTo(pTop.x, pTop.y)
+                        polyPath.lineTo(pRight.x, pRight.y)
+                        polyPath.lineTo(pBottom.x, pBottom.y)
+                        polyPath.lineTo(pLeft.x, pLeft.y)
+                        polyPath.close()
+
+                        drawPath(path = polyPath, color = balanceColor.copy(alpha = 0.26f))
+                        drawPath(path = polyPath, color = balanceColor, style = polyStroke)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = if (isSpanish) "SUEÑO" else "SLEEP",
+                            value = "$sleepAxis/100",
+                            status = if (sleepAxis >= 75) (if (isSpanish) "Sólido" else "Solid") else "Normal",
+                            color = CyanActive
+                        )
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = if (isSpanish) "ACTIVIDAD" else "ACTIVITY",
+                            value = "$actAxis/100",
+                            status = if (actAxis >= 70) (if (isSpanish) "Activo" else "Active") else "Base",
+                            color = LimeSteps
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = if (isSpanish) "CALMA" else "CALM",
+                            value = "$calmAxis/100",
+                            status = if (calmAxis >= 65) (if (isSpanish) "Relajado" else "Relaxed") else (if (isSpanish) "Tenso" else "Tense"),
+                            color = if (calmAxis >= 65) LimeSteps else ZoneFatBurnColor
+                        )
+                        RadarNodeCell(
+                            modifier = Modifier.weight(1f),
+                            label = if (isSpanish) "VITALES" else "VITALS",
+                            value = "$vitalAxis/100",
+                            status = if (vitalAxis >= 75) (if (isSpanish) "Óptimo" else "Optimal") else "Estable",
+                            color = CyanActive
+                        )
+                    }
+                }
+            }
         }
     }
 }

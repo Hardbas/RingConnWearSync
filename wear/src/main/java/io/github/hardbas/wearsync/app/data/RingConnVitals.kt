@@ -52,7 +52,13 @@ data class RingConnVitals(
     val stressNight: Int = 0,
     val basalCalories: Int = 0,
     val distanceKm: Float = 0.0f,
-    val respiratoryRate: Float = 0.0f
+    val respiratoryRate: Float = 0.0f,
+    val bpSystolicEst: Int = 0,
+    val bpDiastolicEst: Int = 0,
+    val bpLoadPct: Int = 0,
+    val dehydrationRiskScore: Int = 0,
+    val migraineRiskScore: Int = 0,
+    val bodyBalanceScore: Int = 0
 ) {
     val isStale: Boolean
         get() = (System.currentTimeMillis() / 1000L) - refreshTimestamp > 1800L

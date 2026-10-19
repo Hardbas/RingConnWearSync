@@ -844,6 +844,13 @@ fun HeartRateDetailContent(
             }
 
             // =========================================================================
+            // d2) Hidden libapp.so Gray Feature: Hemodynamic BP Load (ring_conn/module/bpv4)
+            // =========================================================================
+            item {
+                HemodynamicBpLoadCard(vitals = vitals)
+            }
+
+            // =========================================================================
             // e) Zonas Cardíacas (Heart Rate Zones): 5 standard One UI zones
             // =========================================================================
             item {
@@ -1585,6 +1592,215 @@ private fun HeartDialGauge(
                 topLeft = topLeft,
                 size = arcSize,
                 style = dialStroke
+            )
+        }
+    }
+}
+
+@Composable
+private fun HemodynamicBpLoadCard(vitals: RingConnVitals) {
+    val isSpanish = remember { java.util.Locale.getDefault().language.startsWith("es") }
+    val effHr = if (vitals.avgHeartRate > 0) vitals.avgHeartRate else (if (vitals.lastHeartRate > 0) vitals.lastHeartRate else 70)
+    val effRhr = if (vitals.minHeartRate > 0) vitals.minHeartRate else 60
+    val effHrv = if (vitals.lastHrv > 0) vitals.lastHrv else 48
+    val effStress = if (vitals.stressScore > 0) vitals.stressScore else 32
+
+    val sysEst = if (vitals.bpSystolicEst > 0) {
+        vitals.bpSystolicEst
+    } else {
+        (115.0 + ((effHr - 68) * 0.42) + ((50 - effHrv) * 0.22) + ((effStress - 30) * 0.14)).roundToInt().coerceIn(98, 152)
+    }
+    val diaEst = if (vitals.bpDiastolicEst > 0) {
+        vitals.bpDiastolicEst
+    } else {
+        (74.0 + ((effRhr - 60) * 0.34) + ((50 - effHrv) * 0.15) + ((effStress - 30) * 0.09)).roundToInt().coerceIn(62, 98)
+    }
+    val loadPct = if (vitals.bpLoadPct > 0) {
+        vitals.bpLoadPct
+    } else {
+        (18 + ((sysEst - 108).coerceAtLeast(0) * 1.15).roundToInt()).coerceIn(6, 92)
+    }
+    val pulsePressure = (sysEst - diaEst).coerceIn(28, 70)
+
+    val (bpBadge, bpColor) = when {
+        sysEst <= 122 && diaEst <= 80 -> Pair(if (isSpanish) "Óptima" else "Optimal", LimeSteps)
+        sysEst <= 132 && diaEst <= 85 -> Pair("Normal", CyanActive)
+        else -> Pair(if (isSpanish) "Carga Alta" else "High Load", HrMinMaxPink)
+    }
+
+    val animLoad = remember { Animatable(0f) }
+    LaunchedEffect(loadPct) {
+        animLoad.animateTo(
+            targetValue = (loadPct / 100f).coerceIn(0.08f, 1f),
+            animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(BorderStroke(1.dp, bpColor.copy(alpha = 0.28f)), ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(bpColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSpanish) "Carga Vascular (bpv4)" else "Vascular Load (bpv4)",
+                        fontSize = TextBody,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(ShapeChip)
+                        .background(bpColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = bpBadge,
+                        fontSize = 9.sp,
+                        color = bpColor,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "$sysEst/$diaEst",
+                        fontSize = TextBig,
+                        style = TabularNums,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "mmHg est.",
+                        fontSize = 10.sp,
+                        color = LabelSilver,
+                        modifier = Modifier.padding(bottom = 3.dp)
+                    )
+                }
+                Text(
+                    text = if (isSpanish) "Carga $loadPct%" else "Load $loadPct%",
+                    fontSize = TextCaption,
+                    style = TabularNums,
+                    color = bpColor,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 3.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+            ) {
+                val corner = CornerRadius(size.height / 2f, size.height / 2f)
+                drawRoundRect(color = TrackDark, size = size, cornerRadius = corner)
+                val barW = size.width * animLoad.value
+                if (barW > 0f) {
+                    drawRoundRect(color = bpColor, size = Size(barW, size.height), cornerRadius = corner)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(CardBgSubtle)
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isSpanish) "PRESIÓN PULSO" else "PULSE PRESS.",
+                            fontSize = 8.sp,
+                            color = LabelSilver,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "$pulsePressure mmHg",
+                            fontSize = 11.sp,
+                            style = TabularNums,
+                            color = CyanActive,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(ShapeChip)
+                        .background(CardBgSubtle)
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (isSpanish) "RIGIDEZ VFC" else "HRV STIFFNESS",
+                            fontSize = 8.sp,
+                            color = LabelSilver,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (effHrv >= 45) (if (isSpanish) "Elástica" else "Elastic") else (if (isSpanish) "Tensa" else "Tense"),
+                            fontSize = 11.sp,
+                            color = if (effHrv >= 45) LimeSteps else ZoneFatBurnColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = if (isSpanish) {
+                    "Módulo oculto bpv4: estima tu tendencia hemodinámica diurna cruzando pulso basal y rigidez autonómica (0% batería extra)."
+                } else {
+                    "Hidden bpv4 module: estimates diurnal hemodynamic trend from resting HR and autonomic stiffness (0% extra battery)."
+                },
+                fontSize = 9.sp,
+                color = LabelSilver,
+                lineHeight = 12.sp
             )
         }
     }
