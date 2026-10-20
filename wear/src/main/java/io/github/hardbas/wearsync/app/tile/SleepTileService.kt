@@ -60,7 +60,7 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-moonrise-v4"
+        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v5"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
         private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
         private const val RES_IC_MOON = "ic_tile_moon"
@@ -86,7 +86,7 @@ class SleepTileService : TileService() {
                             ResourceBuilders.AndroidAnimatedImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.avd_tile_moon_rise)
                                 .setAnimatedImageFormat(ResourceBuilders.ANIMATED_IMAGE_FORMAT_AVD)
-                                .setStartTrigger(TriggerBuilders.createOnLoadTrigger())
+                                .setStartTrigger(TriggerBuilders.createOnVisibleTrigger())
                                 .build()
                         ).build()
                 )
@@ -219,21 +219,20 @@ class SleepTileService : TileService() {
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(750L)
+                        .setDurationMillis(650L)
                         .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
                         .build()
                 )
                 .build()
 
-            val dynamicSweep = if (supportsAvdAndDynamic) {
-                DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
-                    .setDynamicValue(
-                        DynamicBuilders.DynamicFloat.animate(0f, targetSweepDegrees, sweepAnimSpec)
+            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey<DynamicBuilders.DynamicFloat>("sleep_arc_sweep"),
+                        sweepAnimSpec
                     )
-                    .build()
-            } else {
-                DimensionBuilders.degrees(targetSweepDegrees)
-            }
+                )
+                .build()
 
             // Continuous celestial moon pulse (650ms reverse loop, exact parity with HeartRate & Stress tiles)
             val moonPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
@@ -263,6 +262,41 @@ class SleepTileService : TileService() {
                 starlightGold
             }
 
+            // Continuous active bezel arc glow pulse (650ms reverse loop, high contrast)
+            val arcPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val arcPulseColorInt = when {
+                !hasSleepData -> 0xFF3A4AA8.toInt()
+                score >= 85 -> 0xFF0072A8.toInt()   // Deep Cyan pulse
+                score >= 70 -> 0xFF3A4AA8.toInt()   // Deep Indigo pulse
+                else -> 0xFF8A6500.toInt()          // Deep Amber pulse
+            }
+
+            val dynamicArcColor = if (hasSleepData) {
+                val dynamicColor = DynamicBuilders.DynamicColor.animate(
+                    arcColorInt,
+                    arcPulseColorInt,
+                    arcPulseAnimSpec
+                )
+                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(arcColorInt)
+                    .setDynamicValue(dynamicColor)
+                    .build()
+            } else {
+                arcColor
+            }
+
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
                 .build()
 
@@ -282,7 +316,7 @@ class SleepTileService : TileService() {
                 .setLength(dynamicSweep)
                 .setLayoutConstraintsForDynamicLength(angularConstraint)
                 .setThickness(dp(6.5f))
-                .setColor(arcColor)
+                .setColor(dynamicArcColor)
                 .build()
 
             val activeArc = LayoutElementBuilders.Arc.Builder()
@@ -298,11 +332,17 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
+            // Hero 110dp Celestial Moon Backdrop: Big entrance AVD (OnVisibleTrigger) + continuous pulse
             val moonResId = if (supportsAvdAndDynamic) RES_IC_MOON_AVD else RES_IC_MOON
             val celestialMoon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(moonResId)
                 .setWidth(dp(110f))
                 .setHeight(dp(110f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(dynamicMoonTint)
+                        .build()
+                )
                 .build()
 
             // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
@@ -338,28 +378,9 @@ class SleepTileService : TileService() {
                 .addContent(titleText)
                 .build()
 
-            // 3. Hero Row: Sleep Score (32sp with count-up animation) + "pts" (11sp)
-            val countAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(750L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
-                        .build()
-                )
-                .build()
-
-            val scoreTextProp = if (hasSleepData && supportsAvdAndDynamic) {
-                TypeBuilders.StringProp.Builder(scoreText)
-                    .setDynamicValue(
-                        DynamicBuilders.DynamicInt32.animate(0, score, countAnimSpec).format()
-                    )
-                    .build()
-            } else {
-                TypeBuilders.StringProp.Builder(scoreText).build()
-            }
-
+            // 3. Hero Row: Sleep Score (32sp) + "pts" (11sp)
             val scoreNumberText = LayoutElementBuilders.Text.Builder()
-                .setText(scoreTextProp)
+                .setText(scoreText)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
