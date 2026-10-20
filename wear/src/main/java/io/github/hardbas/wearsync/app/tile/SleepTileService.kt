@@ -60,7 +60,7 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v5"
+        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v6"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
         private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
         private const val RES_IC_MOON = "ic_tile_moon"
@@ -213,9 +213,6 @@ class SleepTileService : TileService() {
                 14f
             }
 
-            val supportsAvdAndDynamic = deviceParams.rendererSchemaVersion.major > 1 ||
-                (deviceParams.rendererSchemaVersion.major == 1 && deviceParams.rendererSchemaVersion.minor >= 200)
-
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
@@ -233,69 +230,6 @@ class SleepTileService : TileService() {
                     )
                 )
                 .build()
-
-            // Continuous celestial moon pulse (650ms reverse loop, exact parity with HeartRate & Stress tiles)
-            val moonPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(650L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
-                        .build()
-                )
-                .build()
-
-            val dynamicMoonTint = if (hasSleepData) {
-                val dynamicColor = DynamicBuilders.DynamicColor.animate(
-                    0xFFFFD166.toInt(), // Warm radiant starlight gold
-                    0xFF5E72E4.toInt(), // Deep celestial twilight indigo
-                    moonPulseAnimSpec
-                )
-                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFD166.toInt())
-                    .setDynamicValue(dynamicColor)
-                    .build()
-            } else {
-                starlightGold
-            }
-
-            // Continuous active bezel arc glow pulse (650ms reverse loop, high contrast)
-            val arcPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(650L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
-                        .build()
-                )
-                .build()
-
-            val arcPulseColorInt = when {
-                !hasSleepData -> 0xFF3A4AA8.toInt()
-                score >= 85 -> 0xFF0072A8.toInt()   // Deep Cyan pulse
-                score >= 70 -> 0xFF3A4AA8.toInt()   // Deep Indigo pulse
-                else -> 0xFF8A6500.toInt()          // Deep Amber pulse
-            }
-
-            val dynamicArcColor = if (hasSleepData) {
-                val dynamicColor = DynamicBuilders.DynamicColor.animate(
-                    arcColorInt,
-                    arcPulseColorInt,
-                    arcPulseAnimSpec
-                )
-                androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(arcColorInt)
-                    .setDynamicValue(dynamicColor)
-                    .build()
-            } else {
-                arcColor
-            }
 
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
                 .build()
@@ -316,7 +250,7 @@ class SleepTileService : TileService() {
                 .setLength(dynamicSweep)
                 .setLayoutConstraintsForDynamicLength(angularConstraint)
                 .setThickness(dp(6.5f))
-                .setColor(dynamicArcColor)
+                .setColor(arcColor)
                 .build()
 
             val activeArc = LayoutElementBuilders.Arc.Builder()
@@ -332,17 +266,11 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
-            // Hero 110dp Celestial Moon Backdrop: Big entrance AVD (OnVisibleTrigger) + continuous pulse
-            val moonResId = if (supportsAvdAndDynamic) RES_IC_MOON_AVD else RES_IC_MOON
+            // Hero 110dp Celestial Moon Backdrop: Big entrance AVD (OnVisibleTrigger) without tint overrides
             val celestialMoon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(moonResId)
+                .setResourceId(RES_IC_MOON_AVD)
                 .setWidth(dp(110f))
                 .setHeight(dp(110f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(dynamicMoonTint)
-                        .build()
-                )
                 .build()
 
             // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
@@ -352,7 +280,7 @@ class SleepTileService : TileService() {
                 .setHeight(dp(15f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(dynamicMoonTint)
+                        .setTint(starlightGold)
                         .build()
                 )
                 .build()

@@ -12,8 +12,8 @@ android {
         applicationId = "io.github.hardbas.wearsync"
         minSdk = 30
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.9.5"
+        versionCode = 27
+        versionName = "1.9.6"
     }
 
     buildTypes {
