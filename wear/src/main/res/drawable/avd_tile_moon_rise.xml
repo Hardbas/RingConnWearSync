@@ -1,0 +1,69 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/ic_tile_moon">
+
+    <target android:name="moon_group">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:duration="800"
+                    android:interpolator="@android:interpolator/decelerate_cubic"
+                    android:propertyName="scaleX"
+                    android:valueFrom="1.6"
+                    android:valueTo="1.0"
+                    android:valueType="floatType" />
+                <objectAnimator
+                    android:duration="800"
+                    android:interpolator="@android:interpolator/decelerate_cubic"
+                    android:propertyName="scaleY"
+                    android:valueFrom="1.6"
+                    android:valueTo="1.0"
+                    android:valueType="floatType" />
+                <objectAnimator
+                    android:duration="800"
+                    android:interpolator="@android:interpolator/decelerate_cubic"
+                    android:propertyName="translateY"
+                    android:valueFrom="24.0"
+                    android:valueTo="0.0"
+                    android:valueType="floatType" />
+            </set>
+        </aapt:attr>
+    </target>
+
+    <target android:name="moon_body">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="800"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0.0"
+                android:valueTo="0.45"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="moon_aura">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="800"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0.0"
+                android:valueTo="0.18"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="moon_highlight">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="800"
+                android:interpolator="@android:interpolator/decelerate_cubic"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0.0"
+                android:valueTo="0.55"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+
+</animated-vector>

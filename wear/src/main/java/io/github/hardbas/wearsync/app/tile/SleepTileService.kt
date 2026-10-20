@@ -14,6 +14,8 @@ import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.TriggerBuilders
+import androidx.wear.protolayout.TypeBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
@@ -58,8 +60,10 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-circular-v3"
+        const val RESOURCES_VERSION = "oneui8-sleep-moonrise-v4"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
+        private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
+        private const val RES_IC_MOON = "ic_tile_moon"
         private const val RES_IC_SLEEP = "ic_vitals_sleep"
         private const val RES_IC_TEMP = "ic_comp_temp"
 
@@ -72,6 +76,26 @@ class SleepTileService : TileService() {
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.ic_tile_starfield)
+                                .build()
+                        ).build()
+                )
+                .addIdToImageMapping(
+                    RES_IC_MOON_AVD,
+                    ResourceBuilders.ImageResource.Builder()
+                        .setAndroidAnimatedResourceByResId(
+                            ResourceBuilders.AndroidAnimatedImageResourceByResId.Builder()
+                                .setResourceId(R.drawable.avd_tile_moon_rise)
+                                .setAnimatedImageFormat(ResourceBuilders.ANIMATED_IMAGE_FORMAT_AVD)
+                                .setStartTrigger(TriggerBuilders.createOnLoadTrigger())
+                                .build()
+                        ).build()
+                )
+                .addIdToImageMapping(
+                    RES_IC_MOON,
+                    ResourceBuilders.ImageResource.Builder()
+                        .setAndroidResourceByResId(
+                            ResourceBuilders.AndroidImageResourceByResId.Builder()
+                                .setResourceId(R.drawable.ic_tile_moon)
                                 .build()
                         ).build()
                 )
@@ -189,23 +213,27 @@ class SleepTileService : TileService() {
                 14f
             }
 
+            val supportsAvdAndDynamic = deviceParams.rendererSchemaVersion.major > 1 ||
+                (deviceParams.rendererSchemaVersion.major == 1 && deviceParams.rendererSchemaVersion.minor >= 200)
+
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(650L)
+                        .setDurationMillis(750L)
                         .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
                         .build()
                 )
                 .build()
 
-            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
-                .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey<DynamicBuilders.DynamicFloat>("sleep_arc_sweep"),
-                        sweepAnimSpec
+            val dynamicSweep = if (supportsAvdAndDynamic) {
+                DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
+                    .setDynamicValue(
+                        DynamicBuilders.DynamicFloat.animate(0f, targetSweepDegrees, sweepAnimSpec)
                     )
-                )
-                .build()
+                    .build()
+            } else {
+                DimensionBuilders.degrees(targetSweepDegrees)
+            }
 
             // Continuous celestial moon pulse (650ms reverse loop, exact parity with HeartRate & Stress tiles)
             val moonPulseAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
@@ -263,11 +291,18 @@ class SleepTileService : TileService() {
                 .addContent(activeArcLine)
                 .build()
 
-            // 1. Starfield Background Image (clean nebula & constellations, no redundant moon)
+            // 1. Starfield Background Image & Celestial Moon Backdrop
             val starfieldBackground = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_STARFIELD)
                 .setWidth(expand())
                 .setHeight(expand())
+                .build()
+
+            val moonResId = if (supportsAvdAndDynamic) RES_IC_MOON_AVD else RES_IC_MOON
+            val celestialMoon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(moonResId)
+                .setWidth(dp(110f))
+                .setHeight(dp(110f))
                 .build()
 
             // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
@@ -303,9 +338,28 @@ class SleepTileService : TileService() {
                 .addContent(titleText)
                 .build()
 
-            // 3. Hero Row: Sleep Score (32sp) + "pts" (11sp)
+            // 3. Hero Row: Sleep Score (32sp with count-up animation) + "pts" (11sp)
+            val countAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(750L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .build()
+                )
+                .build()
+
+            val scoreTextProp = if (hasSleepData && supportsAvdAndDynamic) {
+                TypeBuilders.StringProp.Builder(scoreText)
+                    .setDynamicValue(
+                        DynamicBuilders.DynamicInt32.animate(0, score, countAnimSpec).format()
+                    )
+                    .build()
+            } else {
+                TypeBuilders.StringProp.Builder(scoreText).build()
+            }
+
             val scoreNumberText = LayoutElementBuilders.Text.Builder()
-                .setText(scoreText)
+                .setText(scoreTextProp)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
@@ -415,7 +469,7 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
-            // 5. Integrated Nocturnal Temperature Recovery Pill
+            // 5. Integrated Nocturnal Temperature Recovery Pill (Direct Row container to prevent unmeasurable drop)
             val tempIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_TEMP)
                 .setWidth(dp(11f))
@@ -439,19 +493,9 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
-            val tempRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(tempIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
-                .addContent(tempText)
-                .build()
-
-            val tempCapsuleBox = LayoutElementBuilders.Box.Builder()
+            val tempCapsuleRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(dp(20f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
@@ -467,9 +511,16 @@ class SleepTileService : TileService() {
                                 .setEnd(dp(8f))
                                 .build()
                         )
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
                         .build()
                 )
-                .addContent(tempRow)
+                .addContent(tempIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(tempText)
                 .build()
 
             // 6. Ergonomic Frosted Glass Action Button ("Detalles")
@@ -509,18 +560,27 @@ class SleepTileService : TileService() {
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .build()
+                        )
+                        .build()
+                )
                 .addContent(headerRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(1f)).setWidth(dp(1f)).build())
                 .addContent(heroScoreRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
                 .addContent(metricsRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
-                .addContent(tempCapsuleBox)
+                .addContent(tempCapsuleRow)
                 .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
                 .addContent(actionPillBox)
                 .build()
 
-            // Root Canvas: Full-bleed Box with Starfield, Bezel Arcs, and Content
+            // Root Canvas: Full-bleed Box with Starfield, Celestial Moon, Bezel Arcs, and Content
             val rootBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(expand())
                 .setHeight(expand())
@@ -538,6 +598,7 @@ class SleepTileService : TileService() {
                         .build()
                 )
                 .addContent(starfieldBackground)
+                .addContent(celestialMoon)
                 .addContent(bgArc)
                 .addContent(activeArc)
                 .addContent(contentColumn)

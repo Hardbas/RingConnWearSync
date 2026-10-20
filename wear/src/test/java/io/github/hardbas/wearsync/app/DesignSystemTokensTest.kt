@@ -153,7 +153,7 @@ class DesignSystemTokensTest {
         org.junit.Assert.assertEquals("oneui8-stress-circular-v1", stressRes.version)
 
         val sleepRes = io.github.hardbas.wearsync.app.tile.SleepTileService.buildResources()
-        org.junit.Assert.assertEquals("oneui8-sleep-circular-v3", sleepRes.version)
+        org.junit.Assert.assertEquals("oneui8-sleep-moonrise-v4", sleepRes.version)
 
         val vitalsRes = io.github.hardbas.wearsync.app.tile.VitalsTileService.buildResources()
         org.junit.Assert.assertEquals("oneui8-vitals-circular-v1", vitalsRes.version)
