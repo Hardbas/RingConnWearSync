@@ -26,7 +26,7 @@ fun vitalsTilePreview(context: Context): TilePreviewData {
     )
 }
 
-@Preview(name = "Circular Bezel - Daily Activity & Sleep", device = WearDevices.LARGE_ROUND)
+@Preview(name = "Circular Bezel - Daily Activity", device = WearDevices.LARGE_ROUND)
 fun dailySummaryTilePreview(context: Context): TilePreviewData {
     val sampleVitals = RingConnVitals(
         lastHeartRate = 74,

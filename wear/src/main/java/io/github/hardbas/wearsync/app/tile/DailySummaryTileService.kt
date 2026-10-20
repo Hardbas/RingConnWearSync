@@ -31,8 +31,9 @@ import java.text.NumberFormat
 import java.util.Locale
 
 /**
- * Dedicated Circular Bezel Arc Daily Summary Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
- * Ergonomically calibrated for round screens to ensure zero text crowding and maximum glanceability.
+ * Dedicated Circular Bezel Arc Daily Activity Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Focused purely on daytime activity, steps, active minutes, calories and goal progress.
+ * Sleep has been extracted to its own dedicated celestial SleepTileService.
  */
 class DailySummaryTileService : TileService() {
 
@@ -53,7 +54,6 @@ class DailySummaryTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "oneui8-summary-circular-v1"
         private const val RES_IC_ACTIVITY_RINGS = "oneui_ic_activity_rings"
-        private const val RES_IC_SLEEP = "ic_vitals_sleep"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
@@ -64,15 +64,6 @@ class DailySummaryTileService : TileService() {
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.oneui_ic_activity_rings)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_IC_SLEEP,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_vitals_sleep)
                                 .build()
                         ).build()
                 )
@@ -87,21 +78,22 @@ class DailySummaryTileService : TileService() {
             val limeStepsColor = argb(0xFFA0F116.toInt())       // Neon Lime steps accent
             val cyanTimeColor = argb(0xFF47CDFF.toInt())        // Active time cyan
             val violetCalorieColor = argb(0xFFC580FF.toInt())   // Active calories violet
+            val amberDistanceColor = argb(0xFFFFB703.toInt())   // Distance amber
             val pipeDividerColor = argb(0xFF686D73.toInt())     // Subtle pipe divider
-            val labelSilverColor = argb(0xFFB7B7BB.toInt())     // Silver label
-            val sleepLabelColor = argb(0xFFA5AEDE.toInt())      // Soft lavender sleep label
             val whiteColor = argb(0xFFFFFFFF.toInt())
-            val frostedPodBg = argb(0x2BFFFFFF.toInt())         // 17% frosted glass
+            val frostedGlassPill = argb(0x2BFFFFFF.toInt())     // 17% frosted glass
+            val frostedPodBg = argb(0x22FFFFFF.toInt())         // Subtle frosted glass
             val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
 
             val rawSteps = vitals.liveSteps
             val stepsFormatted = if (rawSteps > 0) NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps) else "--"
             val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 10000
+            val targetStepsFormatted = NumberFormat.getIntegerInstance(Locale.getDefault()).format(targetSteps)
             val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) (vitals.liveSteps / 100).coerceAtLeast(1) else 0
             val activityVal = if (activeMins > 0) "${activeMins}m" else "--"
             val calorieVal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else "--"
-            val sleepVal = if (vitals.sleepScore > 0) "${vitals.sleepScore}" else "--"
-            val spo2Val = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
+            val goalPct = if (targetSteps > 0 && rawSteps > 0) ((rawSteps.toFloat() / targetSteps.toFloat()) * 100).toInt() else 0
+            val isGoalAchieved = rawSteps >= targetSteps && rawSteps > 0
 
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
@@ -112,7 +104,7 @@ class DailySummaryTileService : TileService() {
                 )
                 .build()
 
-            // Click 1: Activity Section -> DailySummaryDetailActivity
+            // Click -> DailySummaryDetailActivity
             val activityAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
                     ActionBuilders.AndroidActivity.Builder()
@@ -123,21 +115,6 @@ class DailySummaryTileService : TileService() {
 
             val mainTileClickable = ModifiersBuilders.Clickable.Builder()
                 .setOnClick(activityAction)
-                .build()
-
-            val activityClickable = mainTileClickable
-
-            // Click 2: Sleep Section -> SleepDetailActivity
-            val sleepAction = ActionBuilders.LaunchAction.Builder()
-                .setAndroidActivity(
-                    ActionBuilders.AndroidActivity.Builder()
-                        .setPackageName(context.packageName)
-                        .setClassName("io.github.hardbas.wearsync.app.ui.SleepDetailActivity")
-                        .build()
-                ).build()
-
-            val sleepClickable = ModifiersBuilders.Clickable.Builder()
-                .setOnClick(sleepAction)
                 .build()
 
             // 1. Perimeter Steps Goal Bezel Arc (260° span, 140° to 40°)
@@ -188,19 +165,41 @@ class DailySummaryTileService : TileService() {
                 .addContent(activeArcLine)
                 .build()
 
-            // 2. Activity Header & Hero (Upper Half)
+            // 2. Title Row: Activity Rings Icon + "ACTIVIDAD"
             val ringsIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_ACTIVITY_RINGS)
-                .setWidth(dp(18f))
-                .setHeight(dp(18f))
+                .setWidth(dp(15f))
+                .setHeight(dp(15f))
                 .build()
 
+            val titleText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.steps_short).uppercase())
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(limeStepsColor)
+                        .build()
+                )
+                .build()
+
+            val headerRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(ringsIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(titleText)
+                .build()
+
+            // 3. Hero Row: Steps Big Number (30sp) + "pasos" (11sp)
             val stepsNumberText = LayoutElementBuilders.Text.Builder()
                 .setText(stepsFormatted)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(28f))
+                        .setSize(sp(30f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
@@ -222,14 +221,13 @@ class DailySummaryTileService : TileService() {
             val heroStepsRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(ringsIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_BOTTOM)
                 .addContent(stepsNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
                 .addContent(stepsLabelText)
                 .build()
 
+            // 4. Sub-metrics Row (Middle): Active Time + Calories
             val activityTimeText = LayoutElementBuilders.Text.Builder()
                 .setText(activityVal)
                 .setMaxLines(1)
@@ -265,120 +263,136 @@ class DailySummaryTileService : TileService() {
                 )
                 .build()
 
-            val subMetricsRow = LayoutElementBuilders.Row.Builder()
+            val subMetricsRowBuilder = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .addContent(activityTimeText)
                 .addContent(pipeText)
                 .addContent(calorieText)
-                .build()
 
-            val activitySection = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setModifiers(ModifiersBuilders.Modifiers.Builder().setClickable(activityClickable).build())
-                .addContent(heroStepsRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2.5f)).setWidth(dp(1f)).build())
-                .addContent(subMetricsRow)
-                .build()
+            if (vitals.distanceKm > 0f) {
+                val pipe2 = LayoutElementBuilders.Text.Builder()
+                    .setText(" · ")
+                    .setMaxLines(1)
+                    .setFontStyle(
+                        LayoutElementBuilders.FontStyle.Builder()
+                            .setSize(sp(11.5f))
+                            .setColor(pipeDividerColor)
+                            .build()
+                    )
+                    .build()
 
-            // 3. Sleep Glassmorphic Pod (Lower Half)
-            val sleepIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_SLEEP)
-                .setWidth(dp(14f))
-                .setHeight(dp(14f))
-                .build()
+                val distanceText = LayoutElementBuilders.Text.Builder()
+                    .setText(String.format(Locale.US, "%.1f km", vitals.distanceKm))
+                    .setMaxLines(1)
+                    .setFontStyle(
+                        LayoutElementBuilders.FontStyle.Builder()
+                            .setSize(sp(11.5f))
+                            .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                            .setColor(amberDistanceColor)
+                            .build()
+                    )
+                    .build()
 
-            val sleepValueText = LayoutElementBuilders.Text.Builder()
-                .setText(sleepVal)
+                subMetricsRowBuilder.addContent(pipe2).addContent(distanceText)
+            }
+
+            val subMetricsRow = subMetricsRowBuilder.build()
+
+            // 5. Goal Progress Capsule (Replacing old Sleep pod)
+            val goalTextStr = if (isGoalAchieved) {
+                context.getString(R.string.goal_achieved)
+            } else if (rawSteps > 0) {
+                "Meta $targetStepsFormatted ($goalPct%)"
+            } else {
+                "Meta $targetStepsFormatted"
+            }
+
+            val goalTextColor = if (isGoalAchieved) limeStepsColor else whiteColor
+
+            val goalText = LayoutElementBuilders.Text.Builder()
+                .setText(goalTextStr)
                 .setMaxLines(1)
                 .setFontStyle(
                     LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(14f))
+                        .setSize(sp(10.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(goalTextColor)
+                        .build()
+                )
+                .build()
+
+            val goalPillBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(wrap())
+                .setHeight(dp(20f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(frostedPodBg)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(10f)).build())
+                                .build()
+                        )
+                        .setPadding(
+                            ModifiersBuilders.Padding.Builder()
+                                .setStart(dp(8f))
+                                .setEnd(dp(8f))
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(goalText)
+                .build()
+
+            // 6. Action Button ("Detalles")
+            val actionButtonText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.details))
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
                         .setColor(whiteColor)
                         .build()
                 )
                 .build()
 
-            val sleepPtsLabel = LayoutElementBuilders.Text.Builder()
-                .setText(if (vitals.sleepScore > 0) " ${context.getString(R.string.pts_unit)} · " else " · ")
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10.5f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_NORMAL)
-                        .setColor(sleepLabelColor)
-                        .build()
-                )
-                .build()
-
-            val spo2InlineText = LayoutElementBuilders.Text.Builder()
-                .setText("SpO2 $spo2Val")
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(cyanTimeColor)
-                        .build()
-                )
-                .build()
-
-            val sleepInnerRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(sleepIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
-                .addContent(sleepValueText)
-                .addContent(sleepPtsLabel)
-                .addContent(spo2InlineText)
-                .build()
-
-            val sleepPodBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(136f))
-                .setHeight(dp(28f))
+            val actionPillBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(88f))
+                .setHeight(dp(26f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(
                     ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(sleepClickable)
+                        .setClickable(mainTileClickable)
                         .setBackground(
                             ModifiersBuilders.Background.Builder()
-                                .setColor(frostedPodBg)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(14f)).build())
+                                .setColor(frostedGlassPill)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(13f)).build())
                                 .build()
                         )
                         .build()
                 )
-                .addContent(sleepInnerRow)
+                .addContent(actionButtonText)
                 .build()
 
             // Center Column Content
-            val titleText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.tile_summary_title))
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(labelSilverColor)
-                        .build()
-                )
-                .build()
-
             val centerContentColumn = LayoutElementBuilders.Column.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(titleText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
-                .addContent(activitySection)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(7f)).setWidth(dp(1f)).build())
-                .addContent(sleepPodBox)
+                .addContent(headerRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
+                .addContent(heroStepsRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
+                .addContent(subMetricsRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
+                .addContent(goalPillBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
+                .addContent(actionPillBox)
                 .build()
 
             // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content

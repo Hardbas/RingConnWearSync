@@ -271,11 +271,11 @@
             </intent-filter>
         </service>
 
-        <!-- One UI Daily Summary Tile Service -->
+        <!-- One UI Daily Activity Tile Service -->
         <service
             android:name=".tile.DailySummaryTileService"
             android:exported="true"
-            android:icon="@drawable/ic_vitals_sleep"
+            android:icon="@drawable/oneui_ic_activity_rings"
             android:label="@string/tile_summary_title"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>
