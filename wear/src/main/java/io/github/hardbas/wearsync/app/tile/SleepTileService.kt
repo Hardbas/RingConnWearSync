@@ -60,7 +60,7 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v7"
+        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v8"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
         private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
         private const val RES_IC_MOON = "ic_tile_moon"
@@ -208,16 +208,17 @@ class SleepTileService : TileService() {
             val arcStartAngle = 140f
 
             val targetSweepDegrees = if (hasSleepData) {
-                (score.coerceIn(0, 100) / 100f) * totalArcSpanDegrees
+                ((score.coerceIn(0, 100) / 100f) * totalArcSpanDegrees).coerceAtLeast(14f)
             } else {
                 14f
             }
 
+            // Samsung One UI 8 dynamic entrance sweep (0° -> target in 900ms, cubicBezier curve)
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(650L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .setDurationMillis(900L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.0f, 0.0f, 0.2f, 1.0f))
                         .build()
                 )
                 .build()
@@ -225,7 +226,8 @@ class SleepTileService : TileService() {
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
                     DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey<DynamicBuilders.DynamicFloat>("sleep_arc_sweep"),
+                        0f,
+                        targetSweepDegrees,
                         sweepAnimSpec
                     )
                 )
