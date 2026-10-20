@@ -57,7 +57,7 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-circular-v1"
+        const val RESOURCES_VERSION = "oneui8-sleep-circular-v2"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
         private const val RES_IC_SLEEP = "ic_vitals_sleep"
         private const val RES_IC_TEMP = "ic_comp_temp"
@@ -188,22 +188,45 @@ class SleepTileService : TileService() {
                 14f
             }
 
+            // 1100ms decelerating cubic bezier for "night falling" across the circular bezel
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(650L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
+                        .setDurationMillis(1100L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.16f, 1.0f, 0.3f, 1.0f))
                         .build()
                 )
                 .build()
 
+            // Dynamic float animation from 0° (empty) to targetSweepDegrees triggers on every swipe/entrance
             val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
                 .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        AppDataKey<DynamicBuilders.DynamicFloat>("sleep_arc_sweep"),
-                        sweepAnimSpec
-                    )
+                    DynamicBuilders.DynamicFloat.animate(0f, targetSweepDegrees, sweepAnimSpec)
                 )
+                .build()
+
+            // Perpetual celestial moonlight breathing pulse for the moon icon and header (1800ms reverse loop)
+            val moonGlowSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(1800L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val dynamicMoonColor = DynamicBuilders.DynamicColor.animate(
+                0xFFFFD166.toInt(), // Warm starlight gold
+                0xFFFFFBEA.toInt(), // Radiant moonlight white
+                moonGlowSpec
+            )
+            val moonColorProp = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFD166.toInt())
+                .setDynamicValue(dynamicMoonColor)
                 .build()
 
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
@@ -241,16 +264,34 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
-            // 2. Header Row: Crescent Moon Icon + "SUEÑO" / "SLEEP"
+            // 2. Header Row: Crescent Moon in Glowing Halo + "SUEÑO" / "SLEEP"
             val sleepIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_SLEEP)
                 .setWidth(dp(13f))
                 .setHeight(dp(13f))
                 .setColorFilter(
                     LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(starlightGold)
+                        .setTint(moonColorProp)
                         .build()
                 )
+                .build()
+
+            val moonHaloBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(22f))
+                .setHeight(dp(22f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(argb(0x28FFD166.toInt()))
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(11f)).build())
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(sleepIcon)
                 .build()
 
             val titleText = LayoutElementBuilders.Text.Builder()
@@ -260,7 +301,7 @@ class SleepTileService : TileService() {
                     LayoutElementBuilders.FontStyle.Builder()
                         .setSize(sp(11f))
                         .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(starlightGold)
+                        .setColor(moonColorProp)
                         .build()
                 )
                 .build()
@@ -269,8 +310,8 @@ class SleepTileService : TileService() {
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(sleepIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(moonHaloBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(5f)).setHeight(dp(1f)).build())
                 .addContent(titleText)
                 .build()
 

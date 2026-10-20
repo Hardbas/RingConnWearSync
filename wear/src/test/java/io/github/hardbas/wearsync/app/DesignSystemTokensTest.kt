@@ -114,6 +114,34 @@ class DesignSystemTokensTest {
     }
 
     @Test
+    fun dynamicColorAnimation_compilesAndBuildsCorrectly() {
+        val colorSpec = androidx.wear.protolayout.expression.AnimationParameterBuilders.AnimationSpec.Builder()
+            .setAnimationParameters(
+                androidx.wear.protolayout.expression.AnimationParameterBuilders.AnimationParameters.Builder()
+                    .setDurationMillis(1500L)
+                    .build()
+            )
+            .build()
+        val dynamicColor = androidx.wear.protolayout.expression.DynamicBuilders.DynamicColor.animate(
+            0xFFFFD166.toInt(),
+            0xFFFFFBEA.toInt(),
+            colorSpec
+        )
+        val colorProp = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFD166.toInt())
+            .setDynamicValue(dynamicColor)
+            .build()
+        val colorFilter = androidx.wear.protolayout.LayoutElementBuilders.ColorFilter.Builder()
+            .setTint(colorProp)
+            .build()
+        org.junit.Assert.assertNotNull(colorFilter)
+
+        val fontStyle = androidx.wear.protolayout.LayoutElementBuilders.FontStyle.Builder()
+            .setColor(colorProp)
+            .build()
+        org.junit.Assert.assertNotNull(fontStyle)
+    }
+
+    @Test
     fun allTiles_buildResources_haveValidVersionsAndMappings() {
         val hrRes = io.github.hardbas.wearsync.app.tile.HeartRateTileService.buildResources()
         org.junit.Assert.assertEquals("oneui8-hr-circular-v1", hrRes.version)
@@ -125,7 +153,7 @@ class DesignSystemTokensTest {
         org.junit.Assert.assertEquals("oneui8-stress-circular-v1", stressRes.version)
 
         val sleepRes = io.github.hardbas.wearsync.app.tile.SleepTileService.buildResources()
-        org.junit.Assert.assertEquals("oneui8-sleep-circular-v1", sleepRes.version)
+        org.junit.Assert.assertEquals("oneui8-sleep-circular-v2", sleepRes.version)
 
         val vitalsRes = io.github.hardbas.wearsync.app.tile.VitalsTileService.buildResources()
         org.junit.Assert.assertEquals("oneui8-vitals-circular-v1", vitalsRes.version)

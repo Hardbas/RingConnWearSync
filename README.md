@@ -54,7 +54,7 @@ All tiles replicate Samsung Health One UI Watch 8 metrics down to exact device d
 ### Available Tiles:
 1. **Heart Rate Tile (`HeartRateTileService`)**: Live BPM, resting HR, min/max range, tap leads to `HeartRateDetailActivity`.
 2. **Stress Index Tile (`StressTileService`)**: Live stress score (0–100), autonomic zone (Relaxed / Balanced / Moderate / High), HRV vagal tone metric, tap leads to `StressDetailActivity`.
-3. **Sleep & Nocturnal Temperature Tile (`SleepTileService`)**: Celestial starry night aesthetic with animated sweep bezel arc, hero score, duration chip, and integrated nocturnal skin temperature recovery capsule. Tap opens `SleepDetailActivity`.
+3. **Sleep & Nocturnal Temperature Tile (`SleepTileService`)**: Nocturnal entrance animation ("night falling" perimeter sweep), breathing celestial moon reveal, starry night backdrop, hero score, duration chip, and integrated nocturnal skin temperature recovery capsule. Tap opens `SleepDetailActivity`.
 4. **Daily Activity Tile (`DailySummaryTileService`)**: Concentric activity rings, steps, calories, active time, and daily goal progress capsule. Tap leads to `DailySummaryDetailActivity`.
 5. **Vitals Tile (`VitalsTileService`)**: Unified biometrics overview.
 

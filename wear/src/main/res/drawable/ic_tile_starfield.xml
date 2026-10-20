@@ -22,6 +22,29 @@
         </aapt:attr>
     </path>
 
+    <!-- Luminous Nocturnal Moon Aura & Radial Lunar Halo at the Zenith -->
+    <path
+        android:pathData="M110,2 A38,38 0 1,1 110,78 A38,38 0 1,1 110,2 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="110"
+                android:centerY="38"
+                android:gradientRadius="38"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#35FFEAA7" />
+                <item android:offset="0.4" android:color="#1DFFEAA7" />
+                <item android:offset="0.75" android:color="#0AA5C9FF" />
+                <item android:offset="1.0" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glowing Celestial Crescent Moon Crest at the Celestial Crown -->
+    <path
+        android:fillColor="#FFEAA7"
+        android:fillAlpha="0.8"
+        android:pathData="M110,21 C105,21 101,25 101,30 C101,35 105,39 110,39 C106.8,37.2 104.6,33.8 104.6,30 C104.6,26.2 106.8,22.8 110,21 Z" />
+
     <!-- Faint celestial constellation alignment lines -->
     <path
         android:pathData="M54,46 L95,34 L128,38 L166,52"
