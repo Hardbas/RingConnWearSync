@@ -60,7 +60,7 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v6"
+        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v7"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
         private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
         private const val RES_IC_MOON = "ic_tile_moon"
@@ -231,6 +231,30 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
+            // Smooth celestial moonlight breathing glow (1500ms reverse loop, Samsung cg7.java parity)
+            val moonGlowAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(1500L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
+                        .build()
+                )
+                .setRepeatable(
+                    AnimationParameterBuilders.Repeatable.Builder()
+                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .build()
+                )
+                .build()
+
+            val dynamicMoonColor = DynamicBuilders.DynamicColor.animate(
+                0xFF5E72E4.toInt(), // Deep celestial twilight indigo
+                0xFFFFD166.toInt(), // Warm radiant starlight gold
+                moonGlowAnimSpec
+            )
+            val dynamicMoonProp = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFD166.toInt())
+                .setDynamicValue(dynamicMoonColor)
+                .build()
+
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
                 .build()
 
@@ -266,11 +290,16 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
-            // Hero 110dp Celestial Moon Backdrop: Big entrance AVD (OnVisibleTrigger) without tint overrides
+            // Hero 115dp Celestial Moon Backdrop: Pulsing with living celestial starlight glow
             val celestialMoon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_MOON_AVD)
-                .setWidth(dp(110f))
-                .setHeight(dp(110f))
+                .setResourceId(RES_IC_MOON)
+                .setWidth(dp(115f))
+                .setHeight(dp(115f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(dynamicMoonProp)
+                        .build()
+                )
                 .build()
 
             // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
