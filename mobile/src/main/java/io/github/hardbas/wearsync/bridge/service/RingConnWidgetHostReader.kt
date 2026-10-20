@@ -23,6 +23,7 @@ object RingConnWidgetHostReader {
     private val RINGCONN_PROVIDERS = listOf(
         ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.MediumHomeAppWidgetReceiver"),
         ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.DataIndicatorsWidgetReceiver"),
+        ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.DataIndicatorsLargeWidgetReceiver"),
         ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.SportIndicatorsWidgetReceiver"),
         ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.HomeAppWidgetReceiver"),
         ComponentName("com.gdjztech.ringconn", "com.gdjztech.remotewidget.SportIndicatorsLargeWidgetReceiver")
