@@ -2,19 +2,16 @@ package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
 import android.util.Log
-import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
-import androidx.wear.protolayout.DimensionBuilders.sp
 import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
-import androidx.wear.protolayout.TypeBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.DynamicBuilders
 import androidx.wear.tiles.EventBuilders
@@ -26,6 +23,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
+import io.github.hardbas.wearsync.app.tile.design.TileChrome
+import io.github.hardbas.wearsync.app.tile.design.TileDesign
+import io.github.hardbas.wearsync.app.tile.design.TileGauge
+import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.TileStrings
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,13 +39,19 @@ import kotlinx.coroutines.tasks.await
  * Dedicated Circular Bezel Arc Sleep Tile with Celestial Starry Night Aesthetic & Nocturnal Temperature
  * integration for Samsung Galaxy Watch (Wear OS 5 / 6).
  *
- * Combines:
- * 1. Deep obsidian twilight starfield backdrop (ic_tile_starfield).
- * 2. Animated sleep score bezel sweep arc.
- * 3. Hero sleep score & quality badge.
- * 4. Sleep duration indicator.
- * 5. Integrated Nocturnal Skin Temperature recovery capsule.
- * 6. Glanceable "Detalles" launcher for SleepDetailActivity.
+ * Sleep is the only tile in the carousel with a scene, so it keeps it: a
+ * starfield backdrop, an untinted three-tone crescent moon, a sun that sinks
+ * behind a horizon limb on entrance. Everything else — palette, type scale,
+ * bezel gauge, badges and the action pill — comes from the shared design
+ * system, so the tile reads as part of the same family instead of a repainted
+ * copy of its neighbours.
+ *
+ * Motion budget (S6/S9): the sunset is this tile's single non-gauge animator,
+ * which is why the bezel track is built with `breathing = false`. Total = 2.
+ *
+ * Content budget (S4): four blocks — header, hero, metrics row, action pill. The
+ * nocturnal skin temperature is a badge inside the header, so it costs no block
+ * and the metrics row stays at two badges.
  */
 class SleepTileService : TileService() {
 
@@ -91,6 +101,8 @@ class SleepTileService : TileService() {
         private const val RES_IC_TEMP = "ic_comp_temp"
         private const val RES_SUN = "sun_disc"
         private const val RES_HORIZON = "horizon_limb"
+
+        private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 
         // Sunset entrance geometry, in dp relative to the tile centre.
         // X is a static offset into the empty lower-left corner (- the crescent owns the
@@ -165,14 +177,14 @@ class SleepTileService : TileService() {
             context: Context,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
-        ): TileBuilders.Tile {
-            val whiteColor = argb(0xFFFFFFFF.toInt())
-            val sleepLavender = argb(0xFFA5AEDE.toInt())
-            val starlightGold = argb(0xFFFFD166.toInt())
-            val frostedGlassPill = argb(0x2BFFFFFF.toInt())
-            val frostedPillSubtle = argb(0x1EFFFFFF.toInt())
-            val bezelTrackColor = argb(0x24FFFFFF.toInt())
+        ): TileBuilders.Tile = buildTile(AndroidTileStrings(context), context.packageName, deviceParams, vitals)
 
+        fun buildTile(
+            strings: TileStrings,
+            packageName: String,
+            deviceParams: DeviceParameters,
+            vitals: RingConnVitals
+        ): TileBuilders.Tile {
             val hasSleepData = vitals.sleepScore > 0
             val score = vitals.sleepScore
             val scoreText = if (hasSleepData) "$score" else "--"
@@ -185,25 +197,26 @@ class SleepTileService : TileService() {
             } else if (hasSleepData) {
                 "--"
             } else {
-                context.getString(R.string.no_data)
+                strings.text(R.string.no_data)
             }
 
             val qualityText = when {
-                !hasSleepData -> context.getString(R.string.no_data)
-                score >= 85 -> context.getString(R.string.excellent)
-                score >= 70 -> context.getString(R.string.good)
-                else -> context.getString(R.string.fair)
+                !hasSleepData -> strings.text(R.string.no_data)
+                score >= 85 -> strings.text(R.string.excellent)
+                score >= 70 -> strings.text(R.string.good)
+                else -> strings.text(R.string.fair)
             }
 
-            val arcColorInt = when {
-                !hasSleepData -> 0xFF5E72E4.toInt()
-                score >= 85 -> 0xFF47CDFF.toInt()   // Electric Cyan
-                score >= 70 -> 0xFF5E72E4.toInt()   // Royal Indigo
-                else -> 0xFFFFD166.toInt()          // Starlight Gold / Amber
+            // The sleep ramp already carries the three quality states; the no-data
+            // tile borrows the calmest end of it instead of inventing a grey.
+            val accent = when {
+                !hasSleepData -> TileDesign.Accent.sleepLavender
+                score >= 85 -> TileDesign.Accent.sleep[0]
+                score >= 70 -> TileDesign.Accent.sleep[1]
+                else -> TileDesign.Accent.sleep[2]
             }
-            val arcColor = argb(arcColorInt)
 
-            // Integrated Nocturnal Skin Temperature calculation
+            // Integrated Nocturnal Skin Temperature reading
             val offset = vitals.skinTempOffset
             val hasTempData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
             val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
@@ -211,72 +224,164 @@ class SleepTileService : TileService() {
             val offsetStr = if (hasTempData) {
                 when {
                     offset in -0.05f..0.05f -> "±0.0"
-                    offset > 0.05f -> String.format(java.util.Locale.US, "+%.1f", offset)
-                    else -> String.format(java.util.Locale.US, "%.1f", offset)
+                    offset > 0.05f -> String.format(Locale.US, "+%.1f", offset)
+                    else -> String.format(Locale.US, "%.1f", offset)
                 }
             } else {
                 "--"
             }
 
-            val tempStatusColorInt = when {
-                !hasTempData -> 0xFF8A9099.toInt()
-                offset in -0.5f..0.5f -> 0xFF00E676.toInt()   // Optimal Euthermia (Green)
-                offset > 0.5f -> 0xFFFF7043.toInt()           // Warm departure (Amber)
-                else -> 0xFF38BDF8.toInt()                    // Cool departure (Cyan)
+            val tempAccent = when {
+                !hasTempData -> TileDesign.Text.MUTED
+                offset in -0.5f..0.5f -> TileDesign.Accent.stable
+                offset > 0.5f -> TileDesign.Accent.warm
+                else -> TileDesign.Accent.cool
             }
-            val tempStatusColor = argb(tempStatusColorInt)
 
             val tempDisplayText = if (hasTempData) {
-                "$offsetStr°C · ${String.format(java.util.Locale.US, "%.1f°", baseline)}"
+                "$offsetStr°C · ${String.format(Locale.US, "%.1f°", baseline)}"
             } else {
-                "--°C · ${context.getString(R.string.no_data)}"
+                "--°C · ${strings.text(R.string.no_data)}"
             }
 
-            val mainTileAction = ActionBuilders.LaunchAction.Builder()
-                .setAndroidActivity(
-                    ActionBuilders.AndroidActivity.Builder()
-                        .setPackageName(context.packageName)
-                        .setClassName("io.github.hardbas.wearsync.app.ui.SleepDetailActivity")
-                        .build()
-                ).build()
+            val fraction = if (hasSleepData) score.coerceIn(0, 100) / 100f else 0f
 
-            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
-                .setOnClick(mainTileAction)
-                .build()
+            val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Circular Bezel Gauge (260 degrees arc span)
-            val totalArcSpanDegrees = 260f
-            val arcStartAngle = 140f
-
-            val targetSweepDegrees = if (hasSleepData) {
-                ((score.coerceIn(0, 100) / 100f) * totalArcSpanDegrees).coerceAtLeast(14f)
-            } else {
-                14f
-            }
-
-            // Entrance sweep: expo-out over 1300ms so the arc settles instead of stopping dead.
-            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(1300L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.16f, 1.0f, 0.3f, 1.0f))
+            // Block 1 — header: icon + uppercase metric. Nothing else competes with
+            // the hero, which now owns a full 40sp line on a 192dp bezel.
+            val headerIcon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_SLEEP)
+                .setWidth(dp(15f))
+                .setHeight(dp(15f))
+                .setColorFilter(
+                    LayoutElementBuilders.ColorFilter.Builder()
+                        .setTint(argb(TileDesign.Accent.starlight))
                         .build()
                 )
                 .build()
 
-            val dynamicSweep = DimensionBuilders.DegreesProp.Builder(targetSweepDegrees)
-                .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        0f,
-                        targetSweepDegrees,
-                        sweepAnimSpec
-                    )
-                )
+            val headerLabel = LayoutElementBuilders.Text.Builder()
+                .setText(strings.text(R.string.sleep_short).uppercase(Locale.getDefault()))
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.label(TileDesign.Accent.starlight))
                 .build()
 
-            // Setting sun: a soft-edged disc that translates down behind the horizon.
-            // Only Y animates. Animator budget: sun (1) + arc sweep (1) = 2, the ceiling.
-            val sunsetAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+            // The nocturnal skin temperature rides in the header as a badge: it is a
+            // quiet recovery read next to the metric name, and moving it here keeps
+            // the metrics row down to two badges so a longer localized quality word
+            // or duration still has margin inside the bezel.
+            val tempBadge = TileChrome.badge(
+                LayoutElementBuilders.Text.Builder()
+                    .setText(tempDisplayText)
+                    .setMaxLines(1)
+                    .setFontStyle(TileDesign.Type.caption(tempAccent))
+                    .build()
+            )
+
+            val headerRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(headerIcon)
+                .addContent(TileChrome.hSpacer(4f))
+                .addContent(headerLabel)
+                .addContent(TileChrome.hSpacer(5f))
+                .addContent(tempBadge)
+                .build()
+
+            // Block 2 — hero: the 40sp score with its unit, alone in its row.
+            val heroNumber = LayoutElementBuilders.Text.Builder()
+                .setText(scoreText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.hero())
+                .build()
+
+            val heroUnit = LayoutElementBuilders.Text.Builder()
+                .setText(strings.text(R.string.pts_unit).lowercase(Locale.getDefault()))
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.unit(TileDesign.Accent.sleepLavender))
+                .build()
+
+            val heroRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(heroNumber)
+                .addContent(TileChrome.hSpacer(3f))
+                .addContent(heroUnit)
+                .build()
+
+            // Block 3 — metrics row: quality word and duration, two badges only.
+            val qualityBadge = TileChrome.badge(
+                LayoutElementBuilders.Text.Builder()
+                    .setText(qualityText)
+                    .setMaxLines(1)
+                    .setFontStyle(TileDesign.Type.caption(accent))
+                    .build()
+            )
+
+            val durationBadge = TileChrome.badge(
+                LayoutElementBuilders.Text.Builder()
+                    .setText(durationText)
+                    .setMaxLines(1)
+                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
+                    .build()
+            )
+
+            val metricsRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .addContent(qualityBadge)
+                .addContent(TileChrome.hSpacer(4f))
+                .addContent(durationBadge)
+                .build()
+
+            // Block 4 — the single action pill.
+            val actionPill = TileChrome.actionPill(
+                LayoutElementBuilders.Text.Builder()
+                    .setText(strings.text(R.string.details))
+                    .setMaxLines(1)
+                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
+                    .build(),
+                clickable
+            )
+
+            val contentColumn = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .addContent(headerRow)
+                .addContent(TileChrome.spacer(4f))
+                .addContent(heroRow)
+                .addContent(TileChrome.spacer(6f))
+                .addContent(metricsRow)
+                .addContent(TileChrome.spacer(8f))
+                .addContent(actionPill)
+                .build()
+
+            // ===== The scene: unchanged resources, unchanged geometry =====
+
+            // 1. Starfield backdrop, full-bleed and first: it paints over the metric
+            // gradient when opaque, which is the intent.
+            val starfieldBackground = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_STARFIELD)
+                .setWidth(expand())
+                .setHeight(expand())
+                .build()
+
+            // 2. Crescent moon, left untinted so its three tones (aura, body,
+            // highlight) survive.
+            val celestialMoon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_MOON)
+                .setWidth(expand())
+                .setHeight(expand())
+                .build()
+
+            // 3. Setting sun: a soft-edged disc that translates down behind the
+            // horizon. Only Y animates; this is the tile's one scene animator.
+            val sunsetSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
                         .setDurationMillis(1700L)
@@ -290,37 +395,9 @@ class SleepTileService : TileService() {
                     DynamicBuilders.DynamicFloat.animate(
                         SUN_START_Y_DP,
                         SUN_END_Y_DP,
-                        sunsetAnimSpec
+                        sunsetSpec
                     )
                 )
-                .build()
-
-            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
-                .build()
-
-            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
-                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
-                .setThickness(dp(6.5f))
-                .setColor(bezelTrackColor)
-                .build()
-
-            val bgArc = LayoutElementBuilders.Arc.Builder()
-                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
-                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
-                .addContent(bgTrackArcLine)
-                .build()
-
-            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
-                .setLength(dynamicSweep)
-                .setLayoutConstraintsForDynamicLength(angularConstraint)
-                .setThickness(dp(6.5f))
-                .setColor(arcColor)
-                .build()
-
-            val activeArc = LayoutElementBuilders.Arc.Builder()
-                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
-                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
-                .addContent(activeArcLine)
                 .build()
 
             val sunImage = LayoutElementBuilders.Image.Builder()
@@ -339,308 +416,33 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
-            // Occluder. Drawn after the sun and before the arcs, so it hides the sun as it
-            // sinks without any mask or clip: plain z-order does the work.
+            // 4. Occluder. Drawn after the sun, so plain z-order hides it as it sinks.
             val horizonImage = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_HORIZON)
                 .setWidth(expand())
                 .setHeight(expand())
                 .build()
 
-            // 1. Starfield Background Image & Celestial Moon Backdrop
-            val starfieldBackground = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_STARFIELD)
-                .setWidth(expand())
-                .setHeight(expand())
-                .build()
+            // Bezel gauge: breathing = false because the sunset already spends the
+            // tile's second animator (S9).
+            val gauge = TileGauge.elements(
+                accent = accent,
+                targetSweep = TileGauge.sweepFor(fraction),
+                breathing = false
+            )
 
-            // Hero 115dp Celestial Moon Backdrop, left untinted so its own three-tone
-            // crescent (full-moon aura, cream body, white highlight) actually survives.
-            val celestialMoon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_MOON)
-                .setWidth(expand())
-                .setHeight(expand())
-                .build()
-
-            // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
-            val sleepIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_SLEEP)
-                .setWidth(dp(15f))
-                .setHeight(dp(15f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(starlightGold)
-                        .build()
-                )
-                .build()
-
-            val titleText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.sleep_short).uppercase())
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(starlightGold)
-                        .build()
-                )
-                .build()
-
-            val headerRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(sleepIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
-                .addContent(titleText)
-                .build()
-
-            // 3. Hero Row: Sleep Score (32sp) + "pts" (11sp)
-            val scoreNumberText = LayoutElementBuilders.Text.Builder()
-                .setText(scoreText)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(32f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
-                        .build()
-                )
-                .build()
-
-            val ptsUnitText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.pts_unit).uppercase())
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(sleepLavender)
-                        .build()
-                )
-                .build()
-
-            val heroScoreRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_BOTTOM)
-                .addContent(scoreNumberText)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
-                .addContent(ptsUnitText)
-                .build()
-
-            // 4. Quality Pill + Sleep Duration Badge
-            val qualityBadgeText = LayoutElementBuilders.Text.Builder()
-                .setText(qualityText.uppercase())
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(arcColor)
-                        .build()
-                )
-                .build()
-
-            val durationBadgeText = LayoutElementBuilders.Text.Builder()
-                .setText(durationText)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
-                        .build()
-                )
-                .build()
-
-            val metricsRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(wrap())
-                        .setHeight(dp(18f))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(frostedPillSubtle)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(9f)).build())
-                                        .build()
-                                )
-                                .setPadding(
-                                    ModifiersBuilders.Padding.Builder()
-                                        .setStart(dp(7f))
-                                        .setEnd(dp(7f))
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .addContent(qualityBadgeText)
-                        .build()
-                )
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
-                .addContent(
-                    LayoutElementBuilders.Box.Builder()
-                        .setWidth(wrap())
-                        .setHeight(dp(18f))
-                        .setModifiers(
-                            ModifiersBuilders.Modifiers.Builder()
-                                .setBackground(
-                                    ModifiersBuilders.Background.Builder()
-                                        .setColor(frostedPillSubtle)
-                                        .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(9f)).build())
-                                        .build()
-                                )
-                                .setPadding(
-                                    ModifiersBuilders.Padding.Builder()
-                                        .setStart(dp(7f))
-                                        .setEnd(dp(7f))
-                                        .build()
-                                )
-                                .build()
-                        )
-                        .addContent(durationBadgeText)
-                        .build()
-                )
-                .build()
-
-            // 5. Integrated Nocturnal Temperature Recovery Pill (Direct Row container to prevent unmeasurable drop)
-            val tempIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_TEMP)
-                .setWidth(dp(11f))
-                .setHeight(dp(11f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(tempStatusColor)
-                        .build()
-                )
-                .build()
-
-            val tempText = LayoutElementBuilders.Text.Builder()
-                .setText(tempDisplayText)
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(10f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
-                        .setColor(whiteColor)
-                        .build()
-                )
-                .build()
-
-            val tempCapsuleRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(dp(20f))
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(argb(0x22FFFFFF.toInt()))
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(10f)).build())
-                                .build()
-                        )
-                        .setPadding(
-                            ModifiersBuilders.Padding.Builder()
-                                .setStart(dp(8f))
-                                .setEnd(dp(8f))
-                                .build()
-                        )
-                        .setContentUpdateAnimation(
-                            ModifiersBuilders.AnimatedVisibility.Builder()
-                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(tempIcon)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
-                .addContent(tempText)
-                .build()
-
-            // 6. Ergonomic Frosted Glass Action Button ("Detalles")
-            val actionButtonText = LayoutElementBuilders.Text.Builder()
-                .setText(context.getString(R.string.details))
-                .setMaxLines(1)
-                .setFontStyle(
-                    LayoutElementBuilders.FontStyle.Builder()
-                        .setSize(sp(11f))
-                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
-                        .setColor(whiteColor)
-                        .build()
-                )
-                .build()
-
-            val actionPillBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(dp(88f))
-                .setHeight(dp(26f))
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainTileClickable)
-                        .setBackground(
-                            ModifiersBuilders.Background.Builder()
-                                .setColor(frostedGlassPill)
-                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(13f)).build())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(actionButtonText)
-                .build()
-
-            // Center Column Content
-            val contentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setContentUpdateAnimation(
-                            ModifiersBuilders.AnimatedVisibility.Builder()
-                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
-                                .build()
-                        )
-                        .build()
-                )
-                .addContent(headerRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(1f)).setWidth(dp(1f)).build())
-                .addContent(heroScoreRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
-                .addContent(metricsRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).setWidth(dp(1f)).build())
-                .addContent(tempCapsuleRow)
-                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
-                .addContent(actionPillBox)
-                .build()
-
-            // Root Canvas: Full-bleed Box with Starfield, Celestial Moon, Bezel Arcs, and Content
             val rootBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(expand())
                 .setHeight(expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setClickable(mainTileClickable)
-                        .setContentUpdateAnimation(
-                            ModifiersBuilders.AnimatedVisibility.Builder()
-                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
-                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
-                                .build()
-                        )
-                        .build()
-                )
+                .setModifiers(TileChrome.rootModifiers(TileMetric.SLEEP, clickable))
                 .addContent(starfieldBackground)
                 .addContent(celestialMoon)
                 .addContent(sunImage)
                 .addContent(horizonImage)
-                .addContent(bgArc)
-                .addContent(activeArc)
+                .addContent(gauge[0])
+                .addContent(gauge[1])
                 .addContent(contentColumn)
                 .build()
 
