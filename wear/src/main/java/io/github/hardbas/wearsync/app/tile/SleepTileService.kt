@@ -13,14 +13,10 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
-import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
-import androidx.wear.protolayout.TriggerBuilders
 import androidx.wear.protolayout.TypeBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
-import androidx.wear.protolayout.expression.AppDataKey
 import androidx.wear.protolayout.expression.DynamicBuilders
-import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -88,12 +84,22 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v8"
+        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v16"
         private const val RES_IC_STARFIELD = "ic_tile_starfield"
-        private const val RES_IC_MOON_AVD = "avd_tile_moon_rise"
         private const val RES_IC_MOON = "ic_tile_moon"
         private const val RES_IC_SLEEP = "ic_vitals_sleep"
         private const val RES_IC_TEMP = "ic_comp_temp"
+        private const val RES_SUN = "sun_disc"
+        private const val RES_HORIZON = "horizon_limb"
+
+        // Sunset entrance geometry, in dp relative to the tile centre.
+        // X is a static offset into the empty lower-left corner (- the crescent owns the
+        // right side), so only Y has to animate: the whole entrance costs one animator.
+        // The sun starts ABOVE centre so it actually travels 148dp before it is gone;
+        // starting at +44 made it begin already half-occluded and it died in 500ms.
+        private const val SUN_OFFSET_X_DP = -40f
+        private const val SUN_START_Y_DP = -36f
+        private const val SUN_END_Y_DP = 112f
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
@@ -108,22 +114,29 @@ class SleepTileService : TileService() {
                         ).build()
                 )
                 .addIdToImageMapping(
-                    RES_IC_MOON_AVD,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidAnimatedResourceByResId(
-                            ResourceBuilders.AndroidAnimatedImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.avd_tile_moon_rise)
-                                .setAnimatedImageFormat(ResourceBuilders.ANIMATED_IMAGE_FORMAT_AVD)
-                                .setStartTrigger(TriggerBuilders.createOnVisibleTrigger())
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
                     RES_IC_MOON,
                     ResourceBuilders.ImageResource.Builder()
                         .setAndroidResourceByResId(
                             ResourceBuilders.AndroidImageResourceByResId.Builder()
                                 .setResourceId(R.drawable.ic_tile_moon)
+                                .build()
+                        ).build()
+                )
+                .addIdToImageMapping(
+                    RES_SUN,
+                    ResourceBuilders.ImageResource.Builder()
+                        .setAndroidResourceByResId(
+                            ResourceBuilders.AndroidImageResourceByResId.Builder()
+                                .setResourceId(R.drawable.sun_disc)
+                                .build()
+                        ).build()
+                )
+                .addIdToImageMapping(
+                    RES_HORIZON,
+                    ResourceBuilders.ImageResource.Builder()
+                        .setAndroidResourceByResId(
+                            ResourceBuilders.AndroidImageResourceByResId.Builder()
+                                .setResourceId(R.drawable.horizon_limb)
                                 .build()
                         ).build()
                 )
@@ -241,12 +254,12 @@ class SleepTileService : TileService() {
                 14f
             }
 
-            // Samsung One UI 8 dynamic entrance sweep (0° -> target in 900ms, cubicBezier curve)
+            // Entrance sweep: expo-out over 1300ms so the arc settles instead of stopping dead.
             val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(900L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.0f, 0.0f, 0.2f, 1.0f))
+                        .setDurationMillis(1300L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.16f, 1.0f, 0.3f, 1.0f))
                         .build()
                 )
                 .build()
@@ -261,28 +274,25 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
-            // Smooth celestial moonlight breathing glow (1500ms reverse loop, Samsung cg7.java parity)
-            val moonGlowAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+            // Setting sun: a soft-edged disc that translates down behind the horizon.
+            // Only Y animates. Animator budget: sun (1) + arc sweep (1) = 2, the ceiling.
+            val sunsetAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
                 .setAnimationParameters(
                     AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(1500L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.4f, 0.0f, 0.2f, 1.0f))
-                        .build()
-                )
-                .setRepeatable(
-                    AnimationParameterBuilders.Repeatable.Builder()
-                        .setRepeatMode(AnimationParameterBuilders.REPEAT_MODE_REVERSE)
+                        .setDurationMillis(1700L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.42f, 0.0f, 0.26f, 1.0f))
                         .build()
                 )
                 .build()
 
-            val dynamicMoonColor = DynamicBuilders.DynamicColor.animate(
-                0xFF5E72E4.toInt(), // Deep celestial twilight indigo
-                0xFFFFD166.toInt(), // Warm radiant starlight gold
-                moonGlowAnimSpec
-            )
-            val dynamicMoonProp = androidx.wear.protolayout.ColorBuilders.ColorProp.Builder(0xFFFFD166.toInt())
-                .setDynamicValue(dynamicMoonColor)
+            val sunSink = DimensionBuilders.DpProp.Builder(SUN_START_Y_DP)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        SUN_START_Y_DP,
+                        SUN_END_Y_DP,
+                        sunsetAnimSpec
+                    )
+                )
                 .build()
 
             val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
@@ -313,6 +323,30 @@ class SleepTileService : TileService() {
                 .addContent(activeArcLine)
                 .build()
 
+            val sunImage = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_SUN)
+                .setWidth(dp(70f))
+                .setHeight(dp(70f))
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setTransformation(
+                            ModifiersBuilders.Transformation.Builder()
+                                .setTranslationX(dp(SUN_OFFSET_X_DP))
+                                .setTranslationY(sunSink)
+                                .build()
+                        )
+                        .build()
+                )
+                .build()
+
+            // Occluder. Drawn after the sun and before the arcs, so it hides the sun as it
+            // sinks without any mask or clip: plain z-order does the work.
+            val horizonImage = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_HORIZON)
+                .setWidth(expand())
+                .setHeight(expand())
+                .build()
+
             // 1. Starfield Background Image & Celestial Moon Backdrop
             val starfieldBackground = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_STARFIELD)
@@ -320,16 +354,12 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
-            // Hero 115dp Celestial Moon Backdrop: Pulsing with living celestial starlight glow
+            // Hero 115dp Celestial Moon Backdrop, left untinted so its own three-tone
+            // crescent (full-moon aura, cream body, white highlight) actually survives.
             val celestialMoon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_MOON)
-                .setWidth(dp(115f))
-                .setHeight(dp(115f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(dynamicMoonProp)
-                        .build()
-                )
+                .setWidth(expand())
+                .setHeight(expand())
                 .build()
 
             // 2. Header Row: Solitary Pulsating Crescent Moon + "SUEÑO" / "SLEEP"
@@ -607,6 +637,8 @@ class SleepTileService : TileService() {
                 )
                 .addContent(starfieldBackground)
                 .addContent(celestialMoon)
+                .addContent(sunImage)
+                .addContent(horizonImage)
                 .addContent(bgArc)
                 .addContent(activeArc)
                 .addContent(contentColumn)
@@ -620,17 +652,9 @@ class SleepTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
-            val tileState = StateBuilders.State.Builder()
-                .addKeyToValueMapping(
-                    AppDataKey<DynamicBuilders.DynamicFloat>("sleep_arc_sweep"),
-                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetSweepDegrees)
-                )
-                .build()
-
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
-                .setState(tileState)
                 .setFreshnessIntervalMillis(60_000L)
                 .build()
         }

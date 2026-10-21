@@ -1,38 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Celestial crescent for the sleep tile.
+
+    WHY THIS IS A SINGLE CLOSED PATH AND NOT TWO CIRCLES:
+    evenOdd subtraction of two offset circles fills BOTH slivers — the right one AND the
+    left one — so the result is a ring with a dark hole, not a crescent. That is what the
+    previous revision produced, and it read as a border around the score.
+    A crescent must be ONE closed outline: the outer arc out, the inner arc back.
+
+    Coordinate space: 192dp with a 1:1 viewport, laid out with expand(), so one viewport
+    unit equals one tile dp. Position is therefore literal.
+
+    Placement: the moon's disc sits at (134,46) r=32, upper-right, clear of the vertical
+    column holding the title, the score, the quality label, the duration and the capsule.
+
+    Never tinted: any ColorFilter.setTint collapses the gradients below into one flat
+    colour and this file becomes a blob.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="120dp"
-    android:height="120dp"
-    android:viewportWidth="120"
-    android:viewportHeight="120">
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
 
-    <!-- Celestial Moon Group for Scale, Translation, and Alpha Animations -->
+    <!-- Lunar bloom -->
+    <path android:pathData="M82,64 A42,42 0 1,0 166,64 A42,42 0 1,0 82,64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="124"
+                android:centerY="64"
+                android:gradientRadius="42">
+                <item android:offset="0.00" android:color="#30FFFFFF" />
+                <item android:offset="0.34" android:color="#18DCE6FF" />
+                <item android:offset="0.64" android:color="#0E9B8EE0" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Earthshine: the unlit disc, very faint, weighted toward the lit limb -->
+    <path android:pathData="M92,64 A32,32 0 1,0 156,64 A32,32 0 1,0 92,64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="132"
+                android:centerY="58"
+                android:gradientRadius="40">
+                <item android:offset="0.00" android:color="#12C9D8FF" />
+                <item android:offset="0.45" android:color="#0C9FB2E8" />
+                <item android:offset="0.82" android:color="#00000000" />
+                <item android:offset="1.00" android:color="#00000000" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!--
+        The lit crescent. Proven outline from the original drawable (outer arc out,
+        inner arc back = one closed shape), rescaled and moved into the corner with a
+        group transform so the path data itself stays known-good.
+        Original space: outer circle centre (60,60) r=52; body spans x 89..112.
+    -->
     <group
-        android:name="moon_group"
-        android:pivotX="60"
+        android:pivotX="86"
         android:pivotY="60"
-        android:scaleX="1.0"
-        android:scaleY="1.0"
-        android:translateX="0"
-        android:translateY="0">
-
-        <!-- Outer Celestial Moon Aura Glow -->
-        <path
-            android:name="moon_aura"
-            android:fillAlpha="0.35"
-            android:fillColor="#FFD166"
-            android:pathData="M60,8 C88.7,8 112,31.3 112,60 C112,88.7 88.7,112 60,112 C78,98 89,76 89,60 C89,44 78,22 60,8 Z" />
-
-        <!-- Radiant Celestial Crescent Moon Body -->
-        <path
-            android:name="moon_body"
-            android:fillAlpha="0.80"
-            android:fillColor="#FFEAA7"
-            android:pathData="M60,15 C84.85,15 105,35.15 105,60 C105,84.85 84.85,105 60,105 C75,93 84,74 84,60 C84,46 75,27 60,15 Z" />
-
-        <!-- Inner Crescent Moon Starlight Highlights -->
-        <path
-            android:name="moon_highlight"
-            android:fillAlpha="0.95"
-            android:fillColor="#FFFFFF"
-            android:pathData="M62,20 C81,22 96,38 96,60 C96,82 81,98 62,100 C74,90 82,73 82,60 C82,47 74,30 62,20 Z" />
+        android:scaleX="0.62"
+        android:scaleY="0.62"
+        android:translateX="54"
+        android:translateY="4">
+        <path android:pathData="M60,8 C88.7,8 112,31.3 112,60 C112,88.7 88.7,112 60,112 C78,98 89,76 89,60 C89,44 78,22 60,8 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="112"
+                    android:startY="20"
+                    android:endX="89"
+                    android:endY="100">
+                    <item android:offset="0.00" android:color="#FFFFFFFF" />
+                    <item android:offset="0.52" android:color="#FFFFF8E6" />
+                    <item android:offset="1.00" android:color="#FFE7C98E" />
+                </gradient>
+            </aapt:attr>
+        </path>
     </group>
+
 </vector>
