@@ -77,21 +77,55 @@ class VitalsTileContractTest {
         }.getOrNull()
     }
 
-    private fun animatorCount(): Int =
+    /** Element-level dynamics: tint, width/height, opacity. */
+    private fun elementAnimatorCount(): Int =
         elements.sumOf { element ->
-            when (element) {
-                is LayoutElementBuilders.ArcLine -> {
-                    var count = 0
-                    if (specOf(element.length?.dynamicValue) != null) count++
-                    if (specOf(element.modifiers?.opacity?.dynamicValue) != null) count++
-                    count
-                }
-                is LayoutElementBuilders.Image -> {
-                    if (specOf(element.colorFilter?.tint?.dynamicValue) != null) 1 else 0
-                }
-                else -> 0
+            val props: List<Any?> = when (element) {
+                is LayoutElementBuilders.Box -> listOf(
+                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
+                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
+                    element.modifiers?.opacity?.dynamicValue
+                )
+                is LayoutElementBuilders.Row -> listOf(
+                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
+                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
+                    element.modifiers?.opacity?.dynamicValue
+                )
+                is LayoutElementBuilders.Column -> listOf(
+                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
+                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
+                    element.modifiers?.opacity?.dynamicValue
+                )
+                is LayoutElementBuilders.Text -> listOf(element.modifiers?.opacity?.dynamicValue)
+                is LayoutElementBuilders.Image -> listOf(
+                    element.colorFilter?.tint?.dynamicValue,
+                    element.modifiers?.opacity?.dynamicValue
+                )
+                else -> emptyList()
             }
+            props.count { specOf(it) != null }
         }
+
+    /**
+     * Gauge animators. ArcLine is not a `LayoutElement`, so it never appears in
+     * the tree walk above: it is only reachable through `Arc.contents`. Dropping
+     * this pass silently counts 0 gauge animators and the budget assertion stops
+     * testing anything, so keep this second walk explicit.
+     */
+    private fun arcAnimatorCount(): Int =
+        elements.filterIsInstance<LayoutElementBuilders.Arc>()
+            .flatMap { it.contents }
+            .filterIsInstance<LayoutElementBuilders.ArcLine>()
+            .sumOf { line ->
+                listOf(
+                    line.length?.dynamicValue,
+                    line.thickness?.dynamicValue,
+                    line.color?.dynamicValue,
+                    line.modifiers?.opacity?.dynamicValue
+                ).count { specOf(it) != null }
+            }
+
+    private fun animatorCount(): Int = elementAnimatorCount() + arcAnimatorCount()
 
     private val arcLines: List<LayoutElementBuilders.ArcLine>
         get() = elements.filterIsInstance<LayoutElementBuilders.Arc>()
@@ -161,10 +195,15 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `tile spends at most two animators on the whole tree`() {
-        assertTrue(
-            "animators must stay within ${TileDesign.Motion.MAX_ANIMATORS}, found ${animatorCount()}",
-            animatorCount() <= TileDesign.Motion.MAX_ANIMATORS
+    fun `tile spends exactly the two gauge animators and nothing else`() {
+        val element = elementAnimatorCount()
+        val arcs = arcAnimatorCount()
+        assertEquals(
+            "expected exactly ${TileDesign.Motion.MAX_ANIMATORS} animators (value-arc length + " +
+                "track opacity); element props gave $element and ArcLine contents gave $arcs, " +
+                "total ${element + arcs}",
+            TileDesign.Motion.MAX_ANIMATORS,
+            element + arcs
         )
     }
 
