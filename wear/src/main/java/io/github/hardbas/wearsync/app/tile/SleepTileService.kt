@@ -1,6 +1,7 @@
 package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
+import android.util.Log
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
@@ -29,6 +30,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
  * Dedicated Circular Bezel Arc Sleep Tile with Celestial Starry Night Aesthetic & Nocturnal Temperature
@@ -56,7 +61,30 @@ class SleepTileService : TileService() {
 
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
+        val vitals = RingConnComplicationProvider.getLatestVitals(this)
+        if (vitals.sleepScore == 0) {
+            // No sleep data after midnight rollover — request phone to wake RingConn and sync
+            requestPhoneSync()
+        }
         TileService.getUpdater(this).requestUpdate(this.javaClass)
+    }
+
+    private fun requestPhoneSync() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val nodes = com.google.android.gms.wearable.Wearable.getNodeClient(this@SleepTileService)
+                    .connectedNodes
+                    .await()
+                for (node in nodes) {
+                    com.google.android.gms.wearable.Wearable.getMessageClient(this@SleepTileService)
+                        .sendMessage(node.id, "/action/sync_ringconn", byteArrayOf())
+                        .await()
+                    Log.d("SleepTile", "Requested phone sync from node ${node.displayName}")
+                }
+            } catch (e: Exception) {
+                Log.w("SleepTile", "Failed to request phone sync", e)
+            }
+        }
     }
 
     companion object {

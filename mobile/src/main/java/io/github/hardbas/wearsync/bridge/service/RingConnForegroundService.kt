@@ -38,7 +38,7 @@ class RingConnForegroundService : Service() {
 
                 // 1. Once-Per-Day Morning Smart Unlock Peek
                 if (RingConnAccessibilityService.isRunning()) {
-                    if (todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore > 0 || currentVitals.skinTempBaseline == 0f)) {
+                    if (todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore == 0 || currentVitals.skinTempBaseline == 0f)) {
                         prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
                         Log.i(TAG, "Morning Smart Unlock Peek triggered on epoch day $todayEpochDay (hour=$hour)")
                         scope.launch {
@@ -53,7 +53,7 @@ class RingConnForegroundService : Service() {
                         }
                         return
                     }
-                } else if (hour in 5..12 && todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore > 0 || currentVitals.skinTempBaseline == 0f)) {
+                } else if (hour in 5..12 && todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore == 0 || currentVitals.skinTempBaseline == 0f)) {
                     // Fallback when AccessibilityService is not yet enabled by user
                     prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
                     Log.i(TAG, "Morning user-present detected without Accessibility: waking RingConn fallback")

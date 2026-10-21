@@ -109,6 +109,9 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             Log.e(TAG, "Error starting foreground service on launch", e)
         }
 
+        // 1b. Ensure resilient WorkManager periodic sync (survives Android 14+ Doze)
+        schedulePeriodicSync()
+
         // 2. Solicitar permisos de runtime adicionales si faltan
         requestBridgePermissions()
 
@@ -1060,5 +1063,27 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "PhoneBridgeMain"
+    }
+
+    private fun schedulePeriodicSync() {
+        try {
+            val syncWork = androidx.work.PeriodicWorkRequestBuilder<io.github.hardbas.wearsync.bridge.service.RingConnSyncWorker>(
+                30, java.util.concurrent.TimeUnit.MINUTES,
+                5, java.util.concurrent.TimeUnit.MINUTES
+            ).setConstraints(
+                androidx.work.Constraints.Builder()
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            ).build()
+
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                io.github.hardbas.wearsync.bridge.service.RingConnSyncWorker.UNIQUE_WORK_NAME,
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                syncWork
+            )
+            Log.i(TAG, "WorkManager periodic sync scheduled (30 min interval)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule WorkManager periodic sync", e)
+        }
     }
 }
