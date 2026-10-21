@@ -22,3 +22,4 @@ captures
 *.keystore
 google-services.json
 design/_render/
+__pycache__/
