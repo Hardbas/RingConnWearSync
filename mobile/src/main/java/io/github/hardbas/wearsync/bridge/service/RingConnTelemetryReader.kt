@@ -92,12 +92,6 @@ object RingConnTelemetryReader {
     const val KEY_BASAL_CALORIES = "basalCalories"
     const val KEY_DISTANCE_KM = "distanceKm"
     const val KEY_RESPIRATORY_RATE = "respiratoryRate"
-    const val KEY_BP_SYSTOLIC_EST = "bpSystolicEst"
-    const val KEY_BP_DIASTOLIC_EST = "bpDiastolicEst"
-    const val KEY_BP_LOAD_PCT = "bpLoadPct"
-    const val KEY_DEHYDRATION_RISK = "dehydrationRiskScore"
-    const val KEY_MIGRAINE_RISK = "migraineRiskScore"
-    const val KEY_BODY_BALANCE_SCORE = "bodyBalanceScore"
     const val KEY_CACHE_EPOCH_DAY = "keyCacheEpochDay"
     const val KEY_PREV_DAY_STEPS = "keyPrevDaySteps"
     const val KEY_PREV_DAY_CALORIE = "keyPrevDayCalorie"
@@ -896,32 +890,6 @@ object RingConnTelemetryReader {
             existing.respiratoryRate
         }
 
-        // 8. Hidden libapp.so Gray Features (bpv4, health_alerts, balance)
-        val effHr = if (finalAvgHr > 0) finalAvgHr else (if (finalHr > 0) finalHr else 68)
-        val effRhr = if (finalMinHr > 0) finalMinHr else (if (restingBpm > 0) restingBpm else 60)
-        val effHrv = if (finalHrv > 0) finalHrv else 48
-        val effStress = if (stressScore > 0) stressScore else 32
-
-        val computedBpSys = (115.0 + ((effHr - 68) * 0.42) + ((50 - effHrv) * 0.22) + ((effStress - 30) * 0.14)).roundToInt().coerceIn(98, 152)
-        val computedBpDia = (74.0 + ((effRhr - 60) * 0.34) + ((50 - effHrv) * 0.15) + ((effStress - 30) * 0.09)).roundToInt().coerceIn(62, 98)
-        val highStrainRatio = if (todayHrSamples.isNotEmpty()) {
-            todayHrSamples.count { it.beatsPerMinute > (effRhr + 24) || it.beatsPerMinute > 92 }.toDouble() / todayHrSamples.size.toDouble()
-        } else 0.18
-        val computedBpLoadPct = ((highStrainRatio * 55.0) + ((computedBpSys - 108).coerceAtLeast(0) * 1.15)).roundToInt().coerceIn(6, 92)
-
-        val hrDriftFromRhr = ((if (finalHr > 0) finalHr else effHr) - effRhr).coerceIn(0, 35)
-        val hrvSuppression = (52 - effHrv).coerceIn(0, 35)
-        val computedDehydrationRisk = ((hrDriftFromRhr * 1.85) + (hrvSuppression * 1.10) + (finalCalories / 38.0)).roundToInt().coerceIn(8, 94)
-
-        val sleepDeficit = (85 - (if (finalSleep > 0) finalSleep else 78)).coerceIn(0, 40)
-        val computedMigraineRisk = ((effStress * 0.42) + ((55 - effHrv).coerceIn(0, 35) * 0.80) + (finalOdi * 2.0) + (sleepDeficit * 0.40)).roundToInt().coerceIn(6, 95)
-
-        val sleepAxis = if (finalSleep > 0) finalSleep else 76
-        val actAxis = if (actScore > 0) actScore else 68
-        val calmAxis = (100 - effStress).coerceIn(15, 96)
-        val vitalAxis = (72.0 + ((effHrv - 35).coerceIn(-15, 25) * 0.75) + (if (finalSpo2 >= 96 || finalSpo2 == 0) 8.0 else -6.0)).roundToInt().coerceIn(35, 98)
-        val computedBodyBalance = ((sleepAxis * 0.28) + (actAxis * 0.22) + (calmAxis * 0.25) + (vitalAxis * 0.25)).roundToInt().coerceIn(25, 98)
-
         val vitals = RingConnVitals(
             lastHeartRate = finalHr,
             avgHeartRate = finalAvgHr,
@@ -974,13 +942,7 @@ object RingConnTelemetryReader {
             stressNight = finalStressNight,
             basalCalories = finalBasalCalories,
             distanceKm = finalDistanceKm,
-            respiratoryRate = computedRespRate,
-            bpSystolicEst = computedBpSys,
-            bpDiastolicEst = computedBpDia,
-            bpLoadPct = computedBpLoadPct,
-            dehydrationRiskScore = computedDehydrationRisk,
-            migraineRiskScore = computedMigraineRisk,
-            bodyBalanceScore = computedBodyBalance
+            respiratoryRate = computedRespRate
         )
 
         saveToPreferences(context, vitals, source = sourceLabel)
@@ -1257,23 +1219,9 @@ object RingConnTelemetryReader {
             val minsSinceMid = (nowLocal.hour * 60 + nowLocal.minute).coerceAtLeast(60)
             val mergedBasalCal = maxOf(hcVitals?.basalCalories ?: 0, (minsSinceMid * 1.166).roundToInt().coerceIn(120, 1850), cached.basalCalories)
             val mergedDistKm = if (finalSteps > 0) (((finalSteps * 0.000762f) * 100f).roundToInt() / 100f) else (hcVitals?.distanceKm?.takeIf { it > 0f } ?: cached.distanceKm)
-            val mergedRespRate = hcVitals?.respiratoryRate?.takeIf { it > 0f } ?: (cached.respiratoryRate.takeIf { it > 0f } ?: if (finalAvgHr > 0) (((14.2f + ((finalAvgHr - 60).coerceIn(-12, 22) * 0.07f)) * 10f).roundToInt() / 10f) else 14.5f)
+            val mergedRespRate = hcVitals?.respiratoryRate?.takeIf { it > 0f } ?: (cached.respiratoryRate.takeIf { it > 0f } ?: if (finalAvgHr > 0) (((14.2f + ((finalAvgHr - 60).coerceIn(-12, 22) * 0.07f)) * 10f).roundToInt() / 10f) else 0f)
 
-            val effHr = if (finalAvgHr > 0) finalAvgHr else (if (finalHr > 0) finalHr else 68)
-            val effRhr = if (minHr > 0) minHr else baseNightHr
-            val effHrv = if (finalHrv > 0) finalHrv else 48
-            val mergedBpSys = hcVitals?.bpSystolicEst?.takeIf { it > 0 } ?: (115.0 + ((effHr - 68) * 0.42) + ((50 - effHrv) * 0.22) + ((refStress - 30) * 0.14)).roundToInt().coerceIn(98, 152)
-            val mergedBpDia = hcVitals?.bpDiastolicEst?.takeIf { it > 0 } ?: (74.0 + ((effRhr - 60) * 0.34) + ((50 - effHrv) * 0.15) + ((refStress - 30) * 0.09)).roundToInt().coerceIn(62, 98)
-            val mergedBpLoad = hcVitals?.bpLoadPct?.takeIf { it > 0 } ?: (18 + ((mergedBpSys - 108).coerceAtLeast(0) * 1.15).roundToInt()).coerceIn(6, 92)
-            val hrDrift = ((if (finalHr > 0) finalHr else effHr) - effRhr).coerceIn(0, 35)
-            val mergedDehydration = hcVitals?.dehydrationRiskScore?.takeIf { it > 0 } ?: ((hrDrift * 1.85) + ((52 - effHrv).coerceIn(0, 35) * 1.10) + (finalCalorie / 38.0)).roundToInt().coerceIn(8, 94)
             val mergedOdi = hcVitals?.odiDropsPerHour?.takeIf { it > 0f } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.odiDropsPerHour > 0f) widgetVitals.odiDropsPerHour else cached.odiDropsPerHour)
-            val mergedMigraine = hcVitals?.migraineRiskScore?.takeIf { it > 0 } ?: ((refStress * 0.42) + ((55 - effHrv).coerceIn(0, 35) * 0.80) + (mergedOdi * 2.0) + ((85 - (if (finalSleepScore > 0) finalSleepScore else 78)).coerceIn(0, 40) * 0.40)).roundToInt().coerceIn(6, 95)
-            val sAxis = if (finalSleepScore > 0) finalSleepScore else 76
-            val aAxis = if (finalActScore > 0) finalActScore else 68
-            val cAxis = (100 - refStress).coerceIn(15, 96)
-            val vAxis = (72.0 + ((effHrv - 35).coerceIn(-15, 25) * 0.75) + (if (finalSpo2 >= 96 || finalSpo2 == 0) 8.0 else -6.0)).roundToInt().coerceIn(35, 98)
-            val mergedBodyBalance = hcVitals?.bodyBalanceScore?.takeIf { it > 0 } ?: ((sAxis * 0.28) + (aAxis * 0.22) + (cAxis * 0.25) + (vAxis * 0.25)).roundToInt().coerceIn(25, 98)
 
             val merged = widgetVitals.copy(
                 lastHeartRate = finalHr,
@@ -1323,13 +1271,7 @@ object RingConnTelemetryReader {
                 stressNight = mergedStressNight,
                 basalCalories = mergedBasalCal,
                 distanceKm = mergedDistKm,
-                respiratoryRate = mergedRespRate,
-                bpSystolicEst = mergedBpSys,
-                bpDiastolicEst = mergedBpDia,
-                bpLoadPct = mergedBpLoad,
-                dehydrationRiskScore = mergedDehydration,
-                migraineRiskScore = mergedMigraine,
-                bodyBalanceScore = mergedBodyBalance
+                respiratoryRate = mergedRespRate
             )
             val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
             saveToPreferences(context, merged, source = sourceLabel)
@@ -1364,13 +1306,7 @@ object RingConnTelemetryReader {
                 stressNight = if (hcVitals.stressNight > 0) hcVitals.stressNight else cached.stressNight,
                 basalCalories = if (hcVitals.basalCalories > 0) hcVitals.basalCalories else cached.basalCalories,
                 distanceKm = if (hcVitals.distanceKm > 0f) hcVitals.distanceKm else cached.distanceKm,
-                respiratoryRate = if (hcVitals.respiratoryRate > 0f) hcVitals.respiratoryRate else cached.respiratoryRate,
-                bpSystolicEst = if (hcVitals.bpSystolicEst > 0) hcVitals.bpSystolicEst else cached.bpSystolicEst,
-                bpDiastolicEst = if (hcVitals.bpDiastolicEst > 0) hcVitals.bpDiastolicEst else cached.bpDiastolicEst,
-                bpLoadPct = if (hcVitals.bpLoadPct > 0) hcVitals.bpLoadPct else cached.bpLoadPct,
-                dehydrationRiskScore = if (hcVitals.dehydrationRiskScore > 0) hcVitals.dehydrationRiskScore else cached.dehydrationRiskScore,
-                migraineRiskScore = if (hcVitals.migraineRiskScore > 0) hcVitals.migraineRiskScore else cached.migraineRiskScore,
-                bodyBalanceScore = if (hcVitals.bodyBalanceScore > 0) hcVitals.bodyBalanceScore else cached.bodyBalanceScore
+                respiratoryRate = if (hcVitals.respiratoryRate > 0f) hcVitals.respiratoryRate else cached.respiratoryRate
             )
             return@coroutineScope finalHcVitals
         }
@@ -1491,12 +1427,6 @@ object RingConnTelemetryReader {
             putInt(KEY_BASAL_CALORIES, vitals.basalCalories)
             putFloat(KEY_DISTANCE_KM, vitals.distanceKm)
             putFloat(KEY_RESPIRATORY_RATE, if (vitals.respiratoryRate > 0f) vitals.respiratoryRate else prefs.getFloat(KEY_RESPIRATORY_RATE, 0.0f))
-            putInt(KEY_BP_SYSTOLIC_EST, if (vitals.bpSystolicEst > 0) vitals.bpSystolicEst else prefs.getInt(KEY_BP_SYSTOLIC_EST, 0))
-            putInt(KEY_BP_DIASTOLIC_EST, if (vitals.bpDiastolicEst > 0) vitals.bpDiastolicEst else prefs.getInt(KEY_BP_DIASTOLIC_EST, 0))
-            putInt(KEY_BP_LOAD_PCT, if (vitals.bpLoadPct > 0) vitals.bpLoadPct else prefs.getInt(KEY_BP_LOAD_PCT, 0))
-            putInt(KEY_DEHYDRATION_RISK, if (vitals.dehydrationRiskScore > 0) vitals.dehydrationRiskScore else prefs.getInt(KEY_DEHYDRATION_RISK, 0))
-            putInt(KEY_MIGRAINE_RISK, if (vitals.migraineRiskScore > 0) vitals.migraineRiskScore else prefs.getInt(KEY_MIGRAINE_RISK, 0))
-            putInt(KEY_BODY_BALANCE_SCORE, if (vitals.bodyBalanceScore > 0) vitals.bodyBalanceScore else prefs.getInt(KEY_BODY_BALANCE_SCORE, 0))
             putString(KEY_LAST_SYNC_SOURCE, source)
             putString(KEY_LAST_SYNC_TIME_STR, timeStr)
             apply()
@@ -1557,13 +1487,7 @@ object RingConnTelemetryReader {
             stressNight = prefs.getInt(KEY_STRESS_NIGHT, 0),
             basalCalories = prefs.getInt(KEY_BASAL_CALORIES, 0),
             distanceKm = prefs.getFloat(KEY_DISTANCE_KM, 0.0f),
-            respiratoryRate = prefs.getFloat(KEY_RESPIRATORY_RATE, 0.0f),
-            bpSystolicEst = prefs.getInt(KEY_BP_SYSTOLIC_EST, 0),
-            bpDiastolicEst = prefs.getInt(KEY_BP_DIASTOLIC_EST, 0),
-            bpLoadPct = prefs.getInt(KEY_BP_LOAD_PCT, 0),
-            dehydrationRiskScore = prefs.getInt(KEY_DEHYDRATION_RISK, 0),
-            migraineRiskScore = prefs.getInt(KEY_MIGRAINE_RISK, 0),
-            bodyBalanceScore = prefs.getInt(KEY_BODY_BALANCE_SCORE, 0)
+            respiratoryRate = prefs.getFloat(KEY_RESPIRATORY_RATE, 0.0f)
         )
     }
 

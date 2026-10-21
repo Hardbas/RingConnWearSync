@@ -154,6 +154,25 @@ To ensure total transparency, the following table details the technical origin o
 | **Ring Battery Level** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (RingConn does not export Battery to Health Connect) |
 | **Skin Temperature** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Nocturnal baseline variation reading from widget |
 
+### Estimated values (heuristic, not measured)
+
+Some tiles and detail cards show values the ring never measures directly. They are computed from
+the metrics above by fixed heuristics and are always marked with a `· EST` chip (or `≈` on tiles).
+They are indicators, not clinical measurements:
+
+| Value | Derivation | Notes |
+|---|---|---|
+| **Basal calories** | elapsed minutes × 1.166 kcal | Does not use body weight, age or sex |
+| **Distance (km)** | steps × 0.000762 | Fixed 76.2 cm stride for every user |
+| **Respiratory rate** | 14.2 + (avg HR − 60) × 0.07 − (avg HRV − 45) × 0.02 | Derived from heart rate and HRV |
+| **Heart rate per sleep stage** | nightly minimum HR + 1 / 4 / 6 BPM | Stage-correlation heuristic, not stage-scoped measurement |
+| **Sleep efficiency** | asleep ÷ in-bed minutes, else sleep score + 5 | Derived from stage durations |
+| **Circadian stress blocks** | block HR mean vs nightly baseline, blended with daily stress | 4 × 6 h derived blocks |
+
+Values that cannot be derived are rendered as `--` instead of being invented. Earlier releases also
+published estimated blood pressure, dehydration risk, migraine risk and body-balance scores. Those
+were removed: a fabricated clinical figure is indistinguishable from a measurement on a watch face.
+
 ---
 
 ## ⚖️ Legal & Trademark Notice

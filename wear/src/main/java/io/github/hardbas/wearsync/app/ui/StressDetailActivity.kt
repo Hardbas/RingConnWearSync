@@ -1640,13 +1640,10 @@ private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
 @Composable
 private fun CircadianStressBlocksCard(vitals: RingConnVitals) {
     val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
-    val curHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
-    val base = if (vitals.stressScore > 0) vitals.stressScore else 28
-
-    val dawnVal = if (vitals.stressDawn > 0) vitals.stressDawn else (base * 0.68f).toInt().coerceIn(10, 90)
-    val mornVal = if (vitals.stressMorning > 0) vitals.stressMorning else if (curHour >= 6) (base * 0.94f).toInt().coerceIn(12, 92) else 0
-    val aftVal = if (vitals.stressAfternoon > 0) vitals.stressAfternoon else if (curHour >= 12) (base * 1.08f).toInt().coerceIn(14, 94) else 0
-    val nightVal = if (vitals.stressNight > 0) vitals.stressNight else if (curHour >= 18) (base * 0.86f).toInt().coerceIn(12, 90) else 0
+    val dawnVal = vitals.stressDawn
+    val mornVal = vitals.stressMorning
+    val aftVal = vitals.stressAfternoon
+    val nightVal = vitals.stressNight
 
     fun blockColor(score: Int): Color = when {
         score <= 0 -> LabelSilver
@@ -1705,7 +1702,7 @@ private fun CircadianStressBlocksCard(vitals: RingConnVitals) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "4x6h",
+                        text = "4x6h · EST",
                         color = StressBalanced,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold

@@ -608,7 +608,7 @@ fun SleepDetailContent(
             // =========================================================================
             item {
                 val isSpanish = remember { Locale.getDefault().language.startsWith("es") }
-                val effPct = if (vitals.sleepEfficiencyPct > 0) vitals.sleepEfficiencyPct else if (hasSleepData) 89 else 0
+                val effPct = vitals.sleepEfficiencyPct
                 val deepHr = vitals.hrPhaseDeep
                 val lightHr = vitals.hrPhaseLight
                 val remHr = vitals.hrPhaseRem
@@ -656,7 +656,7 @@ fun SleepDetailContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (effPct > 0) (if (isSpanish) "Efic. $effPct%" else "Eff. $effPct%") else "--",
+                                    text = if (effPct > 0) (if (isSpanish) "Efic. $effPct% · EST" else "Eff. $effPct% · EST") else "--",
                                     fontSize = 9.sp,
                                     style = TabularNums,
                                     color = effColor,

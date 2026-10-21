@@ -284,7 +284,7 @@ class DailySummaryTileService : TileService() {
                     .build()
 
                 val distanceText = LayoutElementBuilders.Text.Builder()
-                    .setText(String.format(Locale.US, "%.1f km", vitals.distanceKm))
+                    .setText(String.format(Locale.US, "\u2248 %.1f km", vitals.distanceKm))
                     .setMaxLines(1)
                     .setFontStyle(
                         LayoutElementBuilders.FontStyle.Builder()

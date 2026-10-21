@@ -10,8 +10,15 @@
 *.aab
 captures
 .cxx
+# Binary image assets are never committed: extracted or derived images of
+# unclear provenance are redistributed as original vector drawables instead.
+# See the Legal & Trademark Notice in README.md.
 *.png
+*.webp
+*.jpg
+*.jpeg
 .opencode/
 *.jks
 *.keystore
 google-services.json
+design/_render/

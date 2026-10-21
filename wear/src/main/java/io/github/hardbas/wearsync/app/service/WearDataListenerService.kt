@@ -217,12 +217,6 @@ class WearDataListenerService : WearableListenerService() {
             val basalCalories = if (dataMap.containsKey("basal_calories")) dataMap.getInt("basal_calories") else 0
             val distanceKm = if (dataMap.containsKey("distance_km")) dataMap.getFloat("distance_km") else 0.0f
             val respiratoryRate = if (dataMap.containsKey("respiratory_rate")) dataMap.getFloat("respiratory_rate") else 0.0f
-            val bpSystolicEst = if (dataMap.containsKey("bp_systolic_est")) dataMap.getInt("bp_systolic_est") else 0
-            val bpDiastolicEst = if (dataMap.containsKey("bp_diastolic_est")) dataMap.getInt("bp_diastolic_est") else 0
-            val bpLoadPct = if (dataMap.containsKey("bp_load_pct")) dataMap.getInt("bp_load_pct") else 0
-            val dehydrationRiskScore = if (dataMap.containsKey("dehydration_risk_score")) dataMap.getInt("dehydration_risk_score") else 0
-            val migraineRiskScore = if (dataMap.containsKey("migraine_risk_score")) dataMap.getInt("migraine_risk_score") else 0
-            val bodyBalanceScore = if (dataMap.containsKey("body_balance_score")) dataMap.getInt("body_balance_score") else 0
 
             return RingConnVitals(
                 lastHeartRate = hrLast,
@@ -276,13 +270,7 @@ class WearDataListenerService : WearableListenerService() {
                 stressNight = stressNight,
                 basalCalories = basalCalories,
                 distanceKm = distanceKm,
-                respiratoryRate = respiratoryRate,
-                bpSystolicEst = bpSystolicEst,
-                bpDiastolicEst = bpDiastolicEst,
-                bpLoadPct = bpLoadPct,
-                dehydrationRiskScore = dehydrationRiskScore,
-                migraineRiskScore = migraineRiskScore,
-                bodyBalanceScore = bodyBalanceScore
+                respiratoryRate = respiratoryRate
             )
         }
 
@@ -339,13 +327,7 @@ class WearDataListenerService : WearableListenerService() {
                 stressNight = json.optInt("stress_night", 0),
                 basalCalories = json.optInt("basal_calories", 0),
                 distanceKm = json.optDouble("distance_km", 0.0).toFloat(),
-                respiratoryRate = json.optDouble("respiratory_rate", 0.0).toFloat(),
-                bpSystolicEst = json.optInt("bp_systolic_est", 0),
-                bpDiastolicEst = json.optInt("bp_diastolic_est", 0),
-                bpLoadPct = json.optInt("bp_load_pct", 0),
-                dehydrationRiskScore = json.optInt("dehydration_risk_score", 0),
-                migraineRiskScore = json.optInt("migraine_risk_score", 0),
-                bodyBalanceScore = json.optInt("body_balance_score", 0)
+                respiratoryRate = json.optDouble("respiratory_rate", 0.0).toFloat()
             )
         }
     }

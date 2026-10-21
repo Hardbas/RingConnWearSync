@@ -81,12 +81,6 @@ class WearDataSyncService(private val context: Context) {
                 dataMap.putInt(KEY_BASAL_CALORIES, vitals.basalCalories)
                 dataMap.putFloat(KEY_DISTANCE_KM, vitals.distanceKm)
                 dataMap.putFloat(KEY_RESPIRATORY_RATE, vitals.respiratoryRate)
-                dataMap.putInt(KEY_BP_SYSTOLIC_EST, vitals.bpSystolicEst)
-                dataMap.putInt(KEY_BP_DIASTOLIC_EST, vitals.bpDiastolicEst)
-                dataMap.putInt(KEY_BP_LOAD_PCT, vitals.bpLoadPct)
-                dataMap.putInt(KEY_DEHYDRATION_RISK, vitals.dehydrationRiskScore)
-                dataMap.putInt(KEY_MIGRAINE_RISK, vitals.migraineRiskScore)
-                dataMap.putInt(KEY_BODY_BALANCE_SCORE, vitals.bodyBalanceScore)
             }.asPutDataRequest().setUrgent()
 
             dataClient.putDataItem(request).await()
@@ -150,12 +144,6 @@ class WearDataSyncService(private val context: Context) {
                 put(KEY_BASAL_CALORIES, vitals.basalCalories)
                 put(KEY_DISTANCE_KM, vitals.distanceKm.toDouble())
                 put(KEY_RESPIRATORY_RATE, vitals.respiratoryRate.toDouble())
-                put(KEY_BP_SYSTOLIC_EST, vitals.bpSystolicEst)
-                put(KEY_BP_DIASTOLIC_EST, vitals.bpDiastolicEst)
-                put(KEY_BP_LOAD_PCT, vitals.bpLoadPct)
-                put(KEY_DEHYDRATION_RISK, vitals.dehydrationRiskScore)
-                put(KEY_MIGRAINE_RISK, vitals.migraineRiskScore)
-                put(KEY_BODY_BALANCE_SCORE, vitals.bodyBalanceScore)
             }.toString().toByteArray(Charsets.UTF_8)
 
             val nodes = nodeClient.connectedNodes.await()
@@ -193,9 +181,7 @@ class WearDataSyncService(private val context: Context) {
                 "${vitals.napMinutes}_${vitals.bedtimeWindow}_${vitals.standHours}_" +
                 "${vitals.hrPhaseDeep}_${vitals.hrPhaseRem}_${vitals.hrPhaseLight}_${vitals.sleepEfficiencyPct}_" +
                 "${vitals.stressDawn}_${vitals.stressMorning}_${vitals.stressAfternoon}_${vitals.stressNight}_" +
-                "${vitals.basalCalories}_${vitals.distanceKm}_${vitals.respiratoryRate}_" +
-                "${vitals.bpSystolicEst}_${vitals.bpDiastolicEst}_${vitals.bpLoadPct}_" +
-                "${vitals.dehydrationRiskScore}_${vitals.migraineRiskScore}_${vitals.bodyBalanceScore}"
+                "${vitals.basalCalories}_${vitals.distanceKm}_${vitals.respiratoryRate}"
         }
 
         const val PATH_RINGCONN_VITALS = "/ringconn/vitals"
@@ -254,11 +240,5 @@ class WearDataSyncService(private val context: Context) {
         const val KEY_BASAL_CALORIES = "basal_calories"
         const val KEY_DISTANCE_KM = "distance_km"
         const val KEY_RESPIRATORY_RATE = "respiratory_rate"
-        const val KEY_BP_SYSTOLIC_EST = "bp_systolic_est"
-        const val KEY_BP_DIASTOLIC_EST = "bp_diastolic_est"
-        const val KEY_BP_LOAD_PCT = "bp_load_pct"
-        const val KEY_DEHYDRATION_RISK = "dehydration_risk_score"
-        const val KEY_MIGRAINE_RISK = "migraine_risk_score"
-        const val KEY_BODY_BALANCE_SCORE = "body_balance_score"
     }
 }

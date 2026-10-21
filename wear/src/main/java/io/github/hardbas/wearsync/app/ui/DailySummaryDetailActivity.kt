@@ -1040,12 +1040,10 @@ private fun StandHoursCard(
 @Composable
 private fun TotalMetabolismAndDistanceCard(vitals: RingConnVitals) {
     val isSpanish = remember { java.util.Locale.getDefault().language.startsWith("es") }
-    val curCal = java.util.Calendar.getInstance()
-    val minsNow = (curCal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + curCal.get(java.util.Calendar.MINUTE)).coerceAtLeast(60)
-    val basal = if (vitals.basalCalories > 0) vitals.basalCalories else (minsNow * 1.166).toInt().coerceIn(120, 1850)
+    val basal = vitals.basalCalories
     val active = vitals.liveCalorie.coerceAtLeast(0)
     val totalTdee = basal + active
-    val distKm = if (vitals.distanceKm > 0f) vitals.distanceKm else ((vitals.liveSteps * 0.000762f * 100f).toInt() / 100f)
+    val distKm = vitals.distanceKm
 
     Box(
         modifier = Modifier
@@ -1088,7 +1086,7 @@ private fun TotalMetabolismAndDistanceCard(vitals: RingConnVitals) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "TDEE",
+                        text = "TDEE · EST",
                         fontSize = 9.sp,
                         color = LimeSteps,
                         fontWeight = FontWeight.Bold

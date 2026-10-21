@@ -295,12 +295,6 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             val basalCalories = prefs.getInt("basal_calories", 0)
             val distanceKm = prefs.getFloat("distance_km", 0.0f)
             val respiratoryRate = prefs.getFloat("respiratory_rate", 0.0f)
-            val bpSystolicEst = prefs.getInt("bp_systolic_est", 0)
-            val bpDiastolicEst = prefs.getInt("bp_diastolic_est", 0)
-            val bpLoadPct = prefs.getInt("bp_load_pct", 0)
-            val dehydrationRiskScore = prefs.getInt("dehydration_risk_score", 0)
-            val migraineRiskScore = prefs.getInt("migraine_risk_score", 0)
-            val bodyBalanceScore = prefs.getInt("body_balance_score", 0)
 
             return RingConnVitals(
                 lastHeartRate = hr,
@@ -354,13 +348,7 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 stressNight = stressNight,
                 basalCalories = basalCalories,
                 distanceKm = distanceKm,
-                respiratoryRate = respiratoryRate,
-                bpSystolicEst = bpSystolicEst,
-                bpDiastolicEst = bpDiastolicEst,
-                bpLoadPct = bpLoadPct,
-                dehydrationRiskScore = dehydrationRiskScore,
-                migraineRiskScore = migraineRiskScore,
-                bodyBalanceScore = bodyBalanceScore
+                respiratoryRate = respiratoryRate
             )
         }
 
@@ -434,12 +422,6 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putInt("basal_calories", vitals.basalCalories)
                 putFloat("distance_km", vitals.distanceKm)
                 putFloat("respiratory_rate", vitals.respiratoryRate)
-                putInt("bp_systolic_est", vitals.bpSystolicEst)
-                putInt("bp_diastolic_est", vitals.bpDiastolicEst)
-                putInt("bp_load_pct", vitals.bpLoadPct)
-                putInt("dehydration_risk_score", vitals.dehydrationRiskScore)
-                putInt("migraine_risk_score", vitals.migraineRiskScore)
-                putInt("body_balance_score", vitals.bodyBalanceScore)
                 apply()
             }
 
