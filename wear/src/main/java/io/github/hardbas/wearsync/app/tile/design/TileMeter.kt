@@ -65,7 +65,7 @@ object TileMeter {
         return row.build()
     }
 
-    /** Continuous bar: a track with a static-width fill. */
+    /** Continuous bar: a track with a static-width fill drawn from the left edge. */
     fun progress(
         fraction: Float,
         accent: Int,
@@ -75,6 +75,9 @@ object TileMeter {
         return LayoutElementBuilders.Box.Builder()
             .setWidth(dp(widthDp))
             .setHeight(dp(TileDesign.Chrome.LADDER_TRACK_HEIGHT))
+            // The fill's position is decided by the PARENT box: aligning the child
+            // only aligns the child's own contents and silently centres the fill.
+            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
                     .setBackground(
@@ -93,7 +96,6 @@ object TileMeter {
                 LayoutElementBuilders.Box.Builder()
                     .setWidth(dp(widthDp * safe))
                     .setHeight(dp(TileDesign.Chrome.LADDER_TRACK_HEIGHT))
-                    .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_START)
                     .setModifiers(
                         ModifiersBuilders.Modifiers.Builder()
                             .setBackground(

@@ -50,3 +50,13 @@ L7 — Costura de testabilidad: los tiles no eran testeables en la JVM porque `b
 L8 — Falso verde corregido: el contador de animadores de los tests de HR y Vitals recorría el árbol de elementos con una rama `is ArcLine` siempre falsa, así que no contaba el arco. Se reemplazó por dos recorridos (árbol + `Arc.contents`, incluido `ArcModifiers.opacity`) y la aserción pasó a `assertEquals(2, …)`. El worker probó que la aserción puede fallar mutando la expectativa a 3.
 
 L9 — Entorno: `adb devices` vacío en toda la sesión. Ninguna verificación visual en el `SM-L500`. Todo lo verificado es estructural (74→75 tests verdes, contrato de diseño, auditoría de fuente) más el build release.
+
+L10 — Verificación en hardware (SM-L500, `192.168.0.15:38557`, Android 16). Instalado 1.9.16 (code 37) y luego code 38. Confirmado con capturas y medición de píxeles:
+- Gradiente de fondo (`Background.brush`): **funciona**. Cada tile con su tono.
+- `STROKE_CAP_ROUND`: **funciona**, las puntas se ven redondeadas.
+- Héroe 40sp: **no trunca** en ninguno de los 4 tiles vistos (Vitals, Sueño, Pasos, Estrés).
+- Segundo gráfico por métrica (barra SpO2, escalera 4 niveles, barra de meta, cielo con luna): **funciona**.
+- Geometría del arco: correcta. La convención del renderer es 0° a las 3 en punto, sentido horario; con anchor 140° el gauge arranca a las 7:40 y el hueco de 100° queda al fondo, como One UI.
+- Respiración del bisel: la opacidad dinámica **sí se aplica**, pero la banda 0,16–0,34 movía el track sólo 0,61 unidades de luminancia con el arco como control estable (±0,05). Se subió a 0,45–0,95 y la medición pasó a 2,00 en tres frames consecutivos.
+
+L11 — Bug encontrado por la verificación en hardware y corregido: `TileMeter.progress` ponía `setHorizontalAlignment(HORIZONTAL_ALIGN_START)` en el hijo, que sólo alinea los hijos del hijo; la barra llenaba desde el centro. La alineación va en el Box contenedor. Se agregó test de contrato y se probó por mutación (con CENTER falla).

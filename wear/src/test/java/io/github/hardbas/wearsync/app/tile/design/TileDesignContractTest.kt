@@ -209,6 +209,22 @@ class TileDesignContractTest {
     }
 
     @Test
+    fun `progress fill grows from the left edge, not from the centre`() {
+        val track = TileMeter.progress(fraction = 0.25f, accent = pin)
+        assertEquals(
+            "the parent box positions the fill; aligning the child only centres it",
+            LayoutElementBuilders.HORIZONTAL_ALIGN_START,
+            track.horizontalAlignment?.value
+        )
+        val fill = track.contents.filterIsInstance<LayoutElementBuilders.Box>().single()
+        assertEquals(
+            (TileDesign.Chrome.LADDER_WIDTH * 0.25f).toDouble(),
+            ((fill.width as? DimensionBuilders.DpProp)?.value ?: -1f).toDouble(),
+            0.001
+        )
+    }
+
+    @Test
     fun `meter widths are static so the renderer never rejects the layout`() {
         val roots = listOf(
             TileMeter.ladder(count = 5, activeIndex = 2, accent = pin),
