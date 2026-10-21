@@ -197,9 +197,15 @@ object TileDesign {
                 .setRepeatable(AnimationParameterBuilders.Repeatable.INFINITE_REPEATABLE_WITH_REVERSE)
                 .build()
 
-        /** Breathing band for the bezel track. */
-        const val BREATHE_MIN = 0.16f
-        const val BREATHE_MAX = 0.34f
+        /**
+         * Breathing band for the bezel track, expressed as a multiplier of the
+         * track's own 12% alpha. Measured on device: a 0.16-0.34 band moved the
+         * rim by 0.6 luminance units, which no one can see. This band is the
+         * narrowest range that still reads as movement on the SM-L500 while the
+         * rim stays quieter than the value arc.
+         */
+        const val BREATHE_MIN = 0.45f
+        const val BREATHE_MAX = 0.95f
     }
 }
 
