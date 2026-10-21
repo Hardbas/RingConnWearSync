@@ -40,3 +40,13 @@ L2 — «bueno arregla todo lo que enconraste pues»
 L3 — Hallazgos aceptados por L2 (inventario que define el alcance): (1) jerarquía plana, héroe 30sp; (2) sin letterSpacing ni `tnum`; (3) profundidad One UI perdida, `oneui_bg_*_capsule.xml` huérfanos y `rootBox` sin fondo; (4) cromo excesivo, hasta 4 chips por tile; (5) movimiento mal ubicado, 4 de 5 tiles sólo animan keyed por estado; (6) riesgo de repetición del atardecer de Sleep cada 60s; (7) 57 ARGB sueltos entre 5 archivos; (8) puntas de arco sin redondear; (9) arco plano sin gradiente; (10) una sola plantilla para 5 tiles.
 
 L4 — Evidencia de entorno: `./gradlew :wear:compileDebugKotlin` verde en 4s. `adb devices` vacío → no hay verificación en el `SM-L500` disponible en esta sesión; el cierre lo reporta como pendiente y no se inventa.
+
+L5 — Decisión de implementación: el fondo con gradiente NO se hizo con `Image` + VectorDrawable. Se verificó contra `protolayout-1.3.0` (la versión que resuelve el proyecto, no 1.2.1) que `ModifiersBuilders.Background.Builder` acepta `setBrush`, y que `LinearGradient` existe. El fondo sale de `TileBackdrop` (tokens), sin XML duplicando la paleta. Los 5 `tile_bg_*.xml` se crearon y se borraron en el mismo turno.
+
+L6 — Trampa de API encontrada durante la calibración: `Repeatable` sin `iterations` es infinito por protocolo y serializa bien, pero el getter de Kotlin `getIterations()` lanza `IllegalStateException: Repeatable has infinite iteration.`. El `toString()` del `Repeatable` también lanza. Consecuencia: los tests no pueden inspeccionar `iterations` ni imprimir el repeatable; `hasInfiniteIteration()` sí es seguro. El pulso que ya estaba en producción no era un bug.
+
+L7 — Costura de testabilidad: los tiles no eran testeables en la JVM porque `buildTile` recibía `Context` sólo para `getString`. Se introdujo `TileStrings` + `AndroidTileStrings` y un parámetro `packageName` explícito. Eso hizo posible el contrato por tile y eliminó el `PACKAGE_NAME` hardcodeado.
+
+L8 — Falso verde corregido: el contador de animadores de los tests de HR y Vitals recorría el árbol de elementos con una rama `is ArcLine` siempre falsa, así que no contaba el arco. Se reemplazó por dos recorridos (árbol + `Arc.contents`, incluido `ArcModifiers.opacity`) y la aserción pasó a `assertEquals(2, …)`. El worker probó que la aserción puede fallar mutando la expectativa a 3.
+
+L9 — Entorno: `adb devices` vacío en toda la sesión. Ninguna verificación visual en el `SM-L500`. Todo lo verificado es estructural (74→75 tests verdes, contrato de diseño, auditoría de fuente) más el build release.

@@ -23,3 +23,6 @@ captures
 google-services.json
 design/_render/
 __pycache__/
+
+# Kotlin 2.x build artifact
+.kotlin/
