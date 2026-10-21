@@ -22,8 +22,8 @@ object RingConnTelemetryParser {
     private val COMPOSITE_ACT_REGEX = Regex("""(?i)^(?:activity|actividad)\s+(\d{1,3})$""")
     private val COMPOSITE_STRESS_REGEX = Regex("""(?i)^(?:stress|estrés|estres)\s+(\d{1,3})$""")
     private val COMPOSITE_BAT_REGEX = Regex("""(?i)^(?:battery|batería|bateria)\s+(?:%)?(\d{1,3})(?:%)?$""")
-    private val SIGNED_TEMP_OFFSET_REGEX = Regex("""(?i)^([+-]\d{1,2}(?:\.\d{1,2})?)(?:°C)?$""")
-    private val BASELINE_TEMP_REGEX = Regex("""(?i)\b(3[4-9]\.\d{1,2}|40\.0)\s*°?C?\b""")
+    private val SIGNED_TEMP_OFFSET_REGEX = Regex("""(?i)^([+-]?\d{1,2}(?:[.,]\d{1,2})?)\s*°?\s*C?$""")
+    private val BASELINE_TEMP_REGEX = Regex("""(?i)\b(3[4-9](?:[.,]\d{1,2})?|40(?:[.,]0)?)\s*°?\s*C?\b""")
     private val REM_REGEX = Regex("""(?i)\brem\b""")
 
     private val IGNORED_TITLES = setOf(
@@ -350,33 +350,42 @@ object RingConnTelemetryParser {
                 }
             }
 
-            // Temperature Header & Values (e.g. "Skin Temperature", "Temperatura cutánea", "Temperatura")
-            if (lower.contains("temperature") || lower.contains("temperatura") || lower.contains("cutánea") || lower.contains("cutanea") || lower.contains("skin temp")) {
-                val next = cleanTokens.getOrNull(i + 1)
-                val prev = cleanTokens.getOrNull(i - 1)
-                val candidate = next ?: prev
-                if (candidate != null && candidate != "--") {
-                    SIGNED_TEMP_OFFSET_REGEX.find(candidate)?.let {
-                        it.groupValues[1].toFloatOrNull()?.let { offsetVal ->
-                            if (offsetVal in -5.0f..5.0f) skinTempOffset = offsetVal
+            // Temperature Header & Values (e.g. "Skin Temperature", "Temperatura cutánea", "Temperatura de la piel")
+            if (lower.contains("temperature") || lower.contains("temperatura") || lower.contains("cutánea") || lower.contains("cutanea") || lower.contains("skin temp") || lower.contains("piel")) {
+                val candidates = listOfNotNull(
+                    cleanTokens.getOrNull(i + 1),
+                    cleanTokens.getOrNull(i + 2),
+                    cleanTokens.getOrNull(i + 3),
+                    cleanTokens.getOrNull(i - 1)
+                )
+                for (cand in candidates) {
+                    if (cand != "--") {
+                        SIGNED_TEMP_OFFSET_REGEX.find(cand)?.let {
+                            it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { offsetVal ->
+                                if (offsetVal in -5.0f..5.0f) skinTempOffset = offsetVal
+                            }
                         }
                     }
                 }
             }
 
-            // Standalone signed temperature offset (e.g. "+0.2°C", "-0.1°C", "+0.2", "-0.1")
+            // Standalone signed temperature offset (e.g. "+0.2°C", "-0.1°C", "+0,2 °C", "-0,1 °C")
             SIGNED_TEMP_OFFSET_REGEX.find(token)?.let {
-                it.groupValues[1].toFloatOrNull()?.let { offsetVal ->
+                it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { offsetVal ->
                     if (offsetVal in -5.0f..5.0f) skinTempOffset = offsetVal
                 }
             }
 
-            // Baseline temperature (e.g. "Baseline 36.1°C", "Línea base 36.1°C")
-            if (lower == "baseline" || lower == "línea base" || lower == "linea base") {
-                val next = cleanTokens.getOrNull(i + 1)
-                if (next != null) {
-                    BASELINE_TEMP_REGEX.find(next)?.let {
-                        it.groupValues[1].toFloatOrNull()?.let { baseVal ->
+            // Baseline temperature (e.g. "Baseline 36.1°C", "Línea base 36.1°C", "Línea base: 36,4 °C")
+            if (lower == "baseline" || lower == "línea base" || lower == "linea base" || lower.contains("base")) {
+                val candidates = listOfNotNull(
+                    cleanTokens.getOrNull(i + 1),
+                    cleanTokens.getOrNull(i + 2),
+                    cleanTokens.getOrNull(i - 1)
+                )
+                for (cand in candidates) {
+                    BASELINE_TEMP_REGEX.find(cand)?.let {
+                        it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { baseVal ->
                             if (baseVal in 34.0f..40.0f) skinTempBaseline = baseVal
                         }
                     }

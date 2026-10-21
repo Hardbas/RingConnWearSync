@@ -64,6 +64,21 @@ class RingConnVitalsMergeTest {
     }
 
     @Test
+    fun parser_supportsSpanishLocaleCommaDecimalsAndVariations() {
+        // Spanish decimal comma and spaces
+        val tokensEs1 = listOf("Temperatura de la piel", "+0,2 °C", "Línea base", "36,4 °C")
+        val parsed1 = RingConnTelemetryParser.parseTokens(tokensEs1, RingConnVitals())
+        assertEquals(0.2f, parsed1.skinTempOffset, 0.01f)
+        assertEquals(36.4f, parsed1.skinTempBaseline, 0.01f)
+
+        // Negative offset with comma and cutánea
+        val tokensEs2 = listOf("Temperatura cutánea", "-0,4 °C")
+        val parsed2 = RingConnTelemetryParser.parseTokens(tokensEs2, RingConnVitals())
+        assertEquals(-0.4f, parsed2.skinTempOffset, 0.01f)
+        assertEquals(36.5f, parsed2.skinTempBaseline, 0.01f)
+    }
+
+    @Test
     fun signatureFields_detectChangesProperly() {
         fun makeSignature(vitals: RingConnVitals): String = WearDataSyncService.computeSignature(vitals)
 

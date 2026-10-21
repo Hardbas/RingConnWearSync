@@ -778,21 +778,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             syncStatusText.text = "Consultando telemetría de Health Connect..."
 
             val vitals = withContext(Dispatchers.IO) {
-                // Priority 1: Direct AppWidgetHost extraction (zero credentials, 100% exact)
-                val widgetVitals = try {
-                    RingConnWidgetHostReader.readRingConnWidgets(this@PhoneBridgeMainActivity)
-                } catch (e: Exception) {
-                    null
-                }
-
-                if (widgetVitals != null && (widgetVitals.lastHeartRate > 0 || widgetVitals.sleepScore > 0 || widgetVitals.liveSteps > 0)) {
-                    widgetVitals
-                } else if (forceHealthConnect) {
-                    RingConnTelemetryReader.readFromHealthConnect(this@PhoneBridgeMainActivity)
-                        ?: RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneBridgeMainActivity)
-                } else {
-                    RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneBridgeMainActivity)
-                }
+                RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneBridgeMainActivity)
             }
 
             updateMetricCards(vitals)

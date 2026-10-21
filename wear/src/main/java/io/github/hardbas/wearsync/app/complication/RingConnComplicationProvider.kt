@@ -407,8 +407,12 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putInt("sleep_rem_mins", vitals.sleepRemMins)
                 putInt("sleep_light_mins", vitals.sleepLightMins)
                 putInt("sleep_awake_mins", vitals.sleepAwakeMins)
-                putFloat("skin_temp_offset", vitals.skinTempOffset)
-                putFloat("skin_temp_baseline", vitals.skinTempBaseline)
+                if (vitals.skinTempOffset != 0.0f || vitals.skinTempBaseline > 0.0f) {
+                    putFloat("skin_temp_offset", vitals.skinTempOffset)
+                    if (vitals.skinTempBaseline > 0.0f) {
+                        putFloat("skin_temp_baseline", vitals.skinTempBaseline)
+                    }
+                }
                 putString("sleep_insight", vitals.sleepInsight)
                 putString("stress_insight", vitals.stressInsight)
                 putString("activity_insight", vitals.activityInsight)
