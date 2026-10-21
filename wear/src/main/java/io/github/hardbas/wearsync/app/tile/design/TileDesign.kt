@@ -23,14 +23,20 @@ object TileDesign {
         /** Deep base behind the per-metric gradient. */
         val BASE = 0xFF0B0D14.toInt()
 
-        /** Bezel track: barely-there white so the rim exists without competing. */
-        val TRACK = 0x1FFFFFFF.toInt()
+        /** Bezel track: present enough to read as a rim, never competing with the arc. */
+        val TRACK = 0x29FFFFFF.toInt()
 
         /** Action pill and anything that must read as a raised surface. */
-        val GLASS = 0x2BFFFFFF.toInt()
+        val GLASS = 0x38FFFFFF.toInt()
+
+        /** Frosted card that carries a sub-graphic, the way One UI stacks glass. */
+        val GLASS_CARD = 0x2EFFFFFF.toInt()
+
+        /** Hairline that gives a glass card an edge without drawing a box. */
+        val HAIRLINE = 0x26FFFFFF.toInt()
 
         /** Badges and sub-labels: one step quieter than [GLASS]. */
-        val GLASS_SUBTLE = 0x1EFFFFFF.toInt()
+        val GLASS_SUBTLE = 0x24FFFFFF.toInt()
     }
 
     object Text {
@@ -163,6 +169,32 @@ object TileDesign {
     }
 
     /**
+     * Geometry of the round screen, so no tile can push a line into the bezel.
+     *
+     * A 192dp tile is a circle of radius 96dp: a row sitting `y` dp above or below
+     * the centre only has `2 * sqrt(r^2 - y^2)` of usable width. Headers sit high,
+     * which is exactly where that budget is tightest.
+     */
+    object Layout {
+        const val TILE_DP = 192f
+        const val RADIUS_DP = TILE_DP / 2f
+
+        /** Horizontal breathing room kept free inside the bezel, in dp. */
+        const val BEZEL_INSET_DP = 18f
+
+        /** Usable width at [yFromCenterDp], measured from the centre outward. */
+        fun chordWidthDp(yFromCenterDp: Float): Float {
+            val y = kotlin.math.abs(yFromCenterDp).coerceAtMost(RADIUS_DP - 2f)
+            val half = kotlin.math.sqrt(RADIUS_DP * RADIUS_DP - y * y)
+            return 2f * half
+        }
+
+        /** Width a row may occupy at [yFromCenterDp] without touching the rim. */
+        fun safeWidthDp(yFromCenterDp: Float): Float =
+            (chordWidthDp(yFromCenterDp) - BEZEL_INSET_DP).coerceAtLeast(0f)
+    }
+
+    /**
      * Motion vocabulary. Two gestures per tile, never more: one entrance and
      * one ambient breath. Both are eased settles, never bounces.
      */
@@ -204,6 +236,27 @@ object TileDesign {
          * narrowest range that still reads as movement on the SM-L500 while the
          * rim stays quieter than the value arc.
          */
+        /**
+         * Ambient aura for the sleep scene: slow, shallow, reversible. This is the
+         * animator that keeps that tile alive once the sunset has landed.
+         */
+        fun aura(): AnimationParameterBuilders.AnimationSpec =
+            AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(4200L)
+                        .setEasing(
+                            AnimationParameterBuilders.Easing.cubicBezier(0.37f, 0.0f, 0.63f, 1.0f)
+                        )
+                        .build()
+                )
+                .setRepeatable(AnimationParameterBuilders.Repeatable.INFINITE_REPEATABLE_WITH_REVERSE)
+                .build()
+
+        /** Aura band for the moon halo: a glow that never fully goes out. */
+        const val AURA_MIN = 0.72f
+        const val AURA_MAX = 1.0f
+
         const val BREATHE_MIN = 0.45f
         const val BREATHE_MAX = 0.95f
     }
@@ -225,9 +278,9 @@ enum class TileMetric(val gradient: IntArray) {
  * its colours into separate vector drawables.
  */
 object TileBackdrop {
-    val heartRate = intArrayOf(0xFF3B1430.toInt(), 0xFF200F1F.toInt(), 0xFF0B0D14.toInt())
-    val vitals = intArrayOf(0xFF352A1A.toInt(), 0xFF1C1710.toInt(), 0xFF0B0D14.toInt())
-    val stress = intArrayOf(0xFF12303D.toInt(), 0xFF0D1B24.toInt(), 0xFF0B0D14.toInt())
-    val activity = intArrayOf(0xFF2A3314.toInt(), 0xFF171C0F.toInt(), 0xFF0B0D14.toInt())
-    val sleep = intArrayOf(0xFF22294F.toInt(), 0xFF111634.toInt(), 0xFF06070F.toInt())
+    val heartRate = intArrayOf(0xFF7A234D.toInt(), 0xFF3A1224.toInt(), 0xFF140810.toInt())
+    val vitals = intArrayOf(0xFF6A4E24.toInt(), 0xFF33240F.toInt(), 0xFF141109.toInt())
+    val stress = intArrayOf(0xFF11506A.toInt(), 0xFF0B2A3A.toInt(), 0xFF071017.toInt())
+    val activity = intArrayOf(0xFF4C6112.toInt(), 0xFF232B0B.toInt(), 0xFF0F1305.toInt())
+    val sleep = intArrayOf(0xFF33419A.toInt(), 0xFF191F4E.toInt(), 0xFF090B1C.toInt())
 }

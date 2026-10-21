@@ -121,7 +121,9 @@ class DailySummaryTileService : TileService() {
 
             val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Header: icon + uppercase metric + folded timestamp, one row.
+            // Block 1 — header: icon + ONE short uppercase metric word. The chord at
+            // ~74dp above centre leaves ~105dp, so the timestamp moved into the
+            // frosted card instead of running into the bezel arc.
             val headerIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_ACTIVITY_RINGS)
                 .setWidth(dp(14f))
@@ -139,18 +141,6 @@ class DailySummaryTileService : TileService() {
                 .setFontStyle(TileDesign.Type.label(accent))
                 .build()
 
-            val headerDot = LayoutElementBuilders.Text.Builder()
-                .setText(" · ")
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
-            val headerSecondary = LayoutElementBuilders.Text.Builder()
-                .setText(timeText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
             val headerRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
@@ -158,8 +148,6 @@ class DailySummaryTileService : TileService() {
                 .addContent(headerIcon)
                 .addContent(TileChrome.hSpacer(4f))
                 .addContent(headerLabel)
-                .addContent(headerDot)
-                .addContent(headerSecondary)
                 .build()
 
             // Hero: the 40sp step count with its unit, alone in its row.
@@ -184,13 +172,14 @@ class DailySummaryTileService : TileService() {
                 .addContent(heroUnit)
                 .build()
 
-            // Second graphic (S7): the goal bar, with the goal line and the
-            // sub-metrics folded under it. One Column is one content block, so
-            // the four-block cap holds while every previous reading stays.
+            // Block 3 — meter on frosted glass: the goal bar on the first line, then
+            // the goal line, the sub-metrics and the sync timestamp. Steps carries
+            // four readings, so they need two caption lines instead of one; four
+            // readings on one line would be wider than the chord at this height.
             val goalTextStr = when {
                 isGoalAchieved -> strings.text(R.string.goal_achieved)
-                rawSteps > 0 -> "Meta $targetStepsFormatted ($goalPct%)"
-                else -> "Meta $targetStepsFormatted"
+                rawSteps > 0 -> "${strings.text(R.string.goal_label)} $targetStepsFormatted ($goalPct%)"
+                else -> "${strings.text(R.string.goal_label)} $targetStepsFormatted"
             }
 
             val goalRow = LayoutElementBuilders.Text.Builder()
@@ -249,7 +238,13 @@ class DailySummaryTileService : TileService() {
                     )
             }
 
-            val meterBlock = LayoutElementBuilders.Column.Builder()
+            val cardTimestamp = LayoutElementBuilders.Text.Builder()
+                .setText(timeText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                .build()
+
+            val cardContent = LayoutElementBuilders.Column.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
@@ -258,7 +253,11 @@ class DailySummaryTileService : TileService() {
                 .addContent(goalRow)
                 .addContent(TileChrome.spacer(2f))
                 .addContent(subMetricsRowBuilder.build())
+                .addContent(TileChrome.spacer(2f))
+                .addContent(cardTimestamp)
                 .build()
+
+            val meterCard = TileChrome.card(cardContent)
 
             val actionPill = TileChrome.actionPill(
                 LayoutElementBuilders.Text.Builder()
@@ -277,7 +276,7 @@ class DailySummaryTileService : TileService() {
                 .addContent(TileChrome.spacer(3f))
                 .addContent(heroRow)
                 .addContent(TileChrome.spacer(5f))
-                .addContent(meterBlock)
+                .addContent(meterCard)
                 .addContent(TileChrome.spacer(6f))
                 .addContent(actionPill)
                 .build()

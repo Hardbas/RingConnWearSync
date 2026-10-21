@@ -2,6 +2,7 @@ package io.github.hardbas.wearsync.app.tile
 
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.DeviceParametersBuilders
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import io.github.hardbas.wearsync.app.R
@@ -9,7 +10,9 @@ import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.TileDesign
 import io.github.hardbas.wearsync.app.tile.design.TileMetric
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
+import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,7 +27,13 @@ import org.junit.Test
  */
 class StressTileContractTest {
 
-    private val strings = TileStrings { resId -> "s$resId" }
+    /**
+     * Real label word, `s<resId>` for everything else. The header-width estimate is
+     * only meaningful if the label carries its real length.
+     */
+    private val strings = TileStrings { resId ->
+        if (resId == R.string.stress_title) "Stress" else "s$resId"
+    }
 
     private val deviceParams = DeviceParametersBuilders.DeviceParameters.Builder()
         .setScreenWidthDp(192)
@@ -98,6 +107,47 @@ class StressTileContractTest {
     private val contentColumn: LayoutElementBuilders.Column
         get() = (rootBox.contents.firstOrNull { it is LayoutElementBuilders.Column } as LayoutElementBuilders.Column)
 
+    private val contentBlocks: List<LayoutElementBuilders.LayoutElement>
+        get() = contentColumn.contents.filter { it !is LayoutElementBuilders.Spacer }
+
+    private val headerRow: LayoutElementBuilders.Row
+        get() = contentBlocks[0] as LayoutElementBuilders.Row
+
+    /** Readable dp out of a container dimension; wrap/expand simply contribute 0. */
+    private fun dpOf(dimension: Any?): Float =
+        (dimension as? DimensionBuilders.DpProp)?.value ?: 0f
+
+    /**
+     * Conservative width estimate for one header child. Text is estimated as
+     * `chars * sizeSp * 0.62` (bold uppercase average advance), plus the tracking
+     * the style adds, then 10% of slop so the estimate can never flatter the tile.
+     */
+    private fun widthOf(child: LayoutElementBuilders.LayoutElement): Float =
+        when (child) {
+            is LayoutElementBuilders.Image -> dpOf(child.width)
+            is LayoutElementBuilders.Spacer -> dpOf(child.width)
+            is LayoutElementBuilders.Text -> {
+                val size = child.fontStyle?.size?.value ?: 0f
+                val chars = (child.text?.value ?: "").length
+                val tracking = (child.fontStyle?.letterSpacing?.value ?: 0f) * size * chars
+                (chars * size * 0.62f + tracking) * 1.1f
+            }
+            else -> 0f
+        }
+
+    private fun estimatedHeaderWidthDp(row: LayoutElementBuilders.Row): Float =
+        row.contents.fold(0f) { acc, child -> acc + widthOf(child) }
+
+    private val timeText: String by lazy {
+        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, Locale.getDefault())
+            .format(java.util.Date(1_730_000_000L * 1000L))
+    }
+
+    private val frostedCard: LayoutElementBuilders.Box
+        get() = elements.filterIsInstance<LayoutElementBuilders.Box>()
+            .firstOrNull { it.modifiers?.background?.color?.argb == TileDesign.Ink.GLASS_CARD }
+            ?: error("no frosted card in the tile")
+
     private val hero: LayoutElementBuilders.Text
         get() = elements.filterIsInstance<LayoutElementBuilders.Text>()
             .firstOrNull { (it.fontStyle?.size?.value ?: 0f) >= 38f }
@@ -105,6 +155,50 @@ class StressTileContractTest {
 
     private val texts: List<String>
         get() = elements.filterIsInstance<LayoutElementBuilders.Text>().mapNotNull { it.text?.value }
+
+    @Test
+    fun `header is one short metric word that fits inside the bezel`() {
+        // Vertical stack (dp): header 14 + 3 + hero 48 + 5 + card 45 + 6 + pill 28
+        // = 149, so a centred column starts at -74.5 and the header band's centre
+        // sits 67.5dp above the middle of the 192dp circle.
+        val headerY = 67.5f
+        val safeWidth = TileDesign.Layout.safeWidthDp(headerY)
+        val estimated = estimatedHeaderWidthDp(headerRow)
+        val headerTexts = flatten(headerRow).filterIsInstance<LayoutElementBuilders.Text>()
+            .map { it.text?.value ?: "" }
+
+        assertEquals("the header carries exactly one label: $headerTexts", 1, headerTexts.size)
+        assertEquals("the header label is the short metric word", listOf("STRESS"), headerTexts)
+        assertFalse("the HRV read and timestamp left the header: $headerTexts", headerTexts.any { "·" in it })
+        assertTrue(
+            "estimated header width ${estimated}dp must fit the ${safeWidth}dp safe width at ${headerY}dp above centre",
+            estimated <= safeWidth
+        )
+    }
+
+    @Test
+    fun `meter sits on a frosted card with the timestamp as its caption`() {
+        assertNotNull("the card must carry a hairline edge", frostedCard.modifiers?.border)
+        assertNotNull(
+            "the card must carry the glass fill",
+            frostedCard.modifiers?.background?.color
+        )
+
+        val cardTexts = flatten(frostedCard).filterIsInstance<LayoutElementBuilders.Text>()
+        assertTrue(
+            "the sync timestamp moved into the card, had $cardTexts",
+            cardTexts.any { it.text?.value == timeText }
+        )
+        assertEquals(
+            "the timestamp caption uses the muted type step",
+            TileDesign.Text.MUTED,
+            cardTexts.first { it.text?.value == timeText }.fontStyle?.color?.argb
+        )
+        assertTrue(
+            "the HRV read still lives in the card",
+            cardTexts.any { (it.text?.value ?: "").contains("42") }
+        )
+    }
 
     @Test
     fun `hero is a 40sp tabular display number`() {

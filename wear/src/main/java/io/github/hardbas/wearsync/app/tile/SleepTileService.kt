@@ -12,6 +12,7 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.TypeBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.DynamicBuilders
 import androidx.wear.tiles.EventBuilders
@@ -46,12 +47,14 @@ import kotlinx.coroutines.tasks.await
  * system, so the tile reads as part of the same family instead of a repainted
  * copy of its neighbours.
  *
- * Motion budget (S6/S9): the sunset is this tile's single non-gauge animator,
- * which is why the bezel track is built with `breathing = false`. Total = 2.
+ * Motion budget (S6/S9): the sunset entrance plus the moon's perpetual aura are
+ * the tile's two animators, which is why the bezel is built with
+ * `breathing = false` and `entrance = false`. Total = 2, and the tile keeps
+ * moving after the sun lands.
  *
- * Content budget (S4): four blocks — header, hero, metrics row, action pill. The
- * nocturnal skin temperature is a badge inside the header, so it costs no block
- * and the metrics row stays at two badges.
+ * Content budget (S4): four blocks — header, hero, frosted card, action pill. The
+ * card carries the quality, the duration and the nocturnal skin temperature, so
+ * the header stays a single short word inside the bezel.
  */
 class SleepTileService : TileService() {
 
@@ -248,8 +251,9 @@ class SleepTileService : TileService() {
 
             val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Block 1 — header: icon + uppercase metric. Nothing else competes with
-            // the hero, which now owns a full 40sp line on a 192dp bezel.
+            // Block 1 — header: icon + ONE short uppercase metric word. The nocturnal
+            // skin temperature used to ride here as a badge and pushed the header
+            // into the bezel arc on the upper chord; it now lives in the glass card.
             val headerIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_SLEEP)
                 .setWidth(dp(15f))
@@ -261,23 +265,13 @@ class SleepTileService : TileService() {
                 )
                 .build()
 
+            // The hero unit carries the metric accent, so the tile has a saturated
+            // reading next to the number as well as in the arc.
             val headerLabel = LayoutElementBuilders.Text.Builder()
                 .setText(strings.text(R.string.sleep_short).uppercase(Locale.getDefault()))
                 .setMaxLines(1)
                 .setFontStyle(TileDesign.Type.label(TileDesign.Accent.starlight))
                 .build()
-
-            // The nocturnal skin temperature rides in the header as a badge: it is a
-            // quiet recovery read next to the metric name, and moving it here keeps
-            // the metrics row down to two badges so a longer localized quality word
-            // or duration still has margin inside the bezel.
-            val tempBadge = TileChrome.badge(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(tempDisplayText)
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(tempAccent))
-                    .build()
-            )
 
             val headerRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
@@ -286,8 +280,6 @@ class SleepTileService : TileService() {
                 .addContent(headerIcon)
                 .addContent(TileChrome.hSpacer(4f))
                 .addContent(headerLabel)
-                .addContent(TileChrome.hSpacer(5f))
-                .addContent(tempBadge)
                 .build()
 
             // Block 2 — hero: the 40sp score with its unit, alone in its row.
@@ -300,7 +292,7 @@ class SleepTileService : TileService() {
             val heroUnit = LayoutElementBuilders.Text.Builder()
                 .setText(strings.text(R.string.pts_unit).lowercase(Locale.getDefault()))
                 .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.unit(TileDesign.Accent.sleepLavender))
+                .setFontStyle(TileDesign.Type.unit(accent))
                 .build()
 
             val heroRow = LayoutElementBuilders.Row.Builder()
@@ -312,31 +304,53 @@ class SleepTileService : TileService() {
                 .addContent(heroUnit)
                 .build()
 
-            // Block 3 — metrics row: quality word and duration, two badges only.
-            val qualityBadge = TileChrome.badge(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(qualityText)
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(accent))
-                    .build()
-            )
+            // Block 3 — the recovery readings on frosted glass: the quality word and
+            // the duration on the first line, the nocturnal skin temperature as the
+            // caption under it. Sleep is the only tile with no sync timestamp, so
+            // the card is two lines instead of three.
+            val qualityTextNode = LayoutElementBuilders.Text.Builder()
+                .setText(qualityText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(accent))
+                .build()
 
-            val durationBadge = TileChrome.badge(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(durationText)
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
-                    .build()
-            )
+            val durationTextNode = LayoutElementBuilders.Text.Builder()
+                .setText(durationText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.SECONDARY))
+                .build()
 
             val metricsRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(qualityBadge)
-                .addContent(TileChrome.hSpacer(4f))
-                .addContent(durationBadge)
+                .addContent(qualityTextNode)
+                .addContent(
+                    LayoutElementBuilders.Text.Builder()
+                        .setText(" · ")
+                        .setMaxLines(1)
+                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                        .build()
+                )
+                .addContent(durationTextNode)
                 .build()
+
+            val tempCaption = LayoutElementBuilders.Text.Builder()
+                .setText(tempDisplayText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(tempAccent))
+                .build()
+
+            val cardContent = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .addContent(metricsRow)
+                .addContent(TileChrome.spacer(3f))
+                .addContent(tempCaption)
+                .build()
+
+            val metricsCard = TileChrome.card(cardContent)
 
             // Block 4 — the single action pill.
             val actionPill = TileChrome.actionPill(
@@ -356,7 +370,7 @@ class SleepTileService : TileService() {
                 .addContent(TileChrome.spacer(4f))
                 .addContent(heroRow)
                 .addContent(TileChrome.spacer(6f))
-                .addContent(metricsRow)
+                .addContent(metricsCard)
                 .addContent(TileChrome.spacer(8f))
                 .addContent(actionPill)
                 .build()
@@ -372,11 +386,27 @@ class SleepTileService : TileService() {
                 .build()
 
             // 2. Crescent moon, left untinted so its three tones (aura, body,
-            // highlight) survive.
+            // highlight) survive. Its halo breathes forever on the tile's second
+            // animator: this is what keeps Sleep alive after the sun has landed.
+            val moonAura = TypeBuilders.FloatProp.Builder(TileDesign.Motion.AURA_MIN)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        TileDesign.Motion.AURA_MIN,
+                        TileDesign.Motion.AURA_MAX,
+                        TileDesign.Motion.aura()
+                    )
+                )
+                .build()
+
             val celestialMoon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_MOON)
                 .setWidth(expand())
                 .setHeight(expand())
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setOpacity(moonAura)
+                        .build()
+                )
                 .build()
 
             // 3. Setting sun: a soft-edged disc that translates down behind the
@@ -423,12 +453,14 @@ class SleepTileService : TileService() {
                 .setHeight(expand())
                 .build()
 
-            // Bezel gauge: breathing = false because the sunset already spends the
-            // tile's second animator (S9).
+            // Bezel gauge: breathing = false because the moon aura already spends the
+            // tile's second animator, and entrance = false because the sunset IS the
+            // entrance (S9). Result: sunset + moon aura = exactly two animators.
             val gauge = TileGauge.elements(
                 accent = accent,
                 targetSweep = TileGauge.sweepFor(fraction),
-                breathing = false
+                breathing = false,
+                entrance = false
             )
 
             val rootBox = LayoutElementBuilders.Box.Builder()

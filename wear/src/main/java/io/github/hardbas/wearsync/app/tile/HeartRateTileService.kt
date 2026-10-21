@@ -111,7 +111,10 @@ class HeartRateTileService : TileService() {
 
             val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Header: icon + uppercase metric + folded timestamp, one row.
+            // Block 1 — header: icon + ONE short uppercase metric word and nothing
+            // else. A 192dp tile is a circle, so a row sitting ~67dp above centre
+            // only has ~119dp of usable width; the timestamp would have pushed the
+            // label into the bezel arc, so it moved into the frosted card below.
             val headerIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_HR)
                 .setWidth(dp(14f))
@@ -129,18 +132,6 @@ class HeartRateTileService : TileService() {
                 .setFontStyle(TileDesign.Type.label(zoneAccent))
                 .build()
 
-            val headerDot = LayoutElementBuilders.Text.Builder()
-                .setText(" · ")
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
-            val headerTime = LayoutElementBuilders.Text.Builder()
-                .setText(timeText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
             val headerRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
@@ -148,8 +139,6 @@ class HeartRateTileService : TileService() {
                 .addContent(headerIcon)
                 .addContent(TileChrome.hSpacer(4f))
                 .addContent(headerLabel)
-                .addContent(headerDot)
-                .addContent(headerTime)
                 .build()
 
             // Hero: 40sp tabular number + unit. Nothing else shares this row, so
@@ -175,26 +164,50 @@ class HeartRateTileService : TileService() {
                 .addContent(heroUnit)
                 .build()
 
-            // Second graphic (S7): five-zone ladder. The range sits in the one
-            // allowed badge next to it so the header stays a single timestamp row.
+            // Block 3 — the meter block, wrapped in frosted glass so the sub-graphic
+            // sits *on* something instead of floating on the gradient. Line 1 is the
+            // sub-graphic (five-zone ladder), then the small readings, then the sync
+            // timestamp that used to crowd the header.
             val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
             val rangeText = if (hasMinMax) "${vitals.minHeartRate}–${vitals.maxHeartRate}" else "--"
-            val rangeBadge = TileChrome.badge(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(rangeText)
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.SECONDARY))
-                    .build()
-            )
 
-            val meterRow = LayoutElementBuilders.Row.Builder()
+            val cardReadings = LayoutElementBuilders.Text.Builder()
+                .setText(rangeText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(zoneAccent))
+                .build()
+
+            val cardCaption = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(TileMeter.ladder(count = 5, activeIndex = zoneIndex, accent = zoneAccent))
-                .addContent(TileChrome.hSpacer(6f))
-                .addContent(rangeBadge)
+                .addContent(cardReadings)
+                .addContent(
+                    LayoutElementBuilders.Text.Builder()
+                        .setText(" · ")
+                        .setMaxLines(1)
+                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                        .build()
+                )
+                .addContent(
+                    LayoutElementBuilders.Text.Builder()
+                        .setText(timeText)
+                        .setMaxLines(1)
+                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                        .build()
+                )
                 .build()
+
+            val cardContent = LayoutElementBuilders.Column.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .addContent(TileMeter.ladder(count = 5, activeIndex = zoneIndex, accent = zoneAccent))
+                .addContent(TileChrome.spacer(4f))
+                .addContent(cardCaption)
+                .build()
+
+            val meterCard = TileChrome.card(cardContent)
 
             val actionPill = TileChrome.actionPill(
                 LayoutElementBuilders.Text.Builder()
@@ -213,7 +226,7 @@ class HeartRateTileService : TileService() {
                 .addContent(TileChrome.spacer(3f))
                 .addContent(heroRow)
                 .addContent(TileChrome.spacer(5f))
-                .addContent(meterRow)
+                .addContent(meterCard)
                 .addContent(TileChrome.spacer(6f))
                 .addContent(actionPill)
                 .build()

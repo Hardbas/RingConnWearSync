@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">WearSync</string>
     <string name="tile_vitals_title">WearSync Vitals</string>
+    <string name="vitals_short">Vitals</string>
     <string name="tile_summary_title">Daily Summary</string>
     <string name="complication_label">WearSync Heart Rate</string>
     <string name="complication_desc">WearSync Heart Rate: %1$s BPM</string>
@@ -25,6 +26,7 @@
     <string name="ring_short">Ring</string>
     <string name="sleep_short">Sleep</string>
     <string name="steps_short">Steps</string>
+    <string name="goal_label">Goal</string>
     <string name="tile_heart_rate_title">Heart Rate</string>
     <string name="resting_hr">Resting HR</string>
     <string name="hr_insights_title">Insights &amp; Status</string>

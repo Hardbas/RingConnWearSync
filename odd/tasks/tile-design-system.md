@@ -60,3 +60,11 @@ L10 — Verificación en hardware (SM-L500, `192.168.0.15:38557`, Android 16). I
 - Respiración del bisel: la opacidad dinámica **sí se aplica**, pero la banda 0,16–0,34 movía el track sólo 0,61 unidades de luminancia con el arco como control estable (±0,05). Se subió a 0,45–0,95 y la medición pasó a 2,00 en tres frames consecutivos.
 
 L11 — Bug encontrado por la verificación en hardware y corregido: `TileMeter.progress` ponía `setHorizontalAlignment(HORIZONTAL_ALIGN_START)` en el hijo, que sólo alinea los hijos del hijo; la barra llenaba desde el centro. La alineación va en el Box contenedor. Se agregó test de contrato y se probó por mutación (con CENTER falla).
+
+L12 — Feedback del usuario sobre rc2, y qué se cambió: «los titulos se salen de o chocan con las lineas, color apagado, me quitaste un diseno genial, colocaste todo mas aburrido y la animacion del sueno solo pasa una vez». Diagnóstico: me fui al extremo editorial (poco cromo, poco vidrio) y el encabezado crecía sin presupuesto geométrico. Correcciones:
+- Encabezado = icono + UNA palabra corta; el timestamp se mudó dentro de la tarjeta. Guarda nueva `TileDesign.Layout.safeWidthDp(y)` con el ancho útil del círculo, y test por tile.
+- Profundidad: `TileChrome.card()` — vidrio `GLASS_CARD` + hairline `HAIRLINE` + radio 14 envolviendo el bloque del medidor. Eso es lo que devuelve la lectura "genial".
+- Color: backdrops con croma real (p. ej. HR `#7A234D`, Sueño `#33419A`), track al 16%, y el acento ahora también vive en la unidad del héroe.
+- Sueño: `TileGauge.elements(entrance = false)` + opacidad perpetua de la luna con `Motion.aura()` (4200 ms, reverse) y banda `AURA_MIN/MAX`. Sigue con 2 animadores y ya no muere.
+- Pasos: `"Meta "` hardcodeado → `R.string.goal_label` (Goal/Meta).
+Verificado en el SM-L500: Sueño, Pasos y Estrés con capturas. Vitals y Frecuencia cardíaca NO se pudieron capturar (la pantalla del reloj se apagó y no se pudo forzar); quedan con verificación estructural (ancho estimado 68,8dp contra 119,5dp útiles).

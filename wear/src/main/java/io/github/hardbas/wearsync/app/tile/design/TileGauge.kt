@@ -37,7 +37,8 @@ object TileGauge {
     fun elements(
         accent: Int,
         targetSweep: Float,
-        breathing: Boolean = true
+        breathing: Boolean = true,
+        entrance: Boolean = true
     ): List<LayoutElementBuilders.LayoutElement> {
         val trackLine = LayoutElementBuilders.ArcLine.Builder()
             .setLength(DimensionBuilders.degrees(TileDesign.Chrome.ARC_SPAN))
@@ -65,15 +66,21 @@ object TileGauge {
             }
             .build()
 
-        val entrance = DynamicBuilders.DynamicFloat.animate(
-            0f,
-            targetSweep,
-            TileDesign.Motion.entrance()
-        )
-
-        val valueSweep = DimensionBuilders.DegreesProp.Builder(targetSweep)
-            .setDynamicValue(entrance)
-            .build()
+        val valueSweep = if (entrance) {
+            DimensionBuilders.DegreesProp.Builder(targetSweep)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        0f,
+                        targetSweep,
+                        TileDesign.Motion.entrance()
+                    )
+                )
+                .build()
+        } else {
+            // A tile whose scene already owns the motion budget shows its arc
+            // immediately instead of spending an animator on the sweep.
+            DimensionBuilders.DegreesProp.Builder(targetSweep).build()
+        }
 
         val valueLine = LayoutElementBuilders.ArcLine.Builder()
             .setLength(valueSweep)

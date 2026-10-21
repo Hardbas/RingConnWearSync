@@ -107,7 +107,9 @@ class VitalsTileService : TileService() {
 
             val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Header: icon + uppercase metric + folded timestamp, one row.
+            // Block 1 — header: icon + ONE short uppercase metric word. It has to
+            // fit the chord of the 192dp circle at ~67dp above centre (~119dp), so
+            // the timestamp moved into the frosted card instead of riding here.
             val headerIcon = LayoutElementBuilders.Image.Builder()
                 .setResourceId(RES_IC_HR)
                 .setWidth(dp(14f))
@@ -120,21 +122,9 @@ class VitalsTileService : TileService() {
                 .build()
 
             val headerLabel = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.tile_vitals_title).uppercase(Locale.getDefault()))
+                .setText(strings.text(R.string.vitals_short).uppercase(Locale.getDefault()))
                 .setMaxLines(1)
                 .setFontStyle(TileDesign.Type.label(accent))
-                .build()
-
-            val headerDot = LayoutElementBuilders.Text.Builder()
-                .setText(" · ")
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
-            val headerTime = LayoutElementBuilders.Text.Builder()
-                .setText(timeText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
                 .build()
 
             val headerRow = LayoutElementBuilders.Row.Builder()
@@ -144,8 +134,6 @@ class VitalsTileService : TileService() {
                 .addContent(headerIcon)
                 .addContent(TileChrome.hSpacer(4f))
                 .addContent(headerLabel)
-                .addContent(headerDot)
-                .addContent(headerTime)
                 .build()
 
             // Hero: 40sp tabular number + unit, alone in its row.
@@ -170,9 +158,9 @@ class VitalsTileService : TileService() {
                 .addContent(heroUnit)
                 .build()
 
-            // Second graphic (S7): SpO2 bar with its own reading row. The whole
-            // column is one block, so the four-block cap still holds while the
-            // ring charge stays on the tile.
+            // Block 3 — meter on frosted glass: the SpO2 bar on the first line, the
+            // small readings (SpO2 and ring charge) under it, and the sync timestamp
+            // as the quietest caption. The bar plus its readings is one block.
             val meterCaptions = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
@@ -200,7 +188,13 @@ class VitalsTileService : TileService() {
                 )
                 .build()
 
-            val meterBlock = LayoutElementBuilders.Column.Builder()
+            val cardTimestamp = LayoutElementBuilders.Text.Builder()
+                .setText(timeText)
+                .setMaxLines(1)
+                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                .build()
+
+            val cardContent = LayoutElementBuilders.Column.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
@@ -212,7 +206,11 @@ class VitalsTileService : TileService() {
                 )
                 .addContent(TileChrome.spacer(3f))
                 .addContent(meterCaptions)
+                .addContent(TileChrome.spacer(2f))
+                .addContent(cardTimestamp)
                 .build()
+
+            val meterCard = TileChrome.card(cardContent)
 
             val actionPill = TileChrome.actionPill(
                 LayoutElementBuilders.Text.Builder()
@@ -231,7 +229,7 @@ class VitalsTileService : TileService() {
                 .addContent(TileChrome.spacer(3f))
                 .addContent(heroRow)
                 .addContent(TileChrome.spacer(5f))
-                .addContent(meterBlock)
+                .addContent(meterCard)
                 .addContent(TileChrome.spacer(6f))
                 .addContent(actionPill)
                 .build()

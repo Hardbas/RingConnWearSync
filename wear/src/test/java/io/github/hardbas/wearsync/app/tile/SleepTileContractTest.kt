@@ -2,6 +2,7 @@ package io.github.hardbas.wearsync.app.tile
 
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.DeviceParametersBuilders
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
@@ -29,7 +30,13 @@ import org.junit.Test
  */
 class SleepTileContractTest {
 
-    private val strings = TileStrings { resId -> "s$resId" }
+    /**
+     * Real label word, `s<resId>` for everything else. The header-width estimate is
+     * only meaningful if the label carries its real length.
+     */
+    private val strings = TileStrings { resId ->
+        if (resId == R.string.sleep_short) "Sleep" else "s$resId"
+    }
 
     private val deviceParams = DeviceParametersBuilders.DeviceParameters.Builder()
         .setScreenWidthDp(192)
@@ -234,76 +241,142 @@ class SleepTileContractTest {
     private val headerRow: LayoutElementBuilders.Row
         get() = contentBlocks[0] as LayoutElementBuilders.Row
 
-    private val metricsRow: LayoutElementBuilders.Row
-        get() = contentBlocks[2] as LayoutElementBuilders.Row
+    private val metricsCard: LayoutElementBuilders.Box
+        get() = contentBlocks[2] as LayoutElementBuilders.Box
+
+    /** Readable dp out of a container dimension; wrap/expand simply contribute 0. */
+    private fun dpOf(dimension: Any?): Float =
+        (dimension as? DimensionBuilders.DpProp)?.value ?: 0f
+
+    /**
+     * Conservative width estimate for one header child. Text is estimated as
+     * `chars * sizeSp * 0.62` (bold uppercase average advance), plus the tracking
+     * the style adds, then 10% of slop so the estimate can never flatter the tile.
+     */
+    private fun widthOf(child: LayoutElementBuilders.LayoutElement): Float =
+        when (child) {
+            is LayoutElementBuilders.Image -> dpOf(child.width)
+            is LayoutElementBuilders.Spacer -> dpOf(child.width)
+            is LayoutElementBuilders.Text -> {
+                val size = child.fontStyle?.size?.value ?: 0f
+                val chars = (child.text?.value ?: "").length
+                val tracking = (child.fontStyle?.letterSpacing?.value ?: 0f) * size * chars
+                (chars * size * 0.62f + tracking) * 1.1f
+            }
+            else -> 0f
+        }
+
+    private fun estimatedHeaderWidthDp(row: LayoutElementBuilders.Row): Float =
+        row.contents.fold(0f) { acc, child -> acc + widthOf(child) }
 
     private fun textsIn(element: LayoutElementBuilders.LayoutElement): List<String> =
         flatten(element).filterIsInstance<LayoutElementBuilders.Text>().map { it.text?.value ?: "" }
 
-    private fun badgesIn(row: LayoutElementBuilders.Row): List<LayoutElementBuilders.Box> =
-        row.contents.filterIsInstance<LayoutElementBuilders.Box>()
-            .filter { it.modifiers?.background?.color != null }
+    private val headerTimeLike: List<String>
+        get() = textsIn(headerRow)
 
     @Test
-    fun `temperature badge lives in the header row`() {
-        val headerTexts = textsIn(headerRow)
-        assertTrue("header must keep the metric label, got $headerTexts", headerTexts.size >= 2)
-        assertTrue(
-            "temperature offset missing from the header: $headerTexts",
-            headerTexts.any { it.contains("+0.4°C") }
+    fun `header is one short metric word that fits inside the bezel`() {
+        // Vertical stack (dp): header 15 + 4 + hero 48 + 6 + card 39 + 8 + pill 28
+        // = 148, so a centred column starts at -74 and the header band's centre
+        // sits 66.5dp above the middle of the 192dp circle.
+        val headerY = 66.5f
+        val safeWidth = TileDesign.Layout.safeWidthDp(headerY)
+        val estimated = estimatedHeaderWidthDp(headerRow)
+
+        assertEquals(
+            "the header carries exactly one label (the temperature left it), got $headerTimeLike",
+            listOf("SLEEP"),
+            headerTimeLike
         )
         assertTrue(
-            "temperature baseline missing from the header: $headerTexts",
-            headerTexts.any { it.contains("36.1°") }
+            "estimated header width ${estimated}dp must fit the ${safeWidth}dp safe width at ${headerY}dp above centre",
+            estimated <= safeWidth
         )
-        assertEquals("the header carries exactly one badge", 1, badgesIn(headerRow).size)
     }
 
     @Test
-    fun `metrics row keeps exactly two badges`() {
-        val badges = badgesIn(metricsRow)
+    fun `recovery card is frosted glass carrying quality, duration and temperature`() {
+        assertNotNull("the card must carry a hairline edge", metricsCard.modifiers?.border)
         assertEquals(
-            "the metrics row must stay at two badges so long localized words fit, found ${badges.size}",
-            2,
-            badges.size
+            "the card must carry the glass fill",
+            TileDesign.Ink.GLASS_CARD,
+            metricsCard.modifiers?.background?.color?.argb
         )
 
-        val metricsTexts = textsIn(metricsRow)
+        val cardTexts = textsIn(metricsCard)
         assertTrue(
-            "quality word missing from the metrics row: $metricsTexts",
-            metricsTexts.any { it.equals(strings.text(R.string.excellent), ignoreCase = true) }
+            "quality word missing from the card: $cardTexts",
+            cardTexts.any { it.equals(strings.text(R.string.excellent), ignoreCase = true) }
         )
         assertTrue(
-            "duration missing from the metrics row: $metricsTexts",
-            metricsTexts.any { it.contains("8h 12m") }
+            "duration missing from the card: $cardTexts",
+            cardTexts.any { it.contains("8h 12m") }
+        )
+        assertTrue(
+            "temperature offset missing from the card: $cardTexts",
+            cardTexts.any { it.contains("+0.4°C") }
+        )
+        assertTrue(
+            "temperature baseline missing from the card: $cardTexts",
+            cardTexts.any { it.contains("36.1°") }
         )
     }
 
     // ---- S5/S6/S9: motion budget ----------------------------------------
 
     @Test
-    fun `tile spends exactly two animators, the sunset and the arc sweep`() {
+    fun `tile spends exactly two animators, the sunset and the moon aura`() {
         val element = elementAnimatorCount()
         val arcs = arcAnimatorCount()
         assertEquals(
             "expected exactly ${TileDesign.Motion.MAX_ANIMATORS} animators " +
-                "(sun translationY + value-arc length); element props gave $element and " +
+                "(sun translationY + moon aura); element props gave $element and " +
                 "ArcLine contents gave $arcs, total ${element + arcs}",
             TileDesign.Motion.MAX_ANIMATORS,
             element + arcs
         )
-        assertEquals("the sunset must be the only element animator", 1, element)
-        assertEquals("the gauge must contribute exactly one sweep", 1, arcs)
+        assertEquals("the sunset and the moon aura are the only element animators", 2, element)
+        assertEquals("the sunset entrance replaces the arc sweep", 0, arcs)
     }
 
     @Test
-    fun `gauge does not breathe in the sleep tile`() {
+    fun `the moon keeps breathing after the sun lands`() {
+        val moon = imageById("ic_tile_moon") ?: error("no moon in the tile")
+        val aura = moon.modifiers?.opacity?.dynamicValue
+            ?: error("the moon must carry the perpetual aura animator")
+
+        assertEquals(
+            "aura must start at AURA_MIN",
+            TileDesign.Motion.AURA_MIN,
+            endpointOf(aura, "getFromValue")!!,
+            0.01f
+        )
+        assertEquals(
+            "aura must reach AURA_MAX",
+            TileDesign.Motion.AURA_MAX,
+            endpointOf(aura, "getToValue")!!,
+            0.01f
+        )
+        val spec = specOf(aura)!!
+        assertTrue(
+            "the aura must repeat forever or the tile dies after one pass",
+            spec.repeatable?.hasInfiniteIteration() == true
+        )
+        assertNull("the moon stays untinted so its three tones survive", moon.colorFilter?.tint)
+    }
+
+    @Test
+    fun `gauge neither breathes nor sweeps in the sleep tile`() {
         val track = arcLines.firstOrNull() ?: error("no gauge track in the tile")
         assertNull(
             "S9 forbids a second ambient animator: the track must not breathe",
             track.modifiers?.opacity?.dynamicValue
         )
-        assertNotNull("the value arc still sweeps in", arcLines.last().length?.dynamicValue)
+        assertNull(
+            "the sunset is the entrance, so the arc must not spend an animator sweeping",
+            arcLines.last().length?.dynamicValue
+        )
     }
 
     // ---- No information loss --------------------------------------------

@@ -56,6 +56,55 @@ object TileChrome {
             .build()
     }
 
+    /**
+     * Frosted card that carries a sub-graphic: the two-layer depth One UI uses
+     * so a meter reads as sitting *on* something instead of floating.
+     *
+     * A hairline border is what makes it read as glass rather than a grey blob,
+     * and it costs one modifier instead of an extra drawable.
+     */
+    fun card(
+        content: LayoutElementBuilders.LayoutElement,
+        radiusDp: Float = 14f,
+        paddingH: Float = 9f,
+        paddingV: Float = 5f
+    ): LayoutElementBuilders.Box =
+        LayoutElementBuilders.Box.Builder()
+            .setWidth(wrap())
+            .setHeight(wrap())
+            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setBackground(
+                        ModifiersBuilders.Background.Builder()
+                            .setColor(argb(TileDesign.Ink.GLASS_CARD))
+                            .setCorner(
+                                ModifiersBuilders.Corner.Builder()
+                                    .setRadius(dp(radiusDp))
+                                    .build()
+                            )
+                            .build()
+                    )
+                    .setBorder(
+                        ModifiersBuilders.Border.Builder()
+                            .setWidth(dp(1f))
+                            .setColor(argb(TileDesign.Ink.HAIRLINE))
+                            .build()
+                    )
+                    .setPadding(
+                        ModifiersBuilders.Padding.Builder()
+                            .setStart(dp(paddingH))
+                            .setEnd(dp(paddingH))
+                            .setTop(dp(paddingV))
+                            .setBottom(dp(paddingV))
+                            .build()
+                    )
+                    .build()
+            )
+            .addContent(content)
+            .build()
+
     /** Quiet capsule for a state word or a small metric. */
     fun badge(text: LayoutElementBuilders.Text): LayoutElementBuilders.Box =
         LayoutElementBuilders.Box.Builder()
