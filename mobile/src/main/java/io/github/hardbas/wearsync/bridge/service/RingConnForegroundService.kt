@@ -171,7 +171,9 @@ class RingConnForegroundService : Service() {
         syncJob = scope.launch {
             while (isActive) {
                 triggerSync(force = false)
-                delay(120_000L) // 2 minutes background poll; pushes to watch only on metric changes
+                // The widget this reads refreshes every 15-30 min, so polling faster than 5 min
+                // only holds wake locks without producing fresher data.
+                delay(SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS)
             }
         }
     }

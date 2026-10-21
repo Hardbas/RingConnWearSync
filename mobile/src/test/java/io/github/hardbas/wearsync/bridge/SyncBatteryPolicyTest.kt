@@ -76,4 +76,16 @@ class SyncBatteryPolicyTest {
             SyncBatteryPolicy.HEARTBEAT_INTERVAL_MS in 10 * 60 * 1000L..SyncBatteryPolicy.WATCHDOG_INTERVAL_MS
         )
     }
+
+    @Test
+    fun inServicePollingWasRelaxedToFiveMinutes() {
+        assertTrue(
+            "the poll loop re-reads the RingConn widget, which refreshes every 15-30 min",
+            SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS >= 5 * 60 * 1000L
+        )
+        assertTrue(
+            "polling slower than the heartbeat would delay the only push that carries changes",
+            SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS <= SyncBatteryPolicy.HEARTBEAT_INTERVAL_MS
+        )
+    }
 }

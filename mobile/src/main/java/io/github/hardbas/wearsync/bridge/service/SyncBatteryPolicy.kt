@@ -32,6 +32,13 @@ internal object SyncBatteryPolicy {
     /** Re-send vitals to the watch even if the metric signature did not change. */
     const val HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000L
 
+    /**
+     * In-service poll loop: re-reads the RingConn widget and pushes on signature change.
+     * The widget itself only refreshes every 15-30 minutes, so a 2-minute poll spent a wake lock
+     * on data that had not changed; 5 minutes keeps the same freshness for a third of the cost.
+     */
+    const val IN_SERVICE_POLL_INTERVAL_MS = 5 * 60 * 1000L
+
     fun watchdogIntervalMs(hourOfDay: Int): Long =
         if (isMorningWindow(hourOfDay)) WATCHDOG_MORNING_INTERVAL_MS else WATCHDOG_INTERVAL_MS
 
