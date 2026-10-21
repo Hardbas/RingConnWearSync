@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -68,10 +69,13 @@ class RingConnAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Traverses the active Flutter semantics tree, extracts all metrics,
-     * updates SharedPreferences and pushes directly to Galaxy Watch 8.
+     * Traverses the active Flutter semantics tree and extracts all metrics.
+     *
+     * @param persist when true (default) the result is written to SharedPreferences
+     *   and pushed to the watch. Polling callers pass false so a single peek
+     *   produces exactly one watch update instead of one per poll.
      */
-    fun scrapeWindowContent(): RingConnVitals? {
+    fun scrapeWindowContent(persist: Boolean = true): RingConnVitals? {
         val collectedTokens = mutableListOf<String>()
 
         try {
@@ -113,17 +117,21 @@ class RingConnAccessibilityService : AccessibilityService() {
                 parsedVitals.skinTempOffset != 0f
 
         if (hasMeaningfulData) {
-            RingConnTelemetryReader.saveToPreferences(
-                context = this,
-                vitals = parsedVitals,
-                source = "RingConn Directo (100% Exacto)"
-            )
+            if (persist) {
+                RingConnTelemetryReader.saveToPreferences(
+                    context = this,
+                    vitals = parsedVitals,
+                    source = "RingConn Directo (100% Exacto)"
+                )
 
-            serviceScope.launch {
-                WearDataSyncService(this@RingConnAccessibilityService).syncVitalsToWatch(parsedVitals)
+                serviceScope.launch {
+                    WearDataSyncService(this@RingConnAccessibilityService).syncVitalsToWatch(parsedVitals)
+                }
+
+                Log.i(TAG, "100% Exact RingConn telemetry scraped & synced: HR=${parsedVitals.lastHeartRate}, Sleep=${parsedVitals.sleepScore}, Act=${parsedVitals.activityScore}, Steps=${parsedVitals.liveSteps}, Bat=${parsedVitals.ringBattery}%")
+            } else {
+                Log.d(TAG, "Scraped (not persisted): HR=${parsedVitals.lastHeartRate}, Sleep=${parsedVitals.sleepScore}")
             }
-
-            Log.i(TAG, "100% Exact RingConn telemetry scraped & synced: HR=${parsedVitals.lastHeartRate}, Sleep=${parsedVitals.sleepScore}, Act=${parsedVitals.activityScore}, Steps=${parsedVitals.liveSteps}, Bat=${parsedVitals.ringBattery}%")
             return parsedVitals
         }
 
@@ -134,8 +142,8 @@ class RingConnAccessibilityService : AccessibilityService() {
      * Scrapes current window content, optionally performs ACTION_SCROLL_FORWARD on the first scrollable node
      * in com.gdjztech.ringconn to reveal lower cards (like Skin Temperature), waits 600ms, and scrapes again.
      */
-    suspend fun performGentleScrollAndScrape(): RingConnVitals? {
-        val initialVitals = scrapeWindowContent()
+    suspend fun performGentleScrollAndScrape(persist: Boolean = true): RingConnVitals? {
+        val initialVitals = scrapeWindowContent(persist)
         try {
             var scrollPerformed = false
             fun findAndScroll(node: AccessibilityNodeInfo?): Boolean {
@@ -176,7 +184,7 @@ class RingConnAccessibilityService : AccessibilityService() {
             if (scrollPerformed) {
                 Log.d(TAG, "Performed gentle scroll forward on RingConn UI, waiting 600ms...")
                 delay(600L)
-                return scrapeWindowContent() ?: initialVitals
+                return scrapeWindowContent(persist) ?: initialVitals
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error performing gentle scroll and scrape", e)
@@ -186,41 +194,111 @@ class RingConnAccessibilityService : AccessibilityService() {
 
     /**
      * Wakes RingConn app with Accessibility Service context (exempt from Android 14/15 BAL restrictions),
-     * waits 2200ms for UI / BLE sync, gently scrolls to capture all telemetry and insights,
-     * navigates back to Home screen via performGlobalAction(GLOBAL_ACTION_HOME), and returns the scraped vitals.
+     * polls the semantics tree until the sleep record actually renders, pushes one single update to the
+     * watch, and navigates back to the Home screen.
+     *
+     * A fixed delay was not enough: RingConn needs to resume Flutter, re-attach BLE and pull the night's
+     * record before the sleep card shows a real score, so the peek used to leave before sleep arrived.
      */
     suspend fun wakeAndScrapeRingConnApp(): RingConnVitals? {
         try {
             val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-                startActivity(launchIntent)
-                Log.i(TAG, "Launched RingConn via AccessibilityService context (BAL exempt)")
-            } else {
+            if (launchIntent == null) {
                 Log.w(TAG, "RingConn launch intent was null")
                 return null
             }
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+            startActivity(launchIntent)
+            Log.i(TAG, "Launched RingConn via AccessibilityService context (BAL exempt)")
 
-            delay(2200L)
-            val vitals = performGentleScrollAndScrape()
-
-            // Return home cleanly via Accessibility global action with fallback
-            val homeSuccess = performGlobalAction(GLOBAL_ACTION_HOME)
-            if (!homeSuccess) {
-                try {
-                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                        addCategory(Intent.CATEGORY_HOME)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    }
-                    startActivity(homeIntent)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Fallback home intent error", e)
-                }
-            }
+            val vitals = awaitSleepRecord()
+            returnToHome()
             return vitals
         } catch (e: Exception) {
             Log.e(TAG, "Error in wakeAndScrapeRingConnApp", e)
+            returnToHome()
             return null
+        }
+    }
+
+    /**
+     * Polls the semantics tree until RingConn renders a real sleep score.
+     *
+     * Intermediate scrapes are deliberately not persisted: the watch receives exactly one
+     * forced update per morning peek instead of one per poll.
+     */
+    private suspend fun awaitSleepRecord(): RingConnVitals? {
+        val startedAt = SystemClock.elapsedRealtime()
+        var attempt = 0
+        var best: RingConnVitals? = null
+
+        while (MorningSyncAwaitPolicy.shouldKeepPolling(
+                elapsedMs = SystemClock.elapsedRealtime() - startedAt,
+                vitals = best,
+                ringConnForeground = isRingConnForeground()
+            )
+        ) {
+            delay(
+                if (attempt == 0) MorningSyncAwaitPolicy.MIN_SETTLE_MS
+                else MorningSyncAwaitPolicy.POLL_INTERVAL_MS
+            )
+            val scraped = if (MorningSyncAwaitPolicy.shouldScroll(attempt)) {
+                performGentleScrollAndScrape(persist = false)
+            } else {
+                scrapeWindowContent(persist = false)
+            }
+            if (scraped != null) best = scraped
+            attempt++
+        }
+
+        val elapsedMs = SystemClock.elapsedRealtime() - startedAt
+        val finalVitals = best
+        if (finalVitals == null) {
+            val leftApp = elapsedMs >= MorningSyncAwaitPolicy.LAUNCH_GRACE_MS && !isRingConnForeground()
+            Log.w(
+                TAG,
+                if (leftApp) {
+                    "Morning peek aborted after ${elapsedMs}ms and $attempt polls: RingConn was no longer in front"
+                } else {
+                    "Morning peek gave up after ${elapsedMs}ms and $attempt polls: RingConn rendered no sleep data"
+                }
+            )
+            return null
+        }
+
+        RingConnTelemetryReader.saveToPreferences(
+            context = this,
+            vitals = finalVitals,
+            source = "RingConn Directo (100% Exacto)"
+        )
+        WearDataSyncService(this).syncVitalsToWatch(finalVitals, force = true)
+        Log.i(
+            TAG,
+            "Morning peek captured sleep=${finalVitals.sleepScore} after ${elapsedMs}ms and $attempt polls " +
+                "(HR=${finalVitals.lastHeartRate}, Bat=${finalVitals.ringBattery}%)"
+        )
+        return finalVitals
+    }
+
+    private fun isRingConnForeground(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        return try {
+            root.packageName?.toString() == "com.gdjztech.ringconn"
+        } finally {
+            root.recycle()
+        }
+    }
+
+    private fun returnToHome() {
+        if (performGlobalAction(GLOBAL_ACTION_HOME)) return
+        try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(homeIntent)
+        } catch (e: Exception) {
+            Log.w(TAG, "Fallback home intent error", e)
         }
     }
 
