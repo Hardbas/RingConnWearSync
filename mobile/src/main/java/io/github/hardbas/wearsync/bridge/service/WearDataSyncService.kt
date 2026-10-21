@@ -17,7 +17,7 @@ class WearDataSyncService(private val context: Context) {
         val signature = computeSignature(vitals)
         val now = System.currentTimeMillis()
 
-        if (!force && signature == lastSyncedSignature && (now - lastSyncedTimeMs) < MIN_HEARTBEAT_INTERVAL_MS) {
+        if (!force && signature == lastSyncedSignature && (now - lastSyncedTimeMs) < SyncBatteryPolicy.HEARTBEAT_INTERVAL_MS) {
             Log.d(TAG, "Metrics unchanged ($signature); skipping Bluetooth wakeup to preserve Watch battery")
             return true
         }
@@ -178,7 +178,6 @@ class WearDataSyncService(private val context: Context) {
 
     companion object {
         private const val TAG = "WearDataSyncService"
-        private const val MIN_HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000L // 5 minutes if data unchanged
         @Volatile private var lastSyncedSignature: String = ""
         @Volatile private var lastSyncedTimeMs: Long = 0L
 

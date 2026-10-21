@@ -258,7 +258,6 @@ class RingConnForegroundService : Service() {
         const val NOTIFICATION_ID = 2001
         const val ACTION_SYNC_NOW = "io.github.hardbas.wearsync.bridge.SYNC_NOW"
         const val ACTION_WATCHDOG_TICK = "io.github.hardbas.wearsync.bridge.WATCHDOG_TICK"
-        private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L // 15 minutes
         private const val WATCHDOG_REQUEST_CODE = 9001
 
         fun start(context: Context, action: String? = null) {
@@ -283,13 +282,15 @@ class RingConnForegroundService : Service() {
                     intent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                val triggerAtMs = SystemClock.elapsedRealtime() + WATCHDOG_INTERVAL_MS
+                val hourOfDay = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                val intervalMs = SyncBatteryPolicy.watchdogIntervalMs(hourOfDay)
+                val triggerAtMs = SystemClock.elapsedRealtime() + intervalMs
                 alarmManager.setAndAllowWhileIdle(
                     AlarmManager.ELAPSED_REALTIME_WAKEUP,
                     triggerAtMs,
                     pendingIntent
                 )
-                Log.d(TAG, "Watchdog scheduled in 15 minutes ($triggerAtMs)")
+                Log.d(TAG, "Watchdog scheduled in ${intervalMs / 60_000} minutes (hour=$hourOfDay)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to schedule watchdog", e)
             }

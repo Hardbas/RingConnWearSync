@@ -18,6 +18,16 @@ class RingConnAccessibilityService : AccessibilityService() {
     private var scrapeJob: Job? = null
     private var lastScrapeTimestamp = 0L
 
+    /**
+     * True while the morning peek owns the scrape loop.
+     *
+     * During a peek RingConn stays in the foreground for several seconds and emits a stream of
+     * TYPE_WINDOW_CONTENT_CHANGED events. Without this flag each event would walk the whole Flutter
+     * semantics tree and persist/push another snapshot, which is pure battery burn: the peek already
+     * scrapes on its own schedule and pushes exactly once at the end.
+     */
+    @Volatile private var peekInProgress = false
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -44,6 +54,9 @@ class RingConnAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString() ?: return
 
         if (pkg == "com.gdjztech.ringconn") {
+            // The peek polls the tree itself, so event-driven scrapes are redundant while it runs.
+            if (peekInProgress) return
+
             // Debounce rapid window changes
             val now = System.currentTimeMillis()
             if (now - lastScrapeTimestamp < 400L) return
@@ -201,6 +214,7 @@ class RingConnAccessibilityService : AccessibilityService() {
      * record before the sleep card shows a real score, so the peek used to leave before sleep arrived.
      */
     suspend fun wakeAndScrapeRingConnApp(): RingConnVitals? {
+        peekInProgress = true
         try {
             val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
             if (launchIntent == null) {
@@ -218,6 +232,8 @@ class RingConnAccessibilityService : AccessibilityService() {
             Log.e(TAG, "Error in wakeAndScrapeRingConnApp", e)
             returnToHome()
             return null
+        } finally {
+            peekInProgress = false
         }
     }
 
