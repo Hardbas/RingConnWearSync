@@ -68,3 +68,5 @@ L12 — Feedback del usuario sobre rc2, y qué se cambió: «los titulos se sale
 - Sueño: `TileGauge.elements(entrance = false)` + opacidad perpetua de la luna con `Motion.aura()` (4200 ms, reverse) y banda `AURA_MIN/MAX`. Sigue con 2 animadores y ya no muere.
 - Pasos: `"Meta "` hardcodeado → `R.string.goal_label` (Goal/Meta).
 Verificado en el SM-L500: Sueño, Pasos y Estrés con capturas. Vitals y Frecuencia cardíaca NO se pudieron capturar (la pantalla del reloj se apagó y no se pudo forzar); quedan con verificación estructural (ancho estimado 68,8dp contra 119,5dp útiles).
+
+L13 — El usuario rechazó el rediseño del tile de Pasos y eligió (opción explícita) volver al diseño original completo de 1.9.15: «el de daily steps y eso antes estaba mas bonito me gustan las graficas que se vean». `DailySummaryTileService.kt` se restauró con `git checkout v1.9.15 --` (443 líneas, cero referencias al paquete de diseño) y se borró su contract test, porque probaba la estructura nueva. Los otros cuatro tiles siguen con el sistema de diseño. Pendiente de decisión: si el mismo revert va para los otros cuatro.

@@ -1,14 +1,23 @@
 package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
+import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
+import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.DimensionBuilders.expand
+import androidx.wear.protolayout.DimensionBuilders.sp
 import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
+import androidx.wear.protolayout.StateBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.expression.AnimationParameterBuilders
+import androidx.wear.protolayout.expression.AppDataKey
+import androidx.wear.protolayout.expression.DynamicBuilders
+import androidx.wear.protolayout.expression.DynamicDataBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -18,27 +27,13 @@ import com.google.common.util.concurrent.ListenableFuture
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
-import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
-import io.github.hardbas.wearsync.app.tile.design.TileChrome
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileGauge
-import io.github.hardbas.wearsync.app.tile.design.TileMeter
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
-import io.github.hardbas.wearsync.app.tile.design.TileStrings
-import java.text.DateFormat
 import java.text.NumberFormat
-import java.util.Date
 import java.util.Locale
 
 /**
  * Dedicated Circular Bezel Arc Daily Activity Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
- *
- * Focused purely on daytime activity, steps, active minutes, calories and goal
- * progress. Sleep has been extracted to its own dedicated celestial
- * SleepTileService.
- *
- * Drawing comes from the shared design system; its own second graphic (S7) is
- * the goal bar, so progress toward the daily target is readable at a glance.
+ * Focused purely on daytime activity, steps, active minutes, calories and goal progress.
+ * Sleep has been extracted to its own dedicated celestial SleepTileService.
  */
 class DailySummaryTileService : TileService() {
 
@@ -59,7 +54,6 @@ class DailySummaryTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "oneui8-summary-circular-v1"
         private const val RES_IC_ACTIVITY_RINGS = "oneui_ic_activity_rings"
-        private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.DailySummaryDetailActivity"
 
         fun buildResources(): ResourceBuilders.Resources {
             return ResourceBuilders.Resources.Builder()
@@ -80,115 +74,192 @@ class DailySummaryTileService : TileService() {
             context: Context,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
-        ): TileBuilders.Tile = buildTile(AndroidTileStrings(context), context.packageName, deviceParams, vitals)
-
-        fun buildTile(
-            strings: TileStrings,
-            packageName: String,
-            deviceParams: DeviceParameters,
-            vitals: RingConnVitals
         ): TileBuilders.Tile {
-            val accent = TileDesign.Accent.activity
+            val limeStepsColor = argb(0xFFA0F116.toInt())       // Neon Lime steps accent
+            val cyanTimeColor = argb(0xFF47CDFF.toInt())        // Active time cyan
+            val violetCalorieColor = argb(0xFFC580FF.toInt())   // Active calories violet
+            val amberDistanceColor = argb(0xFFFFB703.toInt())   // Distance amber
+            val pipeDividerColor = argb(0xFF686D73.toInt())     // Subtle pipe divider
+            val whiteColor = argb(0xFFFFFFFF.toInt())
+            val frostedGlassPill = argb(0x2BFFFFFF.toInt())     // 17% frosted glass
+            val frostedPodBg = argb(0x22FFFFFF.toInt())         // Subtle frosted glass
+            val bezelTrackColor = argb(0x24FFFFFF.toInt())      // Dark frosted bezel track
 
             val rawSteps = vitals.liveSteps
-            val stepsFormatted = if (rawSteps > 0) {
-                NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps)
-            } else {
-                "--"
-            }
+            val stepsFormatted = if (rawSteps > 0) NumberFormat.getIntegerInstance(Locale.getDefault()).format(rawSteps) else "--"
             val targetSteps = if (vitals.targetSteps > 0) vitals.targetSteps else 10000
             val targetStepsFormatted = NumberFormat.getIntegerInstance(Locale.getDefault()).format(targetSteps)
-            val activeMins = if (vitals.activeMinutes > 0) {
-                vitals.activeMinutes
-            } else if (vitals.liveSteps > 0) {
-                (vitals.liveSteps / 100).coerceAtLeast(1)
-            } else {
-                0
-            }
+            val activeMins = if (vitals.activeMinutes > 0) vitals.activeMinutes else if (vitals.liveSteps > 0) (vitals.liveSteps / 100).coerceAtLeast(1) else 0
             val activityVal = if (activeMins > 0) "${activeMins}m" else "--"
             val calorieVal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else "--"
-            val goalPct = if (rawSteps > 0) ((rawSteps.toFloat() / targetSteps.toFloat()) * 100).toInt() else 0
+            val goalPct = if (targetSteps > 0 && rawSteps > 0) ((rawSteps.toFloat() / targetSteps.toFloat()) * 100).toInt() else 0
             val isGoalAchieved = rawSteps >= targetSteps && rawSteps > 0
 
-            val fraction = if (rawSteps > 0) rawSteps.toFloat() / targetSteps.toFloat() else 0f
-
-            val timeText = if (vitals.refreshTimestamp > 0L) {
-                DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault())
-                    .format(Date(vitals.refreshTimestamp * 1000L))
-            } else {
-                strings.text(R.string.just_now)
-            }
-
-            val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
-
-            // Block 1 — header: icon + ONE short uppercase metric word. The chord at
-            // ~74dp above centre leaves ~105dp, so the timestamp moved into the
-            // frosted card instead of running into the bezel arc.
-            val headerIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_ACTIVITY_RINGS)
-                .setWidth(dp(14f))
-                .setHeight(dp(14f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(argb(accent))
+            val sweepAnimSpec = AnimationParameterBuilders.AnimationSpec.Builder()
+                .setAnimationParameters(
+                    AnimationParameterBuilders.AnimationParameters.Builder()
+                        .setDurationMillis(650L)
+                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.22f, 0.25f, 0.0f, 1.0f))
                         .build()
                 )
                 .build()
 
-            val headerLabel = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.steps_short).uppercase(Locale.getDefault()))
+            // Click -> DailySummaryDetailActivity
+            val activityAction = ActionBuilders.LaunchAction.Builder()
+                .setAndroidActivity(
+                    ActionBuilders.AndroidActivity.Builder()
+                        .setPackageName(context.packageName)
+                        .setClassName("io.github.hardbas.wearsync.app.ui.DailySummaryDetailActivity")
+                        .build()
+                ).build()
+
+            val mainTileClickable = ModifiersBuilders.Clickable.Builder()
+                .setOnClick(activityAction)
+                .build()
+
+            // 1. Perimeter Steps Goal Bezel Arc (260° span, 140° to 40°)
+            val totalArcSpanDegrees = 260f
+            val arcStartAngle = 140f
+
+            val targetStepsSweep = if (rawSteps > 0) {
+                val fraction = (rawSteps.toFloat() / targetSteps.toFloat()).coerceIn(0.04f, 1.0f)
+                fraction * totalArcSpanDegrees
+            } else {
+                12f
+            }
+
+            val dynamicStepsSweep = DimensionBuilders.DegreesProp.Builder(targetStepsSweep)
+                .setDynamicValue(
+                    DynamicBuilders.DynamicFloat.animate(
+                        AppDataKey<DynamicBuilders.DynamicFloat>("daily_steps_arc_sweep"),
+                        sweepAnimSpec
+                    )
+                )
+                .build()
+
+            val angularConstraint = DimensionBuilders.AngularLayoutConstraint.Builder(totalArcSpanDegrees)
+                .build()
+
+            val bgTrackArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(DimensionBuilders.degrees(totalArcSpanDegrees))
+                .setThickness(dp(6.5f))
+                .setColor(bezelTrackColor)
+                .build()
+
+            val bgArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(bgTrackArcLine)
+                .build()
+
+            val activeArcLine = LayoutElementBuilders.ArcLine.Builder()
+                .setLength(dynamicStepsSweep)
+                .setLayoutConstraintsForDynamicLength(angularConstraint)
+                .setThickness(dp(6.5f))
+                .setColor(limeStepsColor)
+                .build()
+
+            val activeArc = LayoutElementBuilders.Arc.Builder()
+                .setAnchorAngle(DimensionBuilders.degrees(arcStartAngle))
+                .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
+                .addContent(activeArcLine)
+                .build()
+
+            // 2. Title Row: Activity Rings Icon + "ACTIVIDAD"
+            val ringsIcon = LayoutElementBuilders.Image.Builder()
+                .setResourceId(RES_IC_ACTIVITY_RINGS)
+                .setWidth(dp(15f))
+                .setHeight(dp(15f))
+                .build()
+
+            val titleText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.steps_short).uppercase())
                 .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.label(accent))
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(limeStepsColor)
+                        .build()
+                )
                 .build()
 
             val headerRow = LayoutElementBuilders.Row.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(headerIcon)
-                .addContent(TileChrome.hSpacer(4f))
-                .addContent(headerLabel)
+                .addContent(ringsIcon)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(4f)).setHeight(dp(1f)).build())
+                .addContent(titleText)
                 .build()
 
-            // Hero: the 40sp step count with its unit, alone in its row.
-            val heroNumber = LayoutElementBuilders.Text.Builder()
+            // 3. Hero Row: Steps Big Number (30sp) + "pasos" (11sp)
+            val stepsNumberText = LayoutElementBuilders.Text.Builder()
                 .setText(stepsFormatted)
                 .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.hero())
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(30f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
+                        .build()
+                )
                 .build()
 
-            val heroUnit = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.steps_short).lowercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.unit(accent))
-                .build()
-
-            val heroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(heroNumber)
-                .addContent(TileChrome.hSpacer(3f))
-                .addContent(heroUnit)
-                .build()
-
-            // Block 3 — meter on frosted glass: the goal bar on the first line, then
-            // the goal line, the sub-metrics and the sync timestamp. Steps carries
-            // four readings, so they need two caption lines instead of one; four
-            // readings on one line would be wider than the chord at this height.
-            val goalTextStr = when {
-                isGoalAchieved -> strings.text(R.string.goal_achieved)
-                rawSteps > 0 -> "${strings.text(R.string.goal_label)} $targetStepsFormatted ($goalPct%)"
-                else -> "${strings.text(R.string.goal_label)} $targetStepsFormatted"
-            }
-
-            val goalRow = LayoutElementBuilders.Text.Builder()
-                .setText(goalTextStr)
+            val stepsLabelText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.steps_short).lowercase())
                 .setMaxLines(1)
                 .setFontStyle(
-                    TileDesign.Type.caption(
-                        if (isGoalAchieved) accent else TileDesign.Text.SECONDARY
-                    )
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_MEDIUM)
+                        .setColor(limeStepsColor)
+                        .build()
+                )
+                .build()
+
+            val heroStepsRow = LayoutElementBuilders.Row.Builder()
+                .setWidth(wrap())
+                .setHeight(wrap())
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_BOTTOM)
+                .addContent(stepsNumberText)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setWidth(dp(3f)).setHeight(dp(1f)).build())
+                .addContent(stepsLabelText)
+                .build()
+
+            // 4. Sub-metrics Row (Middle): Active Time + Calories
+            val activityTimeText = LayoutElementBuilders.Text.Builder()
+                .setText(activityVal)
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(cyanTimeColor)
+                        .build()
+                )
+                .build()
+
+            val pipeText = LayoutElementBuilders.Text.Builder()
+                .setText(" · ")
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setColor(pipeDividerColor)
+                        .build()
+                )
+                .build()
+
+            val calorieText = LayoutElementBuilders.Text.Builder()
+                .setText("$calorieVal kcal")
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(violetCalorieColor)
+                        .build()
                 )
                 .build()
 
@@ -196,105 +267,154 @@ class DailySummaryTileService : TileService() {
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-
-            subMetricsRowBuilder
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(activityVal)
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Accent.spo2))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(" · ")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText("$calorieVal kcal")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Accent.vitals))
-                        .build()
-                )
+                .addContent(activityTimeText)
+                .addContent(pipeText)
+                .addContent(calorieText)
 
             if (vitals.distanceKm > 0f) {
-                subMetricsRowBuilder
-                    .addContent(
-                        LayoutElementBuilders.Text.Builder()
-                            .setText(" · ")
-                            .setMaxLines(1)
-                            .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                val pipe2 = LayoutElementBuilders.Text.Builder()
+                    .setText(" · ")
+                    .setMaxLines(1)
+                    .setFontStyle(
+                        LayoutElementBuilders.FontStyle.Builder()
+                            .setSize(sp(11.5f))
+                            .setColor(pipeDividerColor)
                             .build()
                     )
-                    .addContent(
-                        LayoutElementBuilders.Text.Builder()
-                            .setText(String.format(Locale.US, "\u2248 %.1f km", vitals.distanceKm))
-                            .setMaxLines(1)
-                            .setFontStyle(TileDesign.Type.caption(TileDesign.Accent.starlight))
+                    .build()
+
+                val distanceText = LayoutElementBuilders.Text.Builder()
+                    .setText(String.format(Locale.US, "\u2248 %.1f km", vitals.distanceKm))
+                    .setMaxLines(1)
+                    .setFontStyle(
+                        LayoutElementBuilders.FontStyle.Builder()
+                            .setSize(sp(11.5f))
+                            .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                            .setColor(amberDistanceColor)
                             .build()
                     )
+                    .build()
+
+                subMetricsRowBuilder.addContent(pipe2).addContent(distanceText)
             }
 
-            val cardTimestamp = LayoutElementBuilders.Text.Builder()
-                .setText(timeText)
+            val subMetricsRow = subMetricsRowBuilder.build()
+
+            // 5. Goal Progress Capsule (Replacing old Sleep pod)
+            val goalTextStr = if (isGoalAchieved) {
+                context.getString(R.string.goal_achieved)
+            } else if (rawSteps > 0) {
+                "Meta $targetStepsFormatted ($goalPct%)"
+            } else {
+                "Meta $targetStepsFormatted"
+            }
+
+            val goalTextColor = if (isGoalAchieved) limeStepsColor else whiteColor
+
+            val goalText = LayoutElementBuilders.Text.Builder()
+                .setText(goalTextStr)
                 .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(10.5f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(goalTextColor)
+                        .build()
+                )
                 .build()
 
-            val cardContent = LayoutElementBuilders.Column.Builder()
+            val goalPillBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(wrap())
-                .setHeight(wrap())
+                .setHeight(dp(20f))
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(TileMeter.progress(fraction = fraction, accent = accent))
-                .addContent(TileChrome.spacer(3f))
-                .addContent(goalRow)
-                .addContent(TileChrome.spacer(2f))
-                .addContent(subMetricsRowBuilder.build())
-                .addContent(TileChrome.spacer(2f))
-                .addContent(cardTimestamp)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(frostedPodBg)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(10f)).build())
+                                .build()
+                        )
+                        .setPadding(
+                            ModifiersBuilders.Padding.Builder()
+                                .setStart(dp(8f))
+                                .setEnd(dp(8f))
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(goalText)
                 .build()
 
-            val meterCard = TileChrome.card(cardContent)
+            // 6. Action Button ("Detalles")
+            val actionButtonText = LayoutElementBuilders.Text.Builder()
+                .setText(context.getString(R.string.details))
+                .setMaxLines(1)
+                .setFontStyle(
+                    LayoutElementBuilders.FontStyle.Builder()
+                        .setSize(sp(11f))
+                        .setWeight(LayoutElementBuilders.FONT_WEIGHT_BOLD)
+                        .setColor(whiteColor)
+                        .build()
+                )
+                .build()
 
-            val actionPill = TileChrome.actionPill(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(strings.text(R.string.details))
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
-                    .build(),
-                clickable
-            )
+            val actionPillBox = LayoutElementBuilders.Box.Builder()
+                .setWidth(dp(88f))
+                .setHeight(dp(26f))
+                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setClickable(mainTileClickable)
+                        .setBackground(
+                            ModifiersBuilders.Background.Builder()
+                                .setColor(frostedGlassPill)
+                                .setCorner(ModifiersBuilders.Corner.Builder().setRadius(dp(13f)).build())
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(actionButtonText)
+                .build()
 
-            val contentColumn = LayoutElementBuilders.Column.Builder()
+            // Center Column Content
+            val centerContentColumn = LayoutElementBuilders.Column.Builder()
                 .setWidth(wrap())
                 .setHeight(wrap())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .addContent(headerRow)
-                .addContent(TileChrome.spacer(3f))
-                .addContent(heroRow)
-                .addContent(TileChrome.spacer(5f))
-                .addContent(meterCard)
-                .addContent(TileChrome.spacer(6f))
-                .addContent(actionPill)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(2f)).setWidth(dp(1f)).build())
+                .addContent(heroStepsRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(3f)).setWidth(dp(1f)).build())
+                .addContent(subMetricsRow)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(5f)).setWidth(dp(1f)).build())
+                .addContent(goalPillBox)
+                .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(6f)).setWidth(dp(1f)).build())
+                .addContent(actionPillBox)
                 .build()
 
-            val gauge = TileGauge.elements(
-                accent = accent,
-                targetSweep = TileGauge.sweepFor(fraction)
-            )
-
+            // Root Canvas: Full-bleed Circular Box with Bezel Arcs + Center Content
             val rootBox = LayoutElementBuilders.Box.Builder()
                 .setWidth(expand())
                 .setHeight(expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(TileChrome.rootModifiers(TileMetric.ACTIVITY, clickable))
-                .addContent(gauge[0])
-                .addContent(gauge[1])
-                .addContent(contentColumn)
+                .setModifiers(
+                    ModifiersBuilders.Modifiers.Builder()
+                        .setClickable(mainTileClickable)
+                        .setContentUpdateAnimation(
+                            ModifiersBuilders.AnimatedVisibility.Builder()
+                                .setEnterTransition(ModifiersBuilders.DefaultContentTransitions.fadeIn())
+                                .setExitTransition(ModifiersBuilders.DefaultContentTransitions.fadeOut())
+                                .build()
+                        )
+                        .build()
+                )
+                .addContent(bgArc)
+                .addContent(activeArc)
+                .addContent(centerContentColumn)
                 .build()
 
             val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
@@ -305,9 +425,17 @@ class DailySummaryTileService : TileService() {
                 .addTimelineEntry(timelineEntry)
                 .build()
 
+            val tileState = StateBuilders.State.Builder()
+                .addKeyToValueMapping(
+                    AppDataKey<DynamicBuilders.DynamicFloat>("daily_steps_arc_sweep"),
+                    DynamicDataBuilders.DynamicDataValue.fromFloat(targetStepsSweep)
+                )
+                .build()
+
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(timeline)
+                .setState(tileState)
                 .setFreshnessIntervalMillis(60_000L)
                 .build()
         }
