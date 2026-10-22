@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The sleep tile's stars: seven fixed points from the design's `.stars` layer.
+
+    Static on purpose. The design's twinkle belongs to its "Expresivo" mode; the
+    watch build is "Esencial", where the sleep tile's two animators are the
+    entrance and the radial glow, and stars that blink would be a third.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M58.80,30.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#FAF0D788" />
+    <path
+        android:pathData="M130.80,24.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#FAF0D788" />
+    <path
+        android:pathData="M158.80,60.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#E5DEC988" />
+    <path
+        android:pathData="M28.80,90.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#FAF0D788" />
+    <path
+        android:pathData="M166.80,126.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#E5DEC988" />
+    <path
+        android:pathData="M22.80,126.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#FAF0D788" />
+    <path
+        android:pathData="M98.80,9.00 a1.2,1.2 0 1,0 2.4,0 a1.2,1.2 0 1,0 -2.4,0"
+        android:fillColor="#FAF0D788" />
+</vector>

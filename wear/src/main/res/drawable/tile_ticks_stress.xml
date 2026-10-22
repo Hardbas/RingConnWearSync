@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Horological dial ticks for the stress tile.
+
+    Drawn once as a static VectorDrawable instead of 36 ArcLine elements:
+    the tick marks point radially, which an arc primitive cannot express, and a
+    forty-element dial would cost more than it shows.
+
+    Geometry is the design render's, verbatim: 36 ticks over the 260 degree
+    span starting at 140 degrees, a major tick every 11th, 1.8dp (3.2dp major) long.
+    Colour is TileInk.PRIMARY at 11% (minor) and 19% (major).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M35.38,135.03 L33.87,136.01 M30.95,127.10 L29.33,127.88 M27.56,118.68 L25.85,119.24 M25.25,109.89 L23.49,110.24 M24.07,100.89 L22.27,101.01 M24.02,91.81 L22.23,91.70 M25.12,82.79 L23.35,82.46 M27.34,73.99 L25.63,73.44 M30.66,65.53 L29.02,64.77 M35.00,57.56 L33.48,56.60 M46.52,43.56 L45.29,42.25 M53.51,37.75 L52.45,36.30 M61.17,32.87 L60.30,31.30 M69.38,28.99 L68.72,27.32 M78.02,26.18 L77.57,24.44 M86.94,24.47 L86.71,22.69 M96.00,23.90 L96.00,22.10 M105.06,24.47 L105.29,22.69 M113.98,26.18 L114.43,24.44 M122.62,28.99 L123.28,27.32 M138.49,37.75 L139.55,36.30 M145.48,43.56 L146.71,42.25 M151.68,50.19 L153.07,49.05 M157.00,57.56 L158.52,56.60 M161.34,65.53 L162.98,64.77 M164.66,73.99 L166.37,73.44 M166.88,82.79 L168.65,82.46 M167.98,91.81 L169.77,91.70 M167.93,100.89 L169.73,101.01 M166.75,109.89 L168.51,110.24 M161.05,127.10 L162.67,127.88 M156.62,135.03 L158.13,136.01 M151.23,142.34 L152.61,143.50"
+        android:strokeColor="#1CF5F2EB"
+        android:strokeWidth="0.65"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M41.30,141.90 L38.85,143.95 M40.86,50.64 L38.39,48.60 M130.49,33.49 L132.04,30.68 M163.78,118.46 L166.81,119.47"
+        android:strokeColor="#30F5F2EB"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+
+    <!-- Cut marks at 30, 60 and 80: dark, crossing the whole 12dp band. -->
+    <path
+        android:pathData="M33.75,47.36 L25.87,41.21 M130.63,25.00 L135.02,16.01 M173.27,79.57 L183.06,77.50"
+        android:strokeColor="#A6080807"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+</vector>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The crescent that sits in front of the sleep quality word.
+
+    One closed outline (outer arc out, inner arc back), never two circles: evenOdd
+    subtraction of two offset circles fills both slivers and reads as a ring.
+    Ivory body, one 0.6dp gold edge, 12dp square so it rides the label baseline.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="12dp"
+    android:height="12dp"
+    android:viewportWidth="12"
+    android:viewportHeight="12">
+
+    <path
+        android:pathData="M6,0.6 A5.4,5.4 0 0,1 6,11.4 A5,5 0 0,0 6,0.6 Z"
+        android:fillColor="#FAF0D7" />
+
+    <path
+        android:pathData="M6,0.6 A5.4,5.4 0 0,1 6,11.4"
+        android:strokeColor="#E3B86B"
+        android:strokeWidth="0.6" />
+</vector>

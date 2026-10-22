@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Horological dial ticks for the sleep tile.
+
+    Drawn once as a static VectorDrawable instead of 36 ArcLine elements:
+    the tick marks point radially, which an arc primitive cannot express, and a
+    forty-element dial would cost more than it shows.
+
+    Geometry is the design render's, verbatim: 36 ticks over the 260 degree
+    span starting at 140 degrees, a major tick every 11th, 1.8dp (3.2dp major) long.
+    Colour is TileInk.PRIMARY at 10% (minor) and 17% (major).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M34.54,135.58 L33.03,136.55 M30.05,127.53 L28.43,128.31 M26.61,118.99 L24.90,119.56 M24.27,110.09 L22.50,110.43 M23.07,100.96 L21.27,101.08 M23.02,91.75 L21.23,91.64 M24.14,82.61 L22.37,82.28 M26.39,73.68 L24.68,73.13 M29.75,65.11 L28.12,64.35 M34.16,57.02 L32.64,56.06 M45.84,42.83 L44.60,41.52 M52.92,36.94 L51.86,35.49 M60.68,32.00 L59.81,30.42 M69.01,28.06 L68.35,26.39 M77.77,25.21 L77.32,23.47 M86.81,23.48 L86.58,21.69 M96.00,22.90 L96.00,21.10 M105.19,23.48 L105.42,21.69 M114.23,25.21 L114.68,23.47 M122.99,28.06 L123.65,26.39 M139.08,36.94 L140.14,35.49 M146.16,42.83 L147.40,41.52 M152.45,49.56 L153.84,48.41 M157.84,57.02 L159.36,56.06 M162.25,65.11 L163.88,64.35 M165.61,73.68 L167.32,73.13 M167.86,82.61 L169.63,82.28 M168.98,91.75 L170.77,91.64 M168.93,100.96 L170.73,101.08 M167.73,110.09 L169.50,110.43 M161.95,127.53 L163.57,128.31 M157.46,135.58 L158.97,136.55 M152.00,142.99 L153.38,144.14"
+        android:strokeColor="#1AF5F2EB"
+        android:strokeWidth="0.65"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M40.54,142.54 L38.09,144.59 M40.09,50.00 L37.62,47.97 M130.98,32.61 L132.52,29.81 M164.73,118.77 L167.76,119.78"
+        android:strokeColor="#2BF5F2EB"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+</vector>

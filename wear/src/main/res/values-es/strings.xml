@@ -28,6 +28,7 @@
     <string name="steps_short">Pasos</string>
     <string name="goal_label">Meta</string>
     <string name="tile_heart_rate_title">Frecuencia Cardíaca</string>
+    <string name="pulse_short">Pulso</string>
     <string name="resting_hr">FC en Reposo</string>
     <string name="hr_insights_title">Análisis y Estado</string>
     <string name="hrv_title">Variabilidad (VFC)</string>

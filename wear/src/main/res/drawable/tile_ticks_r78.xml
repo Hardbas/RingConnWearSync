@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Horological dial ticks for the vitals and activity tile.
+
+    Drawn once as a static VectorDrawable instead of 36 ArcLine elements:
+    the tick marks point radially, which an arc primitive cannot express, and a
+    forty-element dial would cost more than it shows.
+
+    Geometry is the design render's, verbatim: 36 ticks over the 260 degree
+    span starting at 140 degrees, a major tick every 11th, 1.8dp (3.2dp major) long.
+    Colour is TileInk.PRIMARY at 10% (minor) and 17% (major).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M31.18,137.74 L29.66,138.72 M26.44,129.26 L24.82,130.04 M22.81,120.25 L21.10,120.82 M20.35,110.86 L18.58,111.20 M19.08,101.23 L17.28,101.35 M19.03,91.52 L17.23,91.41 M20.20,81.88 L18.44,81.55 M22.58,72.46 L20.87,71.91 M26.12,63.42 L24.49,62.66 M30.77,54.89 L29.25,53.93 M43.09,39.92 L41.86,38.61 M50.56,33.71 L49.50,32.26 M58.75,28.49 L57.88,26.92 M67.53,24.35 L66.87,22.67 M76.77,21.34 L76.32,19.59 M86.31,19.51 L86.08,17.73 M96.00,18.90 L96.00,17.10 M105.69,19.51 L105.92,17.73 M115.23,21.34 L115.68,19.59 M124.47,24.35 L125.13,22.67 M141.44,33.71 L142.50,32.26 M148.91,39.92 L150.14,38.61 M155.54,47.02 L156.93,45.87 M161.23,54.89 L162.75,53.93 M165.88,63.42 L167.51,62.66 M169.42,72.46 L171.13,71.91 M171.80,81.88 L173.56,81.55 M172.97,91.52 L174.77,91.41 M172.92,101.23 L174.72,101.35 M171.65,110.86 L173.42,111.20 M165.56,129.26 L167.18,130.04 M160.82,137.74 L162.34,138.72 M155.06,145.56 L156.44,146.72"
+        android:strokeColor="#1AF5F2EB"
+        android:strokeWidth="0.65"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M37.47,145.11 L35.02,147.17 M37.00,47.46 L34.53,45.43 M132.91,29.11 L134.46,26.31 M168.52,120.03 L171.56,121.04"
+        android:strokeColor="#2BF5F2EB"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+</vector>

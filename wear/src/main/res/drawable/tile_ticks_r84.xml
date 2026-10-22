@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Horological dial ticks for the pulse and stress tile.
+
+    Drawn once as a static VectorDrawable instead of 40 ArcLine elements:
+    the tick marks point radially, which an arc primitive cannot express, and a
+    forty-element dial would cost more than it shows.
+
+    Geometry is the design render's, verbatim: 40 ticks over the 260 degree
+    span starting at 140 degrees, a major tick every 11th, 1.8dp (3.2dp major) long.
+    Colour is TileInk.PRIMARY at 12% (minor) and 20% (major).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M26.70,141.87 L25.20,142.86 M21.96,133.73 L20.35,134.54 M18.16,125.10 L16.48,125.73 M15.37,116.10 L13.62,116.54 M13.61,106.85 L11.83,107.08 M12.91,97.45 L11.11,97.48 M13.28,88.04 L11.49,87.86 M14.72,78.72 L12.96,78.35 M17.19,69.63 L15.49,69.06 M20.69,60.88 L19.05,60.12 M30.52,44.84 L29.10,43.73 M36.73,37.75 L35.45,36.49 M43.70,31.42 L42.57,30.02 M51.35,25.91 L50.38,24.40 M59.57,21.31 L58.78,19.69 M68.26,17.67 L67.66,15.97 M77.31,15.03 L76.90,13.28 M86.59,13.43 L86.39,11.65 M96.00,12.90 L96.00,11.10 M105.41,13.43 L105.61,11.65 M123.74,17.67 L124.34,15.97 M132.43,21.31 L133.22,19.69 M140.65,25.91 L141.62,24.40 M148.30,31.42 L149.43,30.02 M155.27,37.75 L156.55,36.49 M161.48,44.84 L162.90,43.73 M166.85,52.58 L168.39,51.64 M171.31,60.88 L172.95,60.12 M174.81,69.63 L176.51,69.06 M177.28,78.72 L179.04,78.35 M179.09,97.45 L180.89,97.48 M178.39,106.85 L180.17,107.08 M176.63,116.10 L178.38,116.54 M173.84,125.10 L175.52,125.73 M170.04,133.73 L171.65,134.54 M165.30,141.87 L166.80,142.86 M159.66,149.42 L161.04,150.57"
+        android:strokeColor="#1FF5F2EB"
+        android:strokeWidth="0.65"
+        android:strokeLineCap="round" />
+
+    <path
+        android:pathData="M32.88,148.97 L30.43,151.02 M25.74,52.95 L23.01,51.27 M114.54,15.71 L115.26,12.59 M178.02,88.10 L181.21,87.80"
+        android:strokeColor="#33F5F2EB"
+        android:strokeWidth="1"
+        android:strokeLineCap="round" />
+</vector>
