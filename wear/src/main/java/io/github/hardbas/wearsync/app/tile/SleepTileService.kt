@@ -2,19 +2,10 @@ package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
 import android.util.Log
-import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
-import androidx.wear.protolayout.DimensionBuilders
-import androidx.wear.protolayout.DimensionBuilders.dp
-import androidx.wear.protolayout.DimensionBuilders.expand
-import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
-import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
-import androidx.wear.protolayout.TypeBuilders
-import androidx.wear.protolayout.expression.AnimationParameterBuilders
-import androidx.wear.protolayout.expression.DynamicBuilders
 import androidx.wear.tiles.EventBuilders
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
@@ -25,11 +16,13 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
-import io.github.hardbas.wearsync.app.tile.design.TileChrome
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileGauge
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileDial
+import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileResources
+import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
+import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,24 +30,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 /**
- * Dedicated Circular Bezel Arc Sleep Tile with Celestial Starry Night Aesthetic & Nocturnal Temperature
- * integration for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Sleep tile: the quality word behind a crescent, the score, and the night split
+ * into four proportional phases around the dial.
  *
- * Sleep is the only tile in the carousel with a scene, so it keeps it: a
- * starfield backdrop, an untinted three-tone crescent moon, a sun that sinks
- * behind a horizon limb on entrance. Everything else — palette, type scale,
- * bezel gauge, badges and the action pill — comes from the shared design
- * system, so the tile reads as part of the same family instead of a repainted
- * copy of its neighbours.
+ * The file only supplies meaning. Every colour, size, radius and animation comes
+ * from the warm editorial design system, so the carousel reads as one watch face
+ * family instead of five hand-painted gauges.
  *
- * Motion budget (S6/S9): the sunset entrance plus the moon's perpetual aura are
- * the tile's two animators, which is why the bezel is built with
- * `breathing = false` and `entrance = false`. Total = 2, and the tile keeps
- * moving after the sun lands.
- *
- * Content budget (S4): four blocks — header, hero, frosted card, action pill. The
- * card carries the quality, the duration and the nocturnal skin temperature, so
- * the header stays a single short word inside the bezel.
+ * Motion budget: the entrance of the phase ring plus the breathing radial glow,
+ * which is why the phase halo is static — exactly the two animators the design
+ * allows, and the glow is the infinite one.
  */
 class SleepTileService : TileService() {
 
@@ -97,84 +82,14 @@ class SleepTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-sleep-celestial-v16"
-        private const val RES_IC_STARFIELD = "ic_tile_starfield"
-        private const val RES_IC_MOON = "ic_tile_moon"
-        private const val RES_IC_SLEEP = "ic_vitals_sleep"
-        private const val RES_IC_TEMP = "ic_comp_temp"
-        private const val RES_SUN = "sun_disc"
-        private const val RES_HORIZON = "horizon_limb"
-
+        const val RESOURCES_VERSION = "warm-editorial-sleep-v1"
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 
-        // Sunset entrance geometry, in dp relative to the tile centre.
-        // X is a static offset into the empty lower-left corner (- the crescent owns the
-        // right side), so only Y has to animate: the whole entrance costs one animator.
-        // The sun starts ABOVE centre so it actually travels 148dp before it is gone;
-        // starting at +44 made it begin already half-occluded and it died in 500ms.
-        private const val SUN_OFFSET_X_DP = -40f
-        private const val SUN_START_Y_DP = -36f
-        private const val SUN_END_Y_DP = 112f
+        /** The four phases, in the order the design paints them. */
+        private const val PHASES = 4
 
-        fun buildResources(): ResourceBuilders.Resources {
-            return ResourceBuilders.Resources.Builder()
-                .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_IC_STARFIELD,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_tile_starfield)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_IC_MOON,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_tile_moon)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_SUN,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.sun_disc)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_HORIZON,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.horizon_limb)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_IC_SLEEP,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_vitals_sleep)
-                                .build()
-                        ).build()
-                )
-                .addIdToImageMapping(
-                    RES_IC_TEMP,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_comp_temp)
-                                .build()
-                        ).build()
-                )
-                .build()
-        }
+        fun buildResources(): ResourceBuilders.Resources =
+            TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
 
         fun buildTile(
             context: Context,
@@ -188,307 +103,113 @@ class SleepTileService : TileService() {
             deviceParams: DeviceParameters,
             vitals: RingConnVitals
         ): TileBuilders.Tile {
-            val hasSleepData = vitals.sleepScore > 0
             val score = vitals.sleepScore
-            val scoreText = if (hasSleepData) "$score" else "--"
+            val stale = vitals.isStale
 
-            val effectiveMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
-            val durationText = if (effectiveMins > 0) {
-                val h = effectiveMins / 60
-                val m = effectiveMins % 60
-                if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
-            } else if (hasSleepData) {
-                "--"
-            } else {
-                strings.text(R.string.no_data)
-            }
+            // Awake counts towards the night: the four segments have to describe the
+            // whole time in bed, so their fractions sum to one.
+            val totalMins = vitals.sleepDeepMins + vitals.sleepRemMins +
+                vitals.sleepLightMins + vitals.sleepAwakeMins
+            val hasData = score > 0 && totalMins > 0
 
-            val qualityText = when {
-                !hasSleepData -> strings.text(R.string.no_data)
+            val ramp = if (stale) TileAccents.dim(TileAccents.sleep) else TileAccents.sleep
+            val labelColor = if (hasData && !stale) TileAccents.sleepLabel else TileInk.DIM
+
+            val quality = when {
+                !hasData -> strings.text(R.string.no_data)
                 score >= 85 -> strings.text(R.string.excellent)
                 score >= 70 -> strings.text(R.string.good)
                 else -> strings.text(R.string.fair)
             }
 
-            // The sleep ramp already carries the three quality states; the no-data
-            // tile borrows the calmest end of it instead of inventing a grey.
-            val accent = when {
-                !hasSleepData -> TileDesign.Accent.sleepLavender
-                score >= 85 -> TileDesign.Accent.sleep[0]
-                score >= 70 -> TileDesign.Accent.sleep[1]
-                else -> TileDesign.Accent.sleep[2]
+            // Asleep time excludes the awake minutes; the ring includes them.
+            val asleepMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
+            val durationText = when {
+                asleepMins <= 0 -> "--"
+                else -> {
+                    val h = asleepMins / 60
+                    val m = asleepMins % 60
+                    if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
+                }
             }
 
-            // Integrated Nocturnal Skin Temperature reading
+            // Nocturnal skin temperature, as an offset from the wearer's baseline.
             val offset = vitals.skinTempOffset
-            val hasTempData = vitals.skinTempBaseline > 0f || vitals.skinTempOffset != 0f
-            val baseline = if (vitals.skinTempBaseline > 0f) vitals.skinTempBaseline else 36.1f
+            val hasTempData = vitals.skinTempBaseline > 0f || offset != 0f
+            val tempText = when {
+                !hasTempData -> "--"
+                offset in -0.05f..0.05f -> "±0.0°"
+                else -> String.format(Locale.US, "%+.1f", offset) + "°"
+            }
 
-            val offsetStr = if (hasTempData) {
-                when {
-                    offset in -0.05f..0.05f -> "±0.0"
-                    offset > 0.05f -> String.format(Locale.US, "+%.1f", offset)
-                    else -> String.format(Locale.US, "%.1f", offset)
+            val phaseFractions = if (hasData) {
+                FloatArray(PHASES) { index ->
+                    val minutes = when (index) {
+                        0 -> vitals.sleepDeepMins
+                        1 -> vitals.sleepRemMins
+                        2 -> vitals.sleepLightMins
+                        else -> vitals.sleepAwakeMins
+                    }
+                    minutes.toFloat() / totalMins
                 }
             } else {
-                "--"
+                FloatArray(0)
             }
 
-            val tempAccent = when {
-                !hasTempData -> TileDesign.Text.MUTED
-                offset in -0.5f..0.5f -> TileDesign.Accent.stable
-                offset > 0.5f -> TileDesign.Accent.warm
-                else -> TileDesign.Accent.cool
-            }
+            val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            val tempDisplayText = if (hasTempData) {
-                "$offsetStr°C · ${String.format(Locale.US, "%.1f°", baseline)}"
-            } else {
-                "--°C · ${strings.text(R.string.no_data)}"
-            }
-
-            val fraction = if (hasSleepData) score.coerceIn(0, 100) / 100f else 0f
-
-            val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
-
-            // Block 1 — header: icon + ONE short uppercase metric word. The nocturnal
-            // skin temperature used to ride here as a badge and pushed the header
-            // into the bezel arc on the upper chord; it now lives in the glass card.
-            val headerIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_SLEEP)
-                .setWidth(dp(15f))
-                .setHeight(dp(15f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(argb(TileDesign.Accent.starlight))
-                        .build()
-                )
-                .build()
-
-            // The hero unit carries the metric accent, so the tile has a saturated
-            // reading next to the number as well as in the arc.
-            val headerLabel = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.sleep_short).uppercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.label(TileDesign.Accent.starlight))
-                .build()
-
-            val headerRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(headerIcon)
-                .addContent(TileChrome.hSpacer(4f))
-                .addContent(headerLabel)
-                .build()
-
-            // Block 2 — hero: the 40sp score with its unit, alone in its row.
-            val heroNumber = LayoutElementBuilders.Text.Builder()
-                .setText(scoreText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.hero())
-                .build()
-
-            val heroUnit = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.pts_unit).lowercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.unit(accent))
-                .build()
-
-            val heroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(heroNumber)
-                .addContent(TileChrome.hSpacer(3f))
-                .addContent(heroUnit)
-                .build()
-
-            // Block 3 — the recovery readings on frosted glass: the quality word and
-            // the duration on the first line, the nocturnal skin temperature as the
-            // caption under it. Sleep is the only tile with no sync timestamp, so
-            // the card is two lines instead of three.
-            val qualityTextNode = LayoutElementBuilders.Text.Builder()
-                .setText(qualityText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(accent))
-                .build()
-
-            val durationTextNode = LayoutElementBuilders.Text.Builder()
-                .setText(durationText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.SECONDARY))
-                .build()
-
-            val metricsRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(qualityTextNode)
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(" · ")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                        .build()
-                )
-                .addContent(durationTextNode)
-                .build()
-
-            val tempCaption = LayoutElementBuilders.Text.Builder()
-                .setText(tempDisplayText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(tempAccent))
-                .build()
-
-            val cardContent = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(metricsRow)
-                .addContent(TileChrome.spacer(3f))
-                .addContent(tempCaption)
-                .build()
-
-            val metricsCard = TileChrome.card(cardContent)
-
-            // Block 4 — the single action pill.
-            val actionPill = TileChrome.actionPill(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(strings.text(R.string.details))
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
-                    .build(),
-                clickable
-            )
-
-            val contentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(headerRow)
-                .addContent(TileChrome.spacer(4f))
-                .addContent(heroRow)
-                .addContent(TileChrome.spacer(6f))
-                .addContent(metricsCard)
-                .addContent(TileChrome.spacer(8f))
-                .addContent(actionPill)
-                .build()
-
-            // ===== The scene: unchanged resources, unchanged geometry =====
-
-            // 1. Starfield backdrop, full-bleed and first: it paints over the metric
-            // gradient when opaque, which is the intent.
-            val starfieldBackground = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_STARFIELD)
-                .setWidth(expand())
-                .setHeight(expand())
-                .build()
-
-            // 2. Crescent moon, left untinted so its three tones (aura, body,
-            // highlight) survive. Its halo breathes forever on the tile's second
-            // animator: this is what keeps Sleep alive after the sun has landed.
-            val moonAura = TypeBuilders.FloatProp.Builder(TileDesign.Motion.AURA_MIN)
-                .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        TileDesign.Motion.AURA_MIN,
-                        TileDesign.Motion.AURA_MAX,
-                        TileDesign.Motion.aura()
-                    )
-                )
-                .build()
-
-            val celestialMoon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_MOON)
-                .setWidth(expand())
-                .setHeight(expand())
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setOpacity(moonAura)
-                        .build()
-                )
-                .build()
-
-            // 3. Setting sun: a soft-edged disc that translates down behind the
-            // horizon. Only Y animates; this is the tile's one scene animator.
-            val sunsetSpec = AnimationParameterBuilders.AnimationSpec.Builder()
-                .setAnimationParameters(
-                    AnimationParameterBuilders.AnimationParameters.Builder()
-                        .setDurationMillis(1700L)
-                        .setEasing(AnimationParameterBuilders.Easing.cubicBezier(0.42f, 0.0f, 0.26f, 1.0f))
-                        .build()
-                )
-                .build()
-
-            val sunSink = DimensionBuilders.DpProp.Builder(SUN_START_Y_DP)
-                .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        SUN_START_Y_DP,
-                        SUN_END_Y_DP,
-                        sunsetSpec
-                    )
-                )
-                .build()
-
-            val sunImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_SUN)
-                .setWidth(dp(70f))
-                .setHeight(dp(70f))
-                .setModifiers(
-                    ModifiersBuilders.Modifiers.Builder()
-                        .setTransformation(
-                            ModifiersBuilders.Transformation.Builder()
-                                .setTranslationX(dp(SUN_OFFSET_X_DP))
-                                .setTranslationY(sunSink)
-                                .build()
+            val layers = buildList {
+                // Sleep is the tile that breathes through its radial glow, so this is
+                // its infinite animator and the phase halo stays static.
+                add(TileShell.glow(TileResources.GLOW, ramp.first(), breathing = hasData && !stale))
+                add(TileShell.overlay(TileResources.STARS))
+                add(TileShell.overlay(TileResources.TICKS_R74))
+                if (hasData) {
+                    add(
+                        TileDial.phases(
+                            colors = ramp,
+                            fractions = phaseFractions,
+                            entrance = !stale
                         )
-                        .build()
-                )
-                .build()
+                    )
+                }
+            }
 
-            // 4. Occluder. Drawn after the sun, so plain z-order hides it as it sinks.
-            val horizonImage = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_HORIZON)
-                .setWidth(expand())
-                .setHeight(expand())
-                .build()
-
-            // Bezel gauge: breathing = false because the moon aura already spends the
-            // tile's second animator, and entrance = false because the sunset IS the
-            // entrance (S9). Result: sunset + moon aura = exactly two animators.
-            val gauge = TileGauge.elements(
-                accent = accent,
-                targetSweep = TileGauge.sweepFor(fraction),
-                breathing = false,
-                entrance = false
+            val label = TileShell.withMoon(
+                TileResources.MOON,
+                TileShell.text(quality, TileType.sleepLabel(labelColor))
             )
 
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(TileChrome.rootModifiers(TileMetric.SLEEP, clickable))
-                .addContent(starfieldBackground)
-                .addContent(celestialMoon)
-                .addContent(sunImage)
-                .addContent(horizonImage)
-                .addContent(gauge[0])
-                .addContent(gauge[1])
-                .addContent(contentColumn)
-                .build()
+            val sub = TileShell.pillRow(
+                listOf(
+                    TileShell.text(durationText, TileType.sub()),
+                    TileShell.text(" · ", TileType.sub()),
+                    TileShell.text(tempText, TileType.sub(TileAccents.teal))
+                )
+            )
 
-            val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build())
-                .build()
+            val stack = TileShell.stack(
+                label = label,
+                hero = TileShell.text(
+                    value = if (hasData) "$score" else "--",
+                    style = TileType.hero(),
+                    opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
+                ),
+                sub = sub
+            )
 
-            val timeline = TimelineBuilders.Timeline.Builder()
-                .addTimelineEntry(timelineEntry)
+            val pill = TileShell.pill(
+                content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
+                clickable = clickable
+            )
+
+            val entry = TimelineBuilders.TimelineEntry.Builder()
+                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(TileShell.root(clickable, layers, stack, pill)).build())
                 .build()
 
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
-                .setTileTimeline(timeline)
+                .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
                 .setFreshnessIntervalMillis(60_000L)
                 .build()
         }
