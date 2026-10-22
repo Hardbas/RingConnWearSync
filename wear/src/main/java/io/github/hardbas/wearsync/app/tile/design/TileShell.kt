@@ -246,12 +246,26 @@ object TileShell {
             )
             .build()
 
-    fun text(value: String, style: LayoutElementBuilders.FontStyle): LayoutElementBuilders.Text =
-        LayoutElementBuilders.Text.Builder()
+    fun text(
+        value: String,
+        style: LayoutElementBuilders.FontStyle,
+        opacity: Float? = null
+    ): LayoutElementBuilders.Text {
+        val builder = LayoutElementBuilders.Text.Builder()
             .setText(value)
             .setMaxLines(1)
             .setFontStyle(style)
-            .build()
+        if (opacity != null) {
+            builder.setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setOpacity(
+                        TypeBuilders.FloatProp.Builder(opacity).build()
+                    )
+                    .build()
+            )
+        }
+        return builder.build()
+    }
 
     /** The one activity a pill (and the face) can launch. */
     fun launchDetail(packageName: String, className: String): ModifiersBuilders.Clickable =

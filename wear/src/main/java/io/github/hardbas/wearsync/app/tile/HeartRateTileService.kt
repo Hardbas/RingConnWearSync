@@ -1,11 +1,7 @@
 package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
-import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
-import androidx.wear.protolayout.DimensionBuilders.dp
-import androidx.wear.protolayout.DimensionBuilders.expand
-import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
@@ -19,23 +15,22 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
-import io.github.hardbas.wearsync.app.tile.design.TileChrome
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileGauge
-import io.github.hardbas.wearsync.app.tile.design.TileMeter
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileDial
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
+import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileResources
+import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
-import java.text.DateFormat
-import java.util.Date
+import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
 
 /**
- * Dedicated Circular Bezel Arc Heart Rate Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Pulse tile: terracotta dial, pearl marker, zone and variability.
  *
- * Drawing comes entirely from the shared design system: the bezel gauge, the
- * backdrop, the type scale and the chrome are the same objects the other four
- * tiles use, so the carousel reads as one app. This file only supplies meaning:
- * the reading, the zone and the range.
+ * The file only supplies meaning. Every colour, size, radius and animation comes
+ * from the warm editorial design system, so the carousel reads as one watch face
+ * family instead of five hand-painted gauges.
  */
 class HeartRateTileService : TileService() {
 
@@ -54,24 +49,11 @@ class HeartRateTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-hr-circular-v1"
-        private const val RES_IC_HR = "ic_vitals_hr"
+        const val RESOURCES_VERSION = "warm-editorial-hr-v1"
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity"
 
-        fun buildResources(): ResourceBuilders.Resources {
-            return ResourceBuilders.Resources.Builder()
-                .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_IC_HR,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_vitals_hr)
-                                .build()
-                        ).build()
-                )
-                .build()
-        }
+        fun buildResources(): ResourceBuilders.Resources =
+            TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
 
         fun buildTile(
             context: Context,
@@ -86,180 +68,76 @@ class HeartRateTileService : TileService() {
             vitals: RingConnVitals
         ): TileBuilders.Tile {
             val hasHr = vitals.lastHeartRate > 0
-            val hrVal = vitals.lastHeartRate
-            val hrValue = if (hasHr) "$hrVal" else "--"
+            val stale = vitals.isStale
+            val bpm = vitals.lastHeartRate
+            val zone = zoneOf(bpm)
 
-            // Z1 Resting -> Z5 Peak. Index drives both the ladder and the accent.
-            val zoneIndex = when {
-                !hasHr -> 0
-                hrVal < 100 -> 0
-                hrVal <= 120 -> 1
-                hrVal <= 140 -> 2
-                hrVal <= 160 -> 3
-                else -> 4
-            }
-            val zoneAccent = if (hasHr) TileDesign.Accent.heartRate[zoneIndex] else TileDesign.Text.MUTED
+            // Warm ramps when the reading is live, the palette's grey when it is
+            // not: the design's "Viejo" state desaturates the whole face.
+            val ramp = if (stale) TileAccents.dim(TileAccents.heartRate) else TileAccents.heartRate
+            val accent = ramp.last()
+            val labelColor = if (hasHr && !stale) TileAccents.heartRateLabel else TileInk.DIM
 
-            val fraction = if (hasHr) ((hrVal - 40f) / 130f).coerceIn(0f, 1f) else 0f
+            val title = strings.text(R.string.pulse_short).uppercase(Locale.getDefault())
+            val label = if (hasHr) "$title · $zone" else title
 
-            val timeText = if (vitals.refreshTimestamp > 0L) {
-                DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault())
-                    .format(Date(vitals.refreshTimestamp * 1000L))
+            // 42..187 bpm across the dial, floored so a resting reading still
+            // shows an arc instead of a dot.
+            val fraction = if (hasHr) ((bpm - 42f) / 145f).coerceIn(0.05f, 0.96f) else 0f
+
+            val hrv = if (vitals.lastHrv > 0) {
+                "${strings.text(R.string.hrv_short)} ${vitals.lastHrv} ms"
             } else {
-                strings.text(R.string.just_now)
+                strings.text(R.string.no_data)
             }
 
-            val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
+            val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
-            // Block 1 — header: icon + ONE short uppercase metric word and nothing
-            // else. A 192dp tile is a circle, so a row sitting ~67dp above centre
-            // only has ~119dp of usable width; the timestamp would have pushed the
-            // label into the bezel arc, so it moved into the frosted card below.
-            val headerIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_HR)
-                .setWidth(dp(14f))
-                .setHeight(dp(14f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(argb(zoneAccent))
-                        .build()
-                )
-                .build()
+            val layers = buildList {
+                add(TileShell.glow(TileResources.GLOW, accent))
+                add(TileDial.track(accent))
+                add(TileShell.overlay(TileResources.TICKS_R84))
+                if (hasHr) {
+                    add(TileDial.value(ramp, fraction, pearlColor = TileAccents.heartRateLabel))
+                }
+            }
 
-            val headerLabel = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.tile_heart_rate_title).uppercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.label(zoneAccent))
-                .build()
-
-            val headerRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(headerIcon)
-                .addContent(TileChrome.hSpacer(4f))
-                .addContent(headerLabel)
-                .build()
-
-            // Hero: 40sp tabular number + unit. Nothing else shares this row, so
-            // the number keeps its full optical weight inside the round bezel.
-            val heroNumber = LayoutElementBuilders.Text.Builder()
-                .setText(hrValue)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.hero())
-                .build()
-
-            val heroUnit = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.unit(zoneAccent))
-                .build()
-
-            val heroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(heroNumber)
-                .addContent(TileChrome.hSpacer(3f))
-                .addContent(heroUnit)
-                .build()
-
-            // Block 3 — the meter block, wrapped in frosted glass so the sub-graphic
-            // sits *on* something instead of floating on the gradient. Line 1 is the
-            // sub-graphic (five-zone ladder), then the small readings, then the sync
-            // timestamp that used to crowd the header.
-            val hasMinMax = vitals.minHeartRate > 0 && vitals.maxHeartRate > 0
-            val rangeText = if (hasMinMax) "${vitals.minHeartRate}–${vitals.maxHeartRate}" else "--"
-
-            val cardReadings = LayoutElementBuilders.Text.Builder()
-                .setText(rangeText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(zoneAccent))
-                .build()
-
-            val cardCaption = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(cardReadings)
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(" · ")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(timeText)
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                        .build()
-                )
-                .build()
-
-            val cardContent = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(TileMeter.ladder(count = 5, activeIndex = zoneIndex, accent = zoneAccent))
-                .addContent(TileChrome.spacer(4f))
-                .addContent(cardCaption)
-                .build()
-
-            val meterCard = TileChrome.card(cardContent)
-
-            val actionPill = TileChrome.actionPill(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(strings.text(R.string.measure))
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
-                    .build(),
-                clickable
+            val stack = TileShell.stack(
+                label = TileShell.text(label, TileType.label(labelColor)),
+                hero = TileShell.text(
+                    value = if (hasHr) "$bpm" else "--",
+                    style = TileType.hero(),
+                    opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
+                ),
+                sub = TileShell.text(hrv, TileType.sub())
             )
 
-            val contentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(headerRow)
-                .addContent(TileChrome.spacer(3f))
-                .addContent(heroRow)
-                .addContent(TileChrome.spacer(5f))
-                .addContent(meterCard)
-                .addContent(TileChrome.spacer(6f))
-                .addContent(actionPill)
-                .build()
-
-            val gauge = TileGauge.elements(
-                accent = zoneAccent,
-                targetSweep = TileGauge.sweepFor(fraction)
+            val pill = TileShell.pill(
+                content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
+                clickable = clickable
             )
 
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(TileChrome.rootModifiers(TileMetric.HEART_RATE, clickable))
-                .addContent(gauge[0])
-                .addContent(gauge[1])
-                .addContent(contentColumn)
-                .build()
-
-            val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build())
-                .build()
-
-            val timeline = TimelineBuilders.Timeline.Builder()
-                .addTimelineEntry(timelineEntry)
+            val entry = TimelineBuilders.TimelineEntry.Builder()
+                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(TileShell.root(clickable, layers, stack, pill)).build())
                 .build()
 
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
-                .setTileTimeline(timeline)
+                .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
+
+        /** Z1 rest -> Z5 peak, on the design's bpm cuts. */
+        fun zoneOf(bpm: Int): String = when {
+            bpm < 62 -> "Z1"
+            bpm <= 96 -> "Z2"
+            bpm <= 128 -> "Z3"
+            bpm <= 154 -> "Z4"
+            else -> "Z5"
+        }
+
+        /** Kept public for the contract test: the dial never exceeds the face. */
+        internal fun dialBudget(): Float = TileGeometry.safeWidthDp(TileGeometry.SUB_Y)
     }
 }
