@@ -6,6 +6,7 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.data.DailyHistoryEntry
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
@@ -33,7 +34,8 @@ class VitalsTileContractTest {
             R.string.vitals_short -> "Vitals"
             R.string.bpm_unit -> "BPM"
             R.string.details -> "Details"
-            R.string.tile_vitals_sub -> "SpO₂ %1\$s · Battery %2\$s"
+            R.string.tile_spo2_only -> "SpO₂ %1\$s"
+            R.string.tile_vitals_energy -> "Energy %1\$s"
             else -> "s$resId"
         }
     }
@@ -112,11 +114,15 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `without history the pill keeps both readings with their tone dots`() {
+    fun `the pill carries the recovery score with its label`() {
         val texts = TileTestKit.texts(liveRoot).mapNotNull { it.text?.value }
-        assertTrue("no SpO2 reading in the pill, had $texts", texts.any { it == "97%" })
-        assertTrue("no ring charge in the pill, had $texts", texts.any { it == "84%" })
-        assertEquals(TileType.PILL, TileTestKit.texts(liveRoot).first { it.text?.value == "97%" }.fontStyle?.size?.value)
+        val expected = "Energy ${RingConnHistoryStore.computeReadinessScore(live)}"
+        assertTrue("the recovery score is labelled, had $texts", texts.any { it == expected })
+        assertEquals(
+            TileType.PILL,
+            TileTestKit.texts(liveRoot).first { it.text?.value == expected }.fontStyle?.size?.value
+        )
+        assertTrue("the ring charge is gone from the face", texts.none { it.contains("84%") })
     }
 
     @Test
@@ -196,9 +202,13 @@ class VitalsTileContractTest {
         assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
         assertTrue(TileTestKit.texts(root).any { it.text?.value == "VITALS" })
         assertEquals(
-            "hero and both pill readings fall back to --",
-            3,
+            "the hero falls back to --",
+            1,
             TileTestKit.texts(root).count { it.text?.value == "--" }
+        )
+        assertTrue(
+            "the recovery score falls back too",
+            TileTestKit.texts(root).any { it.text?.value == "Energy --" }
         )
     }
 
@@ -300,20 +310,23 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `the sub carries the average saturation and the ring charge`() {
+    fun `the sub carries the week average saturation and nothing else`() {
         // 96, 97, 95, 98, 97, 96, 97 averages 96.57, which prints as 97 %.
+        // One reading, one number: the dot pair read as "which is which", so the
+        // second reading moved to the pill with a word in front of it.
         val texts = TileTestKit.texts(rootFor(live, sevenDays())).mapNotNull { it.text?.value }
-        assertTrue(
-            "the sub is the week's mean and today's charge, had $texts",
-            texts.any { it == "SpO₂ 97% · Battery 84%" }
-        )
+        assertTrue("the average saturation is on the face", texts.any { it == "SpO₂ 97%" })
+        assertTrue("no second reading shares the sub", texts.none { it.contains("84%") })
     }
 
     @Test
-    fun `with a trend row the pill is the one action of the face`() {
+    fun `with a trend row the pill still opens the app`() {
         val root = rootFor(live, sevenDays())
         val texts = TileTestKit.texts(root).mapNotNull { it.text?.value }
-        assertTrue("the readings moved to the sub, had $texts", texts.any { it == "Details" })
+        assertTrue(
+            "the pill carries the recovery score, had $texts",
+            texts.any { it.startsWith("Energy ") }
+        )
         assertTrue(
             "the pill launches the detail activity",
             clickables(root).any { it.onClick is ActionBuilders.LaunchAction }

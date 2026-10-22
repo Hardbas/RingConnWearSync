@@ -72,7 +72,6 @@
     <string name="details">Details</string>
 
     <!-- Trend row (S14): the face carries the trend the drawer used to hide. -->
-    <string name="tile_vitals_sub">SpO₂ %1$s · Battery %2$s</string>
     <string name="tile_steps_sub">%1$s · %2$s · %3$s</string>
 
     <!-- Temperature Strings (English Default) -->
@@ -262,4 +261,6 @@
     <string name="coherence_hold">Hold</string>
     <string name="coherence_completed">Session Complete</string>
     <string name="coherence_start">Start Breathing</string>
+    <string name="tile_spo2_only">SpO₂ %1$s</string>
+    <string name="tile_vitals_energy">Energy %1$s</string>
 </resources>

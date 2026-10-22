@@ -12,9 +12,9 @@ import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.hardbas.wearsync.app.R
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.DailyHistoryEntry
-import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.Ring
@@ -92,22 +92,26 @@ class VitalsTileService : TileService() {
         ): TileBuilders.Tile {
             val hasHr = vitals.lastHeartRate > 0
             val hasSpo2 = vitals.lastSpo2 > 0
-            val hasBattery = vitals.ringBattery > 0
+            // The ring's own charge lives in the complications: this face uses the
+            // inner ring for the recovery score, which is the reading a glance
+            // cannot get anywhere else.
+            val readiness = RingConnHistoryStore.computeReadinessScore(vitals)
+            val hasReadiness = readiness > 0
             // The rings are a second graphic, not a reading of their own: they only
             // appear once there is something to ring.
-            val hasData = hasHr || hasSpo2 || hasBattery
+            val hasData = hasHr || hasSpo2 || hasReadiness
             val stale = vitals.isStale
 
             // Two ramps, one per ring. Warm when the reading is live, the palette's
             // grey when it is not: the design's "Viejo" state desaturates the face.
             val spo2Ramp = if (stale) TileAccents.dim(TileAccents.spo2) else TileAccents.spo2
-            val batteryRamp = if (stale) TileAccents.dim(TileAccents.battery) else TileAccents.battery
+            val readinessRamp = if (stale) TileAccents.dim(TileAccents.battery) else TileAccents.battery
             val labelColor = if (hasData && !stale) TileAccents.spo2Label else TileInk.DIM
 
-            // Saturation and charge share one scale: percent of full, floored at
-            // 6 % so a low reading still shows a ring instead of a dot.
+            // Both readings are percent of full, floored at 6 % so a low value
+            // still shows a ring instead of a dot.
             val spo2Fraction = (vitals.lastSpo2 / 100f).coerceIn(0.06f, 1f)
-            val batteryFraction = (vitals.ringBattery / 100f).coerceIn(0.06f, 1f)
+            val readinessFraction = (readiness / 100f).coerceIn(0.06f, 1f)
 
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
@@ -136,7 +140,7 @@ class VitalsTileService : TileService() {
                 )
                 add(
                     TileDial.track(
-                        batteryRamp.last(),
+                        readinessRamp.last(),
                         TileGeometry.RING_INNER_RADIUS,
                         TileGeometry.RING_THICKNESS,
                         breathing = false
@@ -149,7 +153,7 @@ class VitalsTileService : TileService() {
                     add(
                         TileDial.rings(
                             outer = Ring(spo2Ramp, spo2Fraction, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
-                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
+                            inner = Ring(readinessRamp, readinessFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
                         )
                     )
                 }
@@ -162,14 +166,13 @@ class VitalsTileService : TileService() {
             // and the ring charge, and the pill goes back to being the one action
             // of the face. Without a row the face keeps the subtitle it had.
             val sub = if (hasTrend) {
+                // Two tone dots instead of two words: at the sub line's height
+                // the rings only leave about 110dp, and "SpO2 ..% · Battery ..%"
+                // ran into both of them. The dot is the same key the rings use.
+                // One reading, one number: the dot pair read as "which is which".
                 val average = spo2Series.average().roundToInt()
                 TileShell.text(
-                    value = String.format(
-                        Locale.getDefault(),
-                        strings.text(R.string.tile_vitals_sub),
-                        "$average%",
-                        if (hasBattery) "${vitals.ringBattery}%" else NO_VALUE
-                    ),
+                    value = String.format(Locale.getDefault(), strings.text(R.string.tile_spo2_only), "$average%"),
                     style = TileType.sub()
                 )
             } else {
@@ -207,27 +210,26 @@ class VitalsTileService : TileService() {
             // The pill carries the two readings the rings stand for, each tied to
             // its ring by a tone dot: oxygen first, then ring autonomy. With a
             // trend row they have moved to the subtitle, so the pill is the action.
-            val pill = if (hasTrend) {
-                TileShell.pill(
-                    content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
-                    clickable = clickable
-                )
-            } else {
-                TileShell.pill(
-                    content = TileShell.pillRow(
-                        listOf(
-                            TileShell.pillDot(TileAccents.spo2Label),
-                            TileShell.hSpacer(4f),
-                            TileShell.pillText(if (hasSpo2) "${vitals.lastSpo2}%" else NO_VALUE, TileInk.PRIMARY),
-                            TileShell.pillSeparator(),
-                            TileShell.pillDot(TileAccents.batteryLabel),
-                            TileShell.hSpacer(4f),
-                            TileShell.pillText(if (hasBattery) "${vitals.ringBattery}%" else NO_VALUE, TileInk.PRIMARY)
+            // The pill carries the second reading instead of the word "Detail":
+            // it is the only slot left on the face, it is still the tap target,
+            // and "Energy 78" says which number is which without a legend.
+            val pill = TileShell.pill(
+                content = TileShell.pillRow(
+                    listOf(
+                        TileShell.pillDot(if (hasReadiness && !stale) TileAccents.batteryLabel else TileInk.DIM),
+                        TileShell.hSpacer(4f),
+                        TileShell.pillText(
+                            String.format(
+                                Locale.getDefault(),
+                                strings.text(R.string.tile_vitals_energy),
+                                if (hasReadiness) "$readiness" else NO_VALUE
+                            ),
+                            TileInk.PRIMARY
                         )
-                    ),
-                    clickable = clickable
-                )
-            }
+                    )
+                ),
+                clickable = clickable
+            )
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
                 .setLayout(

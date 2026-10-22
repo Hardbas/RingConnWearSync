@@ -73,7 +73,6 @@
 
     <!-- Cajón dentro del tile (S12): la píldora de la esfera lo abre, la suya abre la app. -->
     <!-- Trend row (S14): the face carries the trend the drawer used to hide. -->
-    <string name="tile_vitals_sub">SpO₂ %1$s · Batería %2$s</string>
     <string name="tile_steps_sub">%1$s · %2$s · %3$s</string>
 
     <!-- Temperature Strings (Spanish) -->
@@ -263,4 +262,6 @@
     <string name="coherence_hold">Sostené</string>
     <string name="coherence_completed">Sesión completada</string>
     <string name="coherence_start">Iniciar respiración</string>
+    <string name="tile_spo2_only">SpO₂ %1$s</string>
+    <string name="tile_vitals_energy">Energía %1$s</string>
 </resources>
