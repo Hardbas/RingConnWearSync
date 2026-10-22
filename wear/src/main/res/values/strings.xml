@@ -225,13 +225,8 @@
     <string name="trend_7day_title">7-Day Trend</string>
 
     <!-- Nocturnal Respiratory & Apnea ODI Radar -->
-    <string name="apnea_odi_title">Apnea &amp; SpO2 (ODI)</string>
-    <string name="apnea_odi_explanation">ODI tracks ≥3% oxygen drops per hour of sleep: &lt;5 Normal, 5–15 Mild, ≥15 Alert. HR Dip (10–20%) reflects nocturnal cardiac recovery.</string>
-    <string name="odi_index">Apnea (ODI)</string>
-    <string name="odi_events_per_hr">/h</string>
-    <string name="odi_status_optimal">Normal &lt;5</string>
-    <string name="odi_status_mild">Mild 5–15</string>
-    <string name="odi_status_elevated">Alert ≥15</string>
+    <string name="nocturnal_spo2_title">Nocturnal SpO2</string>
+    <string name="nocturnal_spo2_note">The ring samples SpO2 about every 30 minutes. That is enough for a nightly minimum, not for detecting apnoeas or computing an ODI. HR dip (10–20%) reflects nocturnal cardiac recovery.</string>
     <string name="min_sleeping_spo2">Min SpO2</string>
     <string name="spo2_stable">Normal ≥94%</string>
     <string name="spo2_unstable">Low &lt;94%</string>

@@ -813,7 +813,7 @@ fun SleepDetailContent(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = stringResource(R.string.apnea_odi_title),
+                                text = stringResource(R.string.nocturnal_spo2_title),
                                 fontSize = TextBody,
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold
@@ -821,20 +821,6 @@ fun SleepDetailContent(
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
-
-                        val odiValueText = if (hasSleepData) String.format(Locale.US, "%.1f", vitals.odiDropsPerHour) else "--"
-                        val odiStatus = when {
-                            !hasSleepData -> stringResource(R.string.no_data)
-                            vitals.odiDropsPerHour < 5.0f -> stringResource(R.string.odi_status_optimal)
-                            vitals.odiDropsPerHour < 15.0f -> stringResource(R.string.odi_status_mild)
-                            else -> stringResource(R.string.odi_status_elevated)
-                        }
-                        val odiColor = when {
-                            !hasSleepData -> LabelSilver
-                            vitals.odiDropsPerHour < 5.0f -> ColorEmerald
-                            vitals.odiDropsPerHour < 15.0f -> ColorAmber
-                            else -> ColorCoral
-                        }
 
                         val minSpo2Text = if (vitals.minSleepingSpo2 > 0) "${vitals.minSleepingSpo2}%" else "--"
                         val minSpo2Status = when {
@@ -852,71 +838,6 @@ fun SleepDetailContent(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // ODI Index Box
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(ShapeChip)
-                                    .background(CardBgSubtle)
-                                    .padding(horizontal = 6.dp, vertical = 7.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.odi_index),
-                                        fontSize = TextCaption,
-                                        color = LabelSilver,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Row(
-                                        verticalAlignment = Alignment.Bottom,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = odiValueText,
-                                            fontSize = TextBody,
-                                            style = TabularNums,
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1
-                                        )
-                                        if (hasSleepData) {
-                                            Spacer(modifier = Modifier.width(2.dp))
-                                            Text(
-                                                text = stringResource(R.string.odi_events_per_hr),
-                                                fontSize = TextCaption,
-                                                color = LabelSilver,
-                                                maxLines = 1
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(ShapePill)
-                                            .background(odiColor.copy(alpha = 0.16f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = odiStatus,
-                                            fontSize = 9.sp,
-                                            color = odiColor,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-
                             // Min Sleeping SpO2 Box
                             Box(
                                 modifier = Modifier
@@ -1040,7 +961,7 @@ fun SleepDetailContent(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = stringResource(R.string.apnea_odi_explanation),
+                            text = stringResource(R.string.nocturnal_spo2_note),
                             fontSize = 9.sp,
                             color = LabelSilver,
                             lineHeight = 12.sp

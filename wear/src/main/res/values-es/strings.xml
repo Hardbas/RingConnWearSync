@@ -226,13 +226,8 @@
     <string name="trend_7day_title">Tendencia 7 Días</string>
 
     <!-- Nocturnal Respiratory & Apnea ODI Radar -->
-    <string name="apnea_odi_title">Apnea y Oxígeno (ODI)</string>
-    <string name="apnea_odi_explanation">ODI mide caídas de oxígeno ≥3% por hora al dormir: &lt;5 Normal (sin apnea), 5–15 Leve, ≥15 Alerta. El Dip FC (10–20%) mide cuánto descansa tu corazón de noche.</string>
-    <string name="odi_index">Apnea (ODI)</string>
-    <string name="odi_events_per_hr">/h</string>
-    <string name="odi_status_optimal">Normal &lt;5</string>
-    <string name="odi_status_mild">Leve 5–15</string>
-    <string name="odi_status_elevated">Alerta ≥15</string>
+    <string name="nocturnal_spo2_title">SpO2 nocturno</string>
+    <string name="nocturnal_spo2_note">El anillo muestrea SpO2 aproximadamente cada 30 minutos. Alcanza para un mínimo nocturno, no para detectar apneas ni calcular un ODI. El descenso de pulso (10–20%) refleja la recuperación cardíaca nocturna.</string>
     <string name="min_sleeping_spo2">SpO2 Mín.</string>
     <string name="spo2_stable">Normal ≥94%</string>
     <string name="spo2_unstable">Bajo &lt;94%</string>
