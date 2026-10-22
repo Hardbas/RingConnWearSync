@@ -21,13 +21,12 @@ import io.github.hardbas.wearsync.app.tile.design.Ring
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
+import io.github.hardbas.wearsync.app.tile.design.TileSparkline
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.text.NumberFormat
@@ -44,15 +43,7 @@ import java.util.Locale
 class DailySummaryTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
-        // A LoadAction tap returns here with its clickable id; the builder turns
-        // that id into open/closed before it renders either the face or the drawer.
-        return Futures.immediateFuture(
-            buildTile(
-                this,
-                requestParams.deviceConfiguration,
-                lastClickableId = requestParams.currentState.lastClickableId
-            )
-        )
+        return Futures.immediateFuture(buildTile(this, requestParams.deviceConfiguration))
     }
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
@@ -66,10 +57,7 @@ class DailySummaryTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-steps-v1"
 
-        /** Key of this tile in [TileDrawerState]. */
-        const val TILE_ID = "steps"
-
-        /** Face refresh period; the open panel asks for [TileDrawerState.DRAWER_FRESHNESS_MS] instead. */
+        /** Face refresh period. */
         private const val DEFAULT_FRESHNESS_MS = 60_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.DailySummaryDetailActivity"
@@ -78,9 +66,6 @@ class DailySummaryTileService : TileService() {
         private const val DEFAULT_TARGET_STEPS = 10_000
         private const val DEFAULT_TARGET_KCAL = 500
 
-        /** The drawer's bar series is the last seven days, never more. */
-        private const val DRAWER_DAYS = 7
-
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
 
@@ -88,22 +73,17 @@ class DailySummaryTileService : TileService() {
             context: Context,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = RingConnHistoryStore.getHistory(context)
         ): TileBuilders.Tile = buildTile(
             AndroidTileStrings(context),
             context.packageName,
             deviceParams,
             vitals,
-            lastClickableId,
             history
         )
 
         /**
-         * @param lastClickableId the id the system carried back from a
-         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
-         *   drawer ids leaves the tile in the state it is already in.
-         * @param history the seven-day cache the drawer bars come from. Passed in
+         * @param history the seven-day cache the trend row comes from. Passed in
          *   so the contract tests can build entries directly; production reads it
          *   from [RingConnHistoryStore].
          */
@@ -112,14 +92,8 @@ class DailySummaryTileService : TileService() {
             packageName: String,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals,
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = emptyList()
         ): TileBuilders.Tile {
-            TileDrawerState.apply(TILE_ID, lastClickableId)
-            if (TileDrawerState.isOpen(TILE_ID)) {
-                return drawerTile(strings, packageName, vitals, history)
-            }
-
             val hasData = vitals.liveSteps > 0
             val stale = vitals.isStale
 
@@ -147,9 +121,6 @@ class DailySummaryTileService : TileService() {
                 "--km"
             }
 
-            // The pill asks for a reload and comes back with id `pill`, which
-            // opens the drawer; the face behind it keeps launching the detail
-            // screen, exactly like the pulse tile.
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
@@ -207,7 +178,25 @@ class DailySummaryTileService : TileService() {
                 }
             }
 
-            // The design gives this tile label + hero + pill only: no sub line.
+            // The trend row: the steps of the last seven days, oldest first.
+            val series = stepsSeries(history)
+            val hasTrend = series.isNotEmpty()
+            val sparkline = if (hasTrend) {
+                TileSparkline.row(
+                    values = series,
+                    // A stale face desaturates every accent it owns (S7).
+                    accent = stepsRamp.last(),
+                    heightDp = TileGeometry.SPARK_HEIGHT,
+                    barWidthDp = TileGeometry.SPARK_BAR_WIDTH,
+                    gapDp = TileGeometry.SPARK_BAR_GAP
+                )
+            } else {
+                null
+            }
+
+            // The design gives this tile label + hero + pill only. A trend row
+            // makes room for the three daytime readings as the subtitle, so the
+            // face keeps them without repeating them in the pill.
             val stack = TileShell.stack(
                 label = TileShell.text(
                     value = strings.text(R.string.steps_short).uppercase(Locale.getDefault()),
@@ -217,21 +206,43 @@ class DailySummaryTileService : TileService() {
                     value = if (hasData) stepsText(vitals.liveSteps) else "--",
                     style = TileType.hero(TileType.HERO_COMPACT),
                     opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
-                )
+                ),
+                sub = if (hasTrend) {
+                    TileShell.text(
+                        value = String.format(
+                            Locale.getDefault(),
+                            strings.text(R.string.tile_steps_sub),
+                            activeText,
+                            kcalText,
+                            kmText
+                        ),
+                        style = TileType.sub()
+                    )
+                } else {
+                    null
+                },
+                trend = sparkline
             )
 
-            val pill = TileShell.pill(
-                content = TileShell.pillRow(
-                    listOf(
-                        TileShell.text(activeText, TileType.pill(TileAccents.steps.first())),
-                        TileShell.pillSeparator(),
-                        TileShell.text(kcalText, TileType.pill(TileAccents.kcal.first())),
-                        TileShell.pillSeparator(),
-                        TileShell.text(kmText, TileType.pill(TileAccents.teal))
-                    )
-                ),
-                clickable = TileDrawer.tapToOpen()
-            )
+            val pill = if (hasTrend) {
+                TileShell.pill(
+                    content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
+                    clickable = clickable
+                )
+            } else {
+                TileShell.pill(
+                    content = TileShell.pillRow(
+                        listOf(
+                            TileShell.text(activeText, TileType.pill(TileAccents.steps.first())),
+                            TileShell.pillSeparator(),
+                            TileShell.text(kcalText, TileType.pill(TileAccents.kcal.first())),
+                            TileShell.pillSeparator(),
+                            TileShell.text(kmText, TileType.pill(TileAccents.teal))
+                        )
+                    ),
+                    clickable = clickable
+                )
+            }
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
                 .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(TileShell.root(clickable, layers, stack, pill)).build())
@@ -241,55 +252,14 @@ class DailySummaryTileService : TileService() {
         }
 
         /**
-         * The open drawer: the whole face becomes the S12 panel, built from the
-         * tile's own readings and the real seven-day step history.
+         * The step count of the last seven days, oldest first. A day with no
+         * reading is left out instead of drawn as a dip.
          */
-        private fun drawerTile(
-            strings: TileStrings,
-            packageName: String,
-            vitals: RingConnVitals,
-            history: List<DailyHistoryEntry>
-        ): TileBuilders.Tile {
-            val days = history.sortedBy { it.epochDay }.takeLast(DRAWER_DAYS)
-            val steps = stepsText(vitals.liveSteps)
-            val kcal = if (vitals.liveCalorie > 0) "${vitals.liveCalorie}" else NO_VALUE
-            val active = if (vitals.activeMinutes > 0) "${vitals.activeMinutes}" else NO_VALUE
-            val km = if (vitals.distanceKm > 0f) {
-                String.format(Locale.US, "%.1f", vitals.distanceKm)
-            } else {
-                NO_VALUE
-            }
-
-            val root = TileDrawer.drawer(
-                accent = TileAccents.steps.first(),
-                kicker = strings.text(R.string.tile_drawer_steps_kicker).uppercase(Locale.getDefault()),
-                title = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_steps_title),
-                    steps,
-                    kcal
-                ),
-                meta = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_steps_meta),
-                    active,
-                    km
-                ),
-                bars = days.map { it.steps.toFloat() },
-                barColor = TileAccents.steps.last(),
-                closeLabel = strings.text(R.string.tile_drawer_close),
-                openLabel = strings.text(R.string.tile_drawer_open),
-                packageName = packageName,
-                detailActivity = DETAIL_ACTIVITY
-            )
-
-            return tile(
-                TimelineBuilders.TimelineEntry.Builder()
-                    .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
-                    .build(),
-                freshnessMs = TileDrawerState.DRAWER_FRESHNESS_MS
-            )
-        }
+        private fun stepsSeries(history: List<DailyHistoryEntry>): List<Float> =
+            history.sortedBy { it.epochDay }
+                .takeLast(TileGeometry.SPARK_DAYS)
+                .map { it.steps.toFloat() }
+                .filter { it > 0f }
 
         private fun tile(
             entry: TimelineBuilders.TimelineEntry,
@@ -300,8 +270,6 @@ class DailySummaryTileService : TileService() {
                 .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
                 .setFreshnessIntervalMillis(freshnessMs)
                 .build()
-
-        private const val NO_VALUE = "--"
 
         /**
          * Steps as the design prints them: `12.4k` from ten thousand up (always a

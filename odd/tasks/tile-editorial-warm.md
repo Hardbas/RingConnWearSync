@@ -50,6 +50,15 @@ Series y copy por tile:
 
 S13 — **Ajustes fieles al render, sin cajón.** La píldora toma la geometría y el material del render: 26dp de alto, radio 13, fondo blanco al 9 % (`rgba(245,242,235,0.09)`), borde 0.75dp al 16 %, texto 11sp monoespaciado con tracking −0.02em, ancho fijo 104dp centrado. El subtítulo de Estrés dice «Normal · HRV 41» (con la palabra HRV, no «ms»), y los separadores de la píldora son el carácter «·» al 32 %, no un hairline.
 
+
+S14 — **La esfera lleva la tendencia; no hay cajón.** S12 y S13 quedan superados en lo que sigue: el `micro-drawer` se retira y la píldora vuelve a lanzar la activity de detalle. Lo que el panel mostraba pasa a la cara del tile, con el héroe intacto («A» del render de comparación).
+
+Composición vertical de la pila, respecto del centro del tile: etiqueta en −48dp, héroe en −10dp, fila de tendencia centrada en +22dp, subtítulo en +42dp y píldora en +63dp. La etiqueta, el héroe y la píldora conservan tipografía y material de S2/S13; el subtítulo pasa a ser el promedio de la serie.
+
+La fila de tendencia son siete barras de 7dp de ancho y 5dp de separación (79dp en total), 16dp de alto máximo, radio 3.5, proporcionales al máximo de su propia serie con un mínimo de 2dp; la última barra (hoy) va al 100 % del acento y las demás al 45 %. Sueño no tiene serie de siete días: lleva cuatro barras de 16dp con 6dp de separación, una por fase, con el color de su fase y alto proporcional a su fracción de la noche. Sin historia no se dibuja la fila: la cara queda como está hoy.
+
+Las series son las mismas de S12 y salen de `RingConnHistoryStore.getHistory(context)`: `rhr` en Pulso, `spo2` en Vitales, `stressScore` en Estrés, `steps` en Pasos, y las fracciones de la noche en Sueño. Nunca se inventan valores.
+
 ## Tasks
 
 - T1 — Fundación: `TileInk`/`TileAccents`/`TileType`/`TileGeometry`/`TileMotion`/`TileDial`/`TileShell`/`TileResources`, siete drawables (`tile_warm_glow`, `tile_ticks_r84/r78/r74/stress`, `tile_stars`, `tile_moon_badge`), `TileTestKit` y `TileEditorialContractTest`. Commit `965af31`.
@@ -102,3 +111,5 @@ L15 — Instalación en el reloj: los APK release se firman con el keystore debu
 L16 — «y el diseno denmtro de los tiles? los veo igual que antes». Auditoría del render contra lo implementado: glow, ticks, etiqueta, héroe, subtítulo, píldora y estrellas ya están portados desde la tanda «warm»; lo único del interior que falta es el `micro-drawer`, más tres deltas chicos (píldora de vidrio de 26dp en vez de chip opaco de 28dp, «Normal · HRV 41» en Estrés, separadores «·»). El punto `beat` de la etiqueta está en `display:none` en el render y no se implementa.
 
 L17 — Medición del cajón en el SM-L500: sonda con la esfera entera clickable, `Clickable.setId("toggle")` y `ActionBuilders.LoadAction`. Un tap con `adb input tap` devolvió el id al servicio y el tile se re-renderizó («TAP PROBE 1 OK / SI toggle»). El mecanismo existe; el cajón es construible. Datos: `RingConnHistoryStore.getHistory()` entrega siete días reales, así que las barras no se inventan.
+
+L18 — «mi idea era rediseñar dentro del tile con el diseño del cajón, mantener la misma info dentro del tile cuando uno accede, que salga la fase de sueño y así para cada tile; no crear un cajón de summary». El cajón de T13/T14 fue una interpretación equivocada: el usuario quiere el contenido del panel **en la cara**, sin tap. Se comparan dos composiciones en `design/_render/face-v3.html` y elige la «A»: héroe intacto, fila de tendencia debajo, promedio como subtítulo.

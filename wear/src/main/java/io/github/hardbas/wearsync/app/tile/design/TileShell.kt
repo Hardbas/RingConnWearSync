@@ -97,12 +97,23 @@ object TileShell {
             .setHeight(dp(sizeDp))
             .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FIT)
 
-    /** Label, hero and optional subtitle, centred as one block. */
+    /**
+     * Label, hero, optional trend row and optional subtitle.
+     *
+     * Without a trend row the three blocks are one centred column and space
+     * themselves from the top, which is the face as it was before S14. With a
+     * trend row each block is pinned to its own centre of the S14 rhythm
+     * ([TileGeometry.TREND_LABEL_Y] and friends), because a column cannot put a
+     * row between the hero and the subtitle on centres it does not own.
+     */
     fun stack(
         label: LayoutElementBuilders.LayoutElement,
         hero: LayoutElementBuilders.Text,
-        sub: LayoutElementBuilders.LayoutElement? = null
-    ): LayoutElementBuilders.Column {
+        sub: LayoutElementBuilders.LayoutElement? = null,
+        trend: LayoutElementBuilders.LayoutElement? = null
+    ): LayoutElementBuilders.LayoutElement {
+        if (trend != null) return trendStack(label, hero, trend, sub)
+
         val column = LayoutElementBuilders.Column.Builder()
             .setWidth(wrap())
             .setHeight(wrap())
@@ -116,6 +127,50 @@ object TileShell {
         }
         return column.build()
     }
+
+    /**
+     * The five-block face: every block is centred in the tile and then moved to
+     * its own centre with a static translation, exactly like the pill. A box
+     * the height of the tile gives the stack the tile's centre as its origin.
+     */
+    private fun trendStack(
+        label: LayoutElementBuilders.LayoutElement,
+        hero: LayoutElementBuilders.Text,
+        trend: LayoutElementBuilders.LayoutElement,
+        sub: LayoutElementBuilders.LayoutElement?
+    ): LayoutElementBuilders.Box {
+        val box = LayoutElementBuilders.Box.Builder()
+            .setWidth(wrap())
+            .setHeight(dp(TileGeometry.TILE_DP))
+            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+            .addContent(pinned(label, TileGeometry.TREND_LABEL_Y))
+            .addContent(pinned(hero, TileGeometry.TREND_HERO_Y))
+            .addContent(pinned(trend, TileGeometry.TREND_ROW_Y))
+        sub?.let { box.addContent(pinned(it, TileGeometry.TREND_SUB_Y)) }
+        return box.build()
+    }
+
+    /** A block moved to [centerYDp] from the tile centre by a static translation. */
+    private fun pinned(
+        content: LayoutElementBuilders.LayoutElement,
+        centerYDp: Float
+    ): LayoutElementBuilders.Box =
+        LayoutElementBuilders.Box.Builder()
+            .setWidth(wrap())
+            .setHeight(wrap())
+            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setTransformation(
+                        ModifiersBuilders.Transformation.Builder()
+                            .setTranslationY(dp(centerYDp))
+                            .build()
+                    )
+                    .build()
+            )
+            .addContent(content)
+            .build()
 
     /** Sleep labels its quality with a crescent in front of the word. */
     fun withMoon(
@@ -157,10 +212,8 @@ object TileShell {
     /**
      * The one tappable surface at the bottom, pinned by a static translation.
      *
-     * `centerY` carries that translation: the face pins its pill below the dial,
-     * while the drawer lays its two pills out in a row and passes `null` so the
-     * material is reused without the pinning. `width` is the render's fixed
-     * 104dp on the face; the drawer passes `null` so its two pills wrap their copy.
+     * `centerY` carries that translation: the face pins its pill below the dial.
+     * `width` is the render's fixed 104dp.
      */
     fun pill(
         content: LayoutElementBuilders.LayoutElement,
@@ -250,7 +303,7 @@ object TileShell {
             .setText(value)
             .setMaxLines(1)
             // A one-line run that does not fit is ellipsized instead of clipped:
-            // the drawer's title is data, so it must show where it was cut.
+            // a trend line is data, so it must show where it was cut.
             .setOverflow(LayoutElementBuilders.TEXT_OVERFLOW_ELLIPSIZE_END)
             .setFontStyle(style)
         if (opacity != null) {

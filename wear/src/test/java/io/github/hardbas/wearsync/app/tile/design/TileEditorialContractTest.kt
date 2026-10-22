@@ -364,36 +364,103 @@ class TileEditorialContractTest {
     }
 
     @Test
-    fun `the drawer pills keep wrapping instead of a fixed width`() {
-        val close = TileDrawer.drawer(
-            accent = accent,
-            kicker = "KICKER",
-            title = "Title",
-            meta = "Meta",
-            bars = emptyList(),
-            barColor = accent,
-            closeLabel = "Close",
-            openLabel = "Open",
-            packageName = "io.github.hardbas.wearsync.test",
-            detailActivity = "io.github.hardbas.wearsync.test.Detail"
+    fun `the trend row draws one bar per value with the today rule`() {
+        val today = 0xFFD96B4E.toInt()
+        val row = TileSparkline.row(
+            values = listOf(52f, 51f, 54f, 50f, 55f, 53f, 56f),
+            accent = today,
+            heightDp = TileGeometry.SPARK_HEIGHT,
+            barWidthDp = TileGeometry.SPARK_BAR_WIDTH,
+            gapDp = TileGeometry.SPARK_BAR_GAP
         )
-        val glass = TileTestKit.boxes(close)
-            .filter { it.modifiers?.background?.color?.argb == TileShell.PILL_GLASS }
-        assertEquals(2, glass.size)
-        glass.forEach {
+        val bars = row.contents.filterIsInstance<LayoutElementBuilders.Box>()
+        assertEquals("seven days, seven bars", 7, bars.size)
+        assertEquals(7f, TileGeometry.SPARK_BAR_WIDTH, 0.001f)
+        assertEquals(5f, TileGeometry.SPARK_BAR_GAP, 0.001f)
+        assertEquals(
+            "the row is as tall as its tallest bar",
+            TileGeometry.SPARK_HEIGHT,
+            TileTestKit.dpOf(row.height),
+            0.001f
+        )
+        assertEquals(
+            "a full bar is the row height",
+            TileGeometry.SPARK_HEIGHT,
+            TileTestKit.dpOf(bars.last().height),
+            0.001f
+        )
+        assertEquals("today keeps the accent", today, bars.last().modifiers?.background?.color?.argb)
+        bars.dropLast(1).forEach {
             assertEquals(
-                "the drawer's two pills wrap: the 104dp width belongs to the face",
-                0f,
-                TileTestKit.dpOf(it.width),
-                0.001f
-            )
-            assertEquals(TileGeometry.PILL_HEIGHT, TileTestKit.dpOf(it.height), 0.001f)
-            assertEquals(
-                "the drawer lays the pills out in a row, without the face pin",
-                null,
-                it.modifiers?.transformation
+                "a past day fades to forty five",
+                TileInk.withAlpha(today, TileGeometry.SPARK_PAST_ALPHA),
+                it.modifiers?.background?.color?.argb
             )
         }
+        assertEquals(
+            "radius 3.5",
+            TileGeometry.SPARK_BAR_RADIUS,
+            bars.first().modifiers?.background?.corner?.radius?.value ?: 0f,
+            0.001f
+        )
+        assertEquals(
+            "one gap between two bars, and none at the ends",
+            7 + 6,
+            row.contents.size
+        )
+    }
+
+    @Test
+    fun `a bar is proportional to its series with a two dp floor`() {
+        val row = TileSparkline.row(
+            values = listOf(10f, 5f, 0f),
+            accent = accent,
+            heightDp = TileGeometry.SPARK_HEIGHT,
+            barWidthDp = TileGeometry.SPARK_BAR_WIDTH,
+            gapDp = TileGeometry.SPARK_BAR_GAP
+        )
+        val bars = row.contents.filterIsInstance<LayoutElementBuilders.Box>()
+        assertEquals(TileGeometry.SPARK_HEIGHT, TileTestKit.dpOf(bars[0].height), 0.001f)
+        assertEquals(TileGeometry.SPARK_HEIGHT / 2f, TileTestKit.dpOf(bars[1].height), 0.001f)
+        assertEquals(
+            "a zero is never a zero-height bar",
+            TileGeometry.SPARK_MIN_HEIGHT,
+            TileTestKit.dpOf(bars[2].height),
+            0.001f
+        )
+
+        // A flat-zero series has no maximum to divide by, and still draws.
+        val flat = TileSparkline.row(listOf(0f, 0f), accent, 16f, 7f, 5f)
+        assertTrue(
+            TileTestKit.boxes(flat).all { TileTestKit.dpOf(it.height) == TileGeometry.SPARK_MIN_HEIGHT }
+        )
+    }
+
+    @Test
+    fun `per-bar colours win over the today rule`() {
+        val row = TileSparkline.row(
+            values = listOf(0.2f, 0.4f),
+            accent = TileAccents.sleepLabel,
+            heightDp = TileGeometry.SPARK_HEIGHT,
+            barWidthDp = TileGeometry.SPARK_PHASE_BAR_WIDTH,
+            gapDp = TileGeometry.SPARK_PHASE_BAR_GAP,
+            colors = listOf(0xFF7B73B8.toInt(), 0xFFB486C9.toInt()),
+            maximum = 0.4f
+        )
+        val bars = row.contents.filterIsInstance<LayoutElementBuilders.Box>()
+        assertEquals(0xFF7B73B8.toInt(), bars[0].modifiers?.background?.color?.argb)
+        assertEquals(
+            "the last bar is not brightened when the colours are given",
+            0xFFB486C9.toInt(),
+            bars[1].modifiers?.background?.color?.argb
+        )
+        assertEquals("maximum is the caller's, not the series'", TileGeometry.SPARK_HEIGHT, TileTestKit.dpOf(bars[1].height), 0.001f)
+    }
+
+    @Test
+    fun `an empty series is an empty row`() {
+        val row = TileSparkline.row(emptyList(), accent, 16f, 7f, 5f)
+        assertTrue(row.contents.isEmpty())
     }
 
     @Test
@@ -440,11 +507,45 @@ class TileEditorialContractTest {
             label = TileShell.text("PULSO · Z2", TileType.label(accent)),
             hero = TileShell.text("72", TileType.hero()),
             sub = TileShell.text("HRV 48 ms", TileType.sub())
-        )
+        ) as LayoutElementBuilders.Column
         val content = stack.contents.filter { it !is LayoutElementBuilders.Spacer }
         assertEquals(3, content.size)
         assertTrue(content[0] is LayoutElementBuilders.Text)
         assertTrue(content[1] is LayoutElementBuilders.Text)
         assertTrue(content[2] is LayoutElementBuilders.Text)
+    }
+
+    @Test
+    fun `the S14 rhythm pins label, hero, row and sub on their own centres`() {
+        val stack = TileShell.stack(
+            label = TileShell.text("PULSO · Z2", TileType.label(accent)),
+            hero = TileShell.text("72", TileType.hero()),
+            sub = TileShell.text("HRV 48 ms", TileType.sub()),
+            trend = TileSparkline.row(listOf(52f, 56f), accent, 16f, 7f, 5f)
+        ) as LayoutElementBuilders.Box
+
+        assertEquals(
+            "the stack is the height of the face, so its origin is the tile centre",
+            TileGeometry.TILE_DP,
+            TileTestKit.dpOf(stack.height),
+            0.001f
+        )
+        val centres = stack.contents.map {
+            (it as LayoutElementBuilders.Box).modifiers?.transformation?.translationY?.value
+        }
+        assertEquals(
+            listOf(-48f, -10f, 22f, 42f),
+            centres
+        )
+        assertEquals(TileGeometry.TREND_LABEL_Y, -48f, 0.001f)
+        assertEquals(TileGeometry.TREND_HERO_Y, -10f, 0.001f)
+        assertEquals(TileGeometry.TREND_ROW_Y, 22f, 0.001f)
+        assertEquals(TileGeometry.TREND_SUB_Y, 42f, 0.001f)
+        assertEquals(
+            "the pill keeps its own pin below all of them",
+            TileGeometry.PILL_CENTER_Y,
+            63f,
+            0.001f
+        )
     }
 }

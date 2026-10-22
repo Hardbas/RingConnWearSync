@@ -19,13 +19,12 @@ import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
+import io.github.hardbas.wearsync.app.tile.design.TileSparkline
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
@@ -49,15 +48,7 @@ import kotlinx.coroutines.tasks.await
 class SleepTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
-        // A LoadAction tap returns here with its clickable id; the builder turns
-        // that id into open/closed before it renders either the face or the drawer.
-        return Futures.immediateFuture(
-            buildTile(
-                this,
-                requestParams.deviceConfiguration,
-                lastClickableId = requestParams.currentState.lastClickableId
-            )
-        )
+        return Futures.immediateFuture(buildTile(this, requestParams.deviceConfiguration))
     }
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
@@ -95,16 +86,13 @@ class SleepTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-sleep-v1"
 
-        /** Key of this tile in [TileDrawerState]. */
-        const val TILE_ID = "sleep"
-
-        /** Face refresh period; the open panel asks for [TileDrawerState.DRAWER_FRESHNESS_MS] instead. */
+        /** Face refresh period. */
         private const val DEFAULT_FRESHNESS_MS = 60_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 
         /** The four phases, in the order the design paints them. */
-        private const val PHASES = TileGeometry.DRAWER_PHASES
+        private const val PHASES = TileGeometry.SPARK_PHASES
 
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
@@ -112,33 +100,20 @@ class SleepTileService : TileService() {
         fun buildTile(
             context: Context,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
-            lastClickableId: String? = null
+            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
         ): TileBuilders.Tile = buildTile(
             AndroidTileStrings(context),
             context.packageName,
             deviceParams,
-            vitals,
-            lastClickableId
+            vitals
         )
 
-        /**
-         * @param lastClickableId the id the system carried back from a
-         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
-         *   drawer ids leaves the tile in the state it is already in.
-         */
         fun buildTile(
             strings: TileStrings,
             packageName: String,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals,
-            lastClickableId: String? = null
+            vitals: RingConnVitals
         ): TileBuilders.Tile {
-            TileDrawerState.apply(TILE_ID, lastClickableId)
-            if (TileDrawerState.isOpen(TILE_ID)) {
-                return drawerTile(strings, packageName, vitals)
-            }
-
             val score = vitals.sleepScore
             val stale = vitals.isStale
 
@@ -166,9 +141,6 @@ class SleepTileService : TileService() {
 
             val phaseFractions = if (hasData) phaseFractions(vitals) else FloatArray(0)
 
-            // The pill asks for a reload and comes back with id `pill`, which
-            // opens the drawer; the face behind it keeps launching the detail
-            // screen, exactly like the pulse tile.
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
@@ -207,6 +179,24 @@ class SleepTileService : TileService() {
                 )
             )
 
+            // Sleep has no seven-day series: the trend row is the night itself —
+            // one bar per phase, in its own colour, each a share of the whole.
+            val trend = phaseFractions.toList()
+            val sparkline = if (trend.isEmpty()) {
+                null
+            } else {
+                TileSparkline.row(
+                    values = trend,
+                    accent = TileAccents.sleepLabel,
+                    heightDp = TileGeometry.SPARK_HEIGHT,
+                    barWidthDp = TileGeometry.SPARK_PHASE_BAR_WIDTH,
+                    gapDp = TileGeometry.SPARK_PHASE_BAR_GAP,
+                    // A stale face desaturates every accent it owns (S7).
+                    colors = ramp.toList(),
+                    maximum = trend.maxOrNull() ?: 0f
+                )
+            }
+
             val stack = TileShell.stack(
                 label = label,
                 hero = TileShell.text(
@@ -214,12 +204,13 @@ class SleepTileService : TileService() {
                     style = TileType.hero(),
                     opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
                 ),
-                sub = sub
+                sub = sub,
+                trend = sparkline
             )
 
             val pill = TileShell.pill(
                 content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
-                clickable = TileDrawer.tapToOpen()
+                clickable = clickable
             )
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
@@ -227,57 +218,6 @@ class SleepTileService : TileService() {
                 .build()
 
             return tile(entry)
-        }
-
-        /**
-         * The open drawer: the whole face becomes the S12 panel. Sleep needs no
-         * stored series: the four bars are the phases of the night the reading
-         * describes, each with its own colour and its own share of the height.
-         */
-        private fun drawerTile(
-            strings: TileStrings,
-            packageName: String,
-            vitals: RingConnVitals
-        ): TileBuilders.Tile {
-            val score = vitals.sleepScore
-            val totalMins = vitals.sleepDeepMins + vitals.sleepRemMins +
-                vitals.sleepLightMins + vitals.sleepAwakeMins
-            val hasData = score > 0 && totalMins > 0
-            val fractions = if (hasData) phaseFractions(vitals) else FloatArray(0)
-
-            val root = TileDrawer.drawer(
-                accent = TileAccents.sleepLabel,
-                kicker = strings.text(R.string.tile_drawer_sleep_kicker).uppercase(Locale.getDefault()),
-                title = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_sleep_title),
-                    durationText(vitals),
-                    tempText(vitals)
-                ),
-                meta = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_sleep_meta),
-                    if (hasData) "$score" else NO_VALUE
-                ),
-                bars = fractions.map { it },
-                barColor = TileAccents.sleepLabel,
-                barColors = TileAccents.sleep.toList(),
-                // The four bars are shares of one night, not a trend: each stands
-                // for its own fraction of the whole, not for a share of the tallest.
-                barMaximum = 1f,
-                barWidth = TileGeometry.DRAWER_PHASE_BAR_WIDTH,
-                closeLabel = strings.text(R.string.tile_drawer_close),
-                openLabel = strings.text(R.string.tile_drawer_open),
-                packageName = packageName,
-                detailActivity = DETAIL_ACTIVITY
-            )
-
-            return tile(
-                TimelineBuilders.TimelineEntry.Builder()
-                    .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
-                    .build(),
-                freshnessMs = TileDrawerState.DRAWER_FRESHNESS_MS
-            )
         }
 
         private fun tile(

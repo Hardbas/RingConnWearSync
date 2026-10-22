@@ -21,16 +21,16 @@ import io.github.hardbas.wearsync.app.tile.design.Ring
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
+import io.github.hardbas.wearsync.app.tile.design.TileSparkline
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Vitals tile: two concentric rings, the pulse in the middle, the ring state in
@@ -43,15 +43,7 @@ import java.util.Locale
 class VitalsTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
-        // A LoadAction tap returns here with its clickable id; the builder turns
-        // that id into open/closed before it renders either the face or the drawer.
-        return Futures.immediateFuture(
-            buildTile(
-                this,
-                requestParams.deviceConfiguration,
-                lastClickableId = requestParams.currentState.lastClickableId
-            )
-        )
+        return Futures.immediateFuture(buildTile(this, requestParams.deviceConfiguration))
     }
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
@@ -65,19 +57,10 @@ class VitalsTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-vitals-v1"
 
-        /** Key of this tile in [TileDrawerState]. */
-        const val TILE_ID = "vitals"
-
-        /** Face refresh period; the open panel asks for [TileDrawerState.DRAWER_FRESHNESS_MS] instead. */
+        /** Face refresh period. */
         private const val DEFAULT_FRESHNESS_MS = 30_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.VitalsDetailActivity"
-
-        /** The drawer's bar series is the last seven days, never more. */
-        private const val DRAWER_DAYS = 7
-
-        /** The design estimates autonomy as one day per sixteen percent of charge. */
-        private const val AUTONOMY_PERCENT_PER_DAY = 16
 
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
@@ -86,22 +69,17 @@ class VitalsTileService : TileService() {
             context: Context,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = RingConnHistoryStore.getHistory(context)
         ): TileBuilders.Tile = buildTile(
             AndroidTileStrings(context),
             context.packageName,
             deviceParams,
             vitals,
-            lastClickableId,
             history
         )
 
         /**
-         * @param lastClickableId the id the system carried back from a
-         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
-         *   drawer ids leaves the tile in the state it is already in.
-         * @param history the seven-day cache the drawer bars come from. Passed in
+         * @param history the seven-day cache the trend row comes from. Passed in
          *   so the contract tests can build entries directly; production reads it
          *   from [RingConnHistoryStore].
          */
@@ -110,14 +88,8 @@ class VitalsTileService : TileService() {
             packageName: String,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals,
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = emptyList()
         ): TileBuilders.Tile {
-            TileDrawerState.apply(TILE_ID, lastClickableId)
-            if (TileDrawerState.isOpen(TILE_ID)) {
-                return drawerTile(strings, packageName, vitals, history)
-            }
-
             val hasHr = vitals.lastHeartRate > 0
             val hasSpo2 = vitals.lastSpo2 > 0
             val hasBattery = vitals.ringBattery > 0
@@ -137,9 +109,6 @@ class VitalsTileService : TileService() {
             val spo2Fraction = (vitals.lastSpo2 / 100f).coerceIn(0.06f, 1f)
             val batteryFraction = (vitals.ringBattery / 100f).coerceIn(0.06f, 1f)
 
-            // The pill asks for a reload and comes back with id `pill`, which
-            // opens the drawer; the face behind it keeps launching the detail
-            // screen, exactly like the pulse tile.
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
@@ -186,6 +155,30 @@ class VitalsTileService : TileService() {
                 }
             }
 
+            val spo2Series = spo2Series(history)
+            val hasTrend = spo2Series.isNotEmpty()
+
+            // With a trend row the sub carries the average saturation of the week
+            // and the ring charge, and the pill goes back to being the one action
+            // of the face. Without a row the face keeps the subtitle it had.
+            val sub = if (hasTrend) {
+                val average = spo2Series.average().roundToInt()
+                TileShell.text(
+                    value = String.format(
+                        Locale.getDefault(),
+                        strings.text(R.string.tile_vitals_sub),
+                        "$average%",
+                        if (hasBattery) "${vitals.ringBattery}%" else NO_VALUE
+                    ),
+                    style = TileType.sub()
+                )
+            } else {
+                TileShell.text(
+                    value = strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()),
+                    style = TileType.sub(TileAccents.heartRateLabel)
+                )
+            }
+
             val stack = TileShell.stack(
                 label = TileShell.text(
                     value = strings.text(R.string.vitals_short).uppercase(Locale.getDefault()),
@@ -196,27 +189,45 @@ class VitalsTileService : TileService() {
                     style = TileType.hero(TileType.HERO_RING),
                     opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
                 ),
-                sub = TileShell.text(
-                    value = strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()),
-                    style = TileType.sub(TileAccents.heartRateLabel)
-                )
+                sub = sub,
+                trend = if (hasTrend) {
+                    TileSparkline.row(
+                        values = spo2Series,
+                        // A stale face desaturates every accent it owns (S7).
+                        accent = spo2Ramp.last(),
+                        heightDp = TileGeometry.SPARK_HEIGHT,
+                        barWidthDp = TileGeometry.SPARK_BAR_WIDTH,
+                        gapDp = TileGeometry.SPARK_BAR_GAP
+                    )
+                } else {
+                    null
+                }
             )
 
             // The pill carries the two readings the rings stand for, each tied to
-            // its ring by a tone dot: oxygen first, then ring autonomy.
-            val pillContent = TileShell.pillRow(
-                listOf(
-                    TileShell.pillDot(TileAccents.spo2Label),
-                    TileShell.hSpacer(4f),
-                    TileShell.pillText(if (hasSpo2) "${vitals.lastSpo2}%" else "--", TileInk.PRIMARY),
-                    TileShell.pillSeparator(),
-                    TileShell.pillDot(TileAccents.batteryLabel),
-                    TileShell.hSpacer(4f),
-                    TileShell.pillText(if (hasBattery) "${vitals.ringBattery}%" else "--", TileInk.PRIMARY)
+            // its ring by a tone dot: oxygen first, then ring autonomy. With a
+            // trend row they have moved to the subtitle, so the pill is the action.
+            val pill = if (hasTrend) {
+                TileShell.pill(
+                    content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
+                    clickable = clickable
                 )
-            )
-
-            val pill = TileShell.pill(content = pillContent, clickable = TileDrawer.tapToOpen())
+            } else {
+                TileShell.pill(
+                    content = TileShell.pillRow(
+                        listOf(
+                            TileShell.pillDot(TileAccents.spo2Label),
+                            TileShell.hSpacer(4f),
+                            TileShell.pillText(if (hasSpo2) "${vitals.lastSpo2}%" else NO_VALUE, TileInk.PRIMARY),
+                            TileShell.pillSeparator(),
+                            TileShell.pillDot(TileAccents.batteryLabel),
+                            TileShell.hSpacer(4f),
+                            TileShell.pillText(if (hasBattery) "${vitals.ringBattery}%" else NO_VALUE, TileInk.PRIMARY)
+                        )
+                    ),
+                    clickable = clickable
+                )
+            }
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
                 .setLayout(
@@ -230,55 +241,14 @@ class VitalsTileService : TileService() {
         }
 
         /**
-         * The open drawer: the whole face becomes the S12 panel, built from the
-         * tile's own readings and the real seven-day SpO2 history.
+         * Arterial oxygen of the last seven days, oldest first. A day with no
+         * reading is left out instead of drawn as a dip.
          */
-        private fun drawerTile(
-            strings: TileStrings,
-            packageName: String,
-            vitals: RingConnVitals,
-            history: List<DailyHistoryEntry>
-        ): TileBuilders.Tile {
-            val days = history.sortedBy { it.epochDay }.takeLast(DRAWER_DAYS)
-            val spo2 = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else NO_VALUE
-            val battery = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else NO_VALUE
-            // Autonomy is the design's estimate from today's charge, not a stored
-            // number: a missing charge stays a dash.
-            val autonomy = if (vitals.ringBattery > 0) {
-                "${vitals.ringBattery / AUTONOMY_PERCENT_PER_DAY}"
-            } else {
-                NO_VALUE
-            }
-
-            val root = TileDrawer.drawer(
-                accent = TileAccents.spo2Label,
-                kicker = strings.text(R.string.tile_drawer_vitals_kicker).uppercase(Locale.getDefault()),
-                title = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_vitals_title),
-                    spo2,
-                    battery
-                ),
-                meta = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_vitals_meta),
-                    autonomy
-                ),
-                bars = days.map { it.spo2.toFloat() },
-                barColor = TileAccents.spo2.last(),
-                closeLabel = strings.text(R.string.tile_drawer_close),
-                openLabel = strings.text(R.string.tile_drawer_open),
-                packageName = packageName,
-                detailActivity = DETAIL_ACTIVITY
-            )
-
-            return tile(
-                TimelineBuilders.TimelineEntry.Builder()
-                    .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
-                    .build(),
-                freshnessMs = TileDrawerState.DRAWER_FRESHNESS_MS
-            )
-        }
+        private fun spo2Series(history: List<DailyHistoryEntry>): List<Float> =
+            history.sortedBy { it.epochDay }
+                .takeLast(TileGeometry.SPARK_DAYS)
+                .map { it.spo2.toFloat() }
+                .filter { it > 0f }
 
         private fun tile(
             entry: TimelineBuilders.TimelineEntry,

@@ -7,8 +7,6 @@ import androidx.wear.protolayout.ModifiersBuilders
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
@@ -17,10 +15,8 @@ import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 /**
@@ -38,11 +34,6 @@ class SleepTileContractTest {
             R.string.fair -> "Fair"
             R.string.no_data -> "No data"
             R.string.details -> "Details"
-            R.string.tile_drawer_sleep_kicker -> "Sleep phases"
-            R.string.tile_drawer_sleep_title -> "Total %1\$s · %2\$s"
-            R.string.tile_drawer_sleep_meta -> "Score %1\$s"
-            R.string.tile_drawer_close -> "Close"
-            R.string.tile_drawer_open -> "Open"
             else -> "s$resId"
         }
     }
@@ -56,26 +47,9 @@ class SleepTileContractTest {
 
     private fun now(): Long = System.currentTimeMillis() / 1000L
 
-    private fun rootFor(
-        vitals: RingConnVitals,
-        lastClickableId: String? = null
-    ): LayoutElementBuilders.LayoutElement =
-        SleepTileService.buildTile(strings, packageName, deviceParams, vitals, lastClickableId)
+    private fun rootFor(vitals: RingConnVitals): LayoutElementBuilders.LayoutElement =
+        SleepTileService.buildTile(strings, packageName, deviceParams, vitals)
             .tileTimeline!!.timelineEntries[0].layout!!.root!!
-
-    /** The drawer state is process-wide, so every test starts and ends closed. */
-    @Before
-    fun resetDrawer() {
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
-
-    @After
-    fun closeDrawer() {
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
-
-    private fun drawerRoot(vitals: RingConnVitals = live): LayoutElementBuilders.LayoutElement =
-        rootFor(vitals, TileDrawerState.ID_OPEN)
 
     private fun clickables(root: LayoutElementBuilders.LayoutElement): List<ModifiersBuilders.Clickable> =
         TileTestKit.flatten(root).mapNotNull { element ->
@@ -90,17 +64,9 @@ class SleepTileContractTest {
             }
         }
 
-    private val drawerPanelColor = TileInk.withAlpha(TileDrawer.SURFACE, TileDrawer.SURFACE_ALPHA)
-
-    private fun drawerPanels(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
-        TileTestKit.boxes(root).filter { it.modifiers?.background?.color?.argb == drawerPanelColor }
-
     private fun bars(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
         TileTestKit.boxes(root)
-            .filter {
-                TileTestKit.dpOf(it.width) == TileGeometry.DRAWER_BAR_WIDTH ||
-                    TileTestKit.dpOf(it.width) == TileGeometry.DRAWER_PHASE_BAR_WIDTH
-            }
+            .filter { TileTestKit.dpOf(it.width) == TileGeometry.SPARK_PHASE_BAR_WIDTH }
             .filter { it.modifiers?.background?.color != null }
 
     /** Score 88 "Excellent", deep 92 + REM 82 + light 236 = 6h 50m, +0.3 degree. */
@@ -261,21 +227,15 @@ class SleepTileContractTest {
 
     @Test
     fun `label, sub and pill fit the chord at their own height`() {
-        val stack = TileTestKit.flatten(liveRoot)
-            .filterIsInstance<LayoutElementBuilders.Column>()
-            .single()
-        val labelRow = stack.contents.first()
-        val labelWidth = widthOf(labelRow)
         assertTrue(
-            "label $labelWidth dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)}dp",
-            labelWidth <= TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)
+            "label ${widthAt(TileGeometry.TREND_LABEL_Y)}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.TREND_LABEL_Y)}dp",
+            widthAt(TileGeometry.TREND_LABEL_Y) <= TileGeometry.safeWidthDp(TileGeometry.TREND_LABEL_Y)
         )
-
-        val sub = stack.contents.last()
-        val subWidth = widthOf(sub)
         assertTrue(
-            "sub $subWidth dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.SUB_Y)}dp",
-            subWidth <= TileGeometry.safeWidthDp(TileGeometry.SUB_Y)
+            "sub ${widthAt(TileGeometry.TREND_SUB_Y)}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.TREND_SUB_Y)}dp",
+            widthAt(TileGeometry.TREND_SUB_Y) <= TileGeometry.safeWidthDp(TileGeometry.TREND_SUB_Y)
         )
 
         val pill = TileTestKit.boxes(liveRoot)
@@ -293,73 +253,27 @@ class SleepTileContractTest {
         )
     }
 
-    // ---- the in-tile drawer (S12) ---------------------------------------
-
-    @Test
-    fun `the face is what a plain load shows`() {
-        val root = rootFor(live)
-        assertTrue("no drawer panel is painted", drawerPanels(root).isEmpty())
-        assertTrue(TileTestKit.texts(root).any { it.text?.value == "Excellent" })
+    /** Width of the block pinned at [centreDp] on the S14 rhythm. */
+    private fun widthAt(centreDp: Float): Float {
+        val stack = TileTestKit.flatten(liveRoot)
+            .filterIsInstance<LayoutElementBuilders.Box>()
+            .first { TileTestKit.dpOf(it.height) == TileGeometry.TILE_DP }
+        val pinned = stack.contents
+            .filterIsInstance<LayoutElementBuilders.Box>()
+            .first { it.modifiers?.transformation?.translationY?.value == centreDp }
+        return pinned.contents.sumOf { widthOf(it).toDouble() }.toFloat()
     }
 
-    @Test
-    fun `only pill opens the drawer and only close closes it`() {
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        assertTrue(TileDrawerState.isOpen(SleepTileService.TILE_ID))
-
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-        assertTrue(!TileDrawerState.isOpen(SleepTileService.TILE_ID))
-
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        TileDrawerState.apply(SleepTileService.TILE_ID, "something-else")
-        assertTrue("an unknown id is not a command", TileDrawerState.isOpen(SleepTileService.TILE_ID))
-        TileDrawerState.apply(SleepTileService.TILE_ID, null)
-        assertTrue("a plain load is not an invitation: the panel closes", !TileDrawerState.isOpen(SleepTileService.TILE_ID))
-
-        TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        assertTrue(!TileDrawerState.isOpen(SleepTileService.TILE_ID))
-        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
+    // ---- the trend row (S14) --------------------------------------------
 
     @Test
-    fun `the face pill opens the drawer instead of launching the app`() {
-        val root = rootFor(live)
-        val pill = clickables(root).single { it.id == TileDrawerState.ID_OPEN }
-        assertTrue(
-            "the pill must ask for a reload, not start the activity",
-            pill.onClick is ActionBuilders.LoadAction
-        )
-    }
-
-    @Test
-    fun `the drawer replaces the face and prints the phase copy`() {
-        val root = drawerRoot()
-        assertEquals(1, drawerPanels(root).size)
-
-        assertTrue(TileTestKit.texts(root).none { it.text?.value == "88" })
-        assertTrue(TileTestKit.texts(root).none { it.text?.value == "Excellent" })
-        assertTrue(TileTestKit.arcLines(root).isEmpty())
-
-        val kicker = TileTestKit.texts(root).first { it.text?.value == "SLEEP PHASES" }
-        assertEquals(TileType.LABEL, kicker.fontStyle?.size?.value)
-        assertEquals(TileAccents.sleepLabel, kicker.fontStyle?.color?.argb)
-
-        val title = TileTestKit.texts(root).first { it.text?.value == "Total 6h 50m · +0.3°" }
-        assertEquals("the title is one line", 1, title.maxLines?.value)
-
-        TileTestKit.texts(root).first { it.text?.value == "Score 88" }
-    }
-
-    @Test
-    fun `the drawer draws the four phases with their own colours and no history is needed`() {
-        // Sleep needs no stored series: the night of the reading is the series.
-        val four = bars(drawerRoot())
+    fun `the trend row is the four phases of the night`() {
+        val four = bars(liveRoot)
         assertEquals("four phases, four bars", 4, four.size)
         four.forEach {
             assertEquals(
                 "four bars read better than a seven-day trend, so they are wider",
-                TileGeometry.DRAWER_PHASE_BAR_WIDTH,
+                TileGeometry.SPARK_PHASE_BAR_WIDTH,
                 TileTestKit.dpOf(it.width),
                 0.01f
             )
@@ -371,46 +285,64 @@ class SleepTileContractTest {
                 bar.modifiers?.background?.color?.argb
             )
         }
+    }
 
-        // Height is the phase's own fraction of the night, not a share of the
-        // tallest bar: the fractions sum to one.
-        val total = 92f + 82f + 236f + 22f
-        fun expected(index: Int): Float =
-            (TileGeometry.DRAWER_BAR_TRACK * (listOf(92f, 82f, 236f, 22f)[index] / total))
-                .coerceAtLeast(TileGeometry.DRAWER_BAR_MIN_HEIGHT)
-        four.forEachIndexed { index, bar ->
-            assertEquals(expected(index), TileTestKit.dpOf(bar.height), 0.01f)
+    @Test
+    fun `the phase bars are proportional to the longest phase with a two dp floor`() {
+        // 92 + 82 + 236 + 22 minutes: light is the longest phase and the scale.
+        val four = bars(liveRoot)
+        listOf(92, 82, 236, 22).forEachIndexed { index, minutes ->
+            val expected = (TileGeometry.SPARK_HEIGHT * (minutes / 236f))
+                .coerceAtLeast(TileGeometry.SPARK_MIN_HEIGHT)
+            assertEquals("phase $index", expected, TileTestKit.dpOf(four[index].height), 0.01f)
         }
-    }
-
-    @Test
-    fun `the drawer close pill closes and its open pill keeps the app reachable`() {
-        val root = drawerRoot()
-        val close = clickables(root).single { it.id == TileDrawerState.ID_CLOSE }
-        assertTrue(close.onClick is ActionBuilders.LoadAction)
-
-        val open = clickables(root).single { it.onClick is ActionBuilders.LaunchAction }
-        assertTrue("only the drawer ids steer the state", open.id.isNullOrEmpty())
-
-        TileTestKit.texts(root).first { it.text?.value == "Close" }
-        TileTestKit.texts(root).first { it.text?.value == "Open" }
-    }
-
-    @Test
-    fun `a plain load shows the face, and the open panel asks not to be refreshed`() {
-        rootFor(live, TileDrawerState.ID_OPEN)
-        assertTrue(
-            "entering the tile shows the face, not the panel the user left open",
-            drawerPanels(rootFor(live, lastClickableId = null)).isEmpty()
-        )
-
-        val panel = SleepTileService.buildTile(
-            strings, packageName, deviceParams, live, TileDrawerState.ID_OPEN
-        )
         assertEquals(
-            "a refresh would close the panel, so the panel is not refreshed",
-            TileDrawerState.DRAWER_FRESHNESS_MS,
-            panel.freshnessIntervalMillis
+            "the awake sliver never disappears",
+            TileGeometry.SPARK_MIN_HEIGHT,
+            TileTestKit.dpOf(four.last().height),
+            0.001f
+        )
+    }
+
+    @Test
+    fun `the row sits under the hero on the S14 rhythm`() {
+        val stack = TileTestKit.flatten(liveRoot)
+            .filterIsInstance<LayoutElementBuilders.Box>()
+            .first { TileTestKit.dpOf(it.height) == TileGeometry.TILE_DP }
+        val centres = stack.contents.mapNotNull {
+            (it as? LayoutElementBuilders.Box)?.modifiers?.transformation?.translationY?.value
+        }
+        assertEquals(
+            listOf(
+                TileGeometry.TREND_LABEL_Y,
+                TileGeometry.TREND_HERO_Y,
+                TileGeometry.TREND_ROW_Y,
+                TileGeometry.TREND_SUB_Y
+            ),
+            centres
+        )
+    }
+
+    @Test
+    fun `no night means no row and the face it had before`() {
+        val root = rootFor(RingConnVitals(refreshTimestamp = 0L))
+        assertTrue("nothing is invented", bars(root).isEmpty())
+        assertTrue(
+            "the stack keeps the column of a face with no trend",
+            TileTestKit.flatten(root).any { it is LayoutElementBuilders.Column }
+        )
+    }
+
+    @Test
+    fun `the pill launches the detail activity again`() {
+        val root = liveRoot
+        assertTrue(
+            "the pill is the face's one action",
+            clickables(root).any { it.onClick is ActionBuilders.LaunchAction }
+        )
+        assertTrue(
+            "no load action survives the drawer",
+            clickables(root).none { it.onClick is ActionBuilders.LoadAction }
         )
     }
 

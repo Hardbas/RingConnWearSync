@@ -8,8 +8,6 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.data.DailyHistoryEntry
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
@@ -19,10 +17,8 @@ import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 /**
@@ -37,11 +33,7 @@ class DailySummaryTileContractTest {
         when (resId) {
             R.string.steps_short -> "Steps"
             R.string.details -> "Details"
-            R.string.tile_drawer_steps_kicker -> "Daily cadence"
-            R.string.tile_drawer_steps_title -> "%1\$s steps · %2\$s kcal"
-            R.string.tile_drawer_steps_meta -> "%1\$s active min · %2\$s km"
-            R.string.tile_drawer_close -> "Close"
-            R.string.tile_drawer_open -> "Open"
+            R.string.tile_steps_sub -> "%1\$s · %2\$s · %3\$s"
             else -> "s$resId"
         }
     }
@@ -57,27 +49,10 @@ class DailySummaryTileContractTest {
 
     private fun rootFor(
         vitals: RingConnVitals,
-        lastClickableId: String? = null,
         history: List<DailyHistoryEntry> = emptyList()
     ): LayoutElementBuilders.LayoutElement =
-        DailySummaryTileService.buildTile(strings, packageName, deviceParams, vitals, lastClickableId, history)
+        DailySummaryTileService.buildTile(strings, packageName, deviceParams, vitals, history)
             .tileTimeline!!.timelineEntries[0].layout!!.root!!
-
-    /** The drawer state is process-wide, so every test starts and ends closed. */
-    @Before
-    fun resetDrawer() {
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
-
-    @After
-    fun closeDrawer() {
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
-
-    private fun drawerRoot(
-        vitals: RingConnVitals = live,
-        history: List<DailyHistoryEntry> = sevenDays()
-    ): LayoutElementBuilders.LayoutElement = rootFor(vitals, TileDrawerState.ID_OPEN, history)
 
     /** Seven real-looking days, oldest first; the newest day is today's 8 420. */
     private fun sevenDays(): List<DailyHistoryEntry> =
@@ -98,14 +73,9 @@ class DailySummaryTileContractTest {
             }
         }
 
-    private val drawerPanelColor = TileInk.withAlpha(TileDrawer.SURFACE, TileDrawer.SURFACE_ALPHA)
-
-    private fun drawerPanels(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
-        TileTestKit.boxes(root).filter { it.modifiers?.background?.color?.argb == drawerPanelColor }
-
     private fun bars(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
         TileTestKit.boxes(root)
-            .filter { TileTestKit.dpOf(it.width) == TileGeometry.DRAWER_BAR_WIDTH }
+            .filter { TileTestKit.dpOf(it.width) == TileGeometry.SPARK_BAR_WIDTH }
             .filter { it.modifiers?.background?.color != null }
 
     /** 8 420 steps against the 10 000 default goal, 320 kcal of 500, 6.1 km. */
@@ -153,6 +123,7 @@ class DailySummaryTileContractTest {
 
     @Test
     fun `pill carries active minutes, calories and distance in their own accents`() {
+        // Without history the pill is the only line these readings have.
         val texts = TileTestKit.texts(liveRoot)
         val active = texts.first { it.text?.value == "42m" }
         val kcal = texts.first { it.text?.value == "320" }
@@ -300,117 +271,105 @@ class DailySummaryTileContractTest {
         )
     }
 
-    // ---- the in-tile drawer (S12) ---------------------------------------
+    // ---- the trend row (S14) --------------------------------------------
 
     @Test
-    fun `the face is what a plain load shows`() {
-        val root = rootFor(live)
-        assertTrue("no drawer panel is painted", drawerPanels(root).isEmpty())
-        assertTrue(TileTestKit.texts(root).any { it.text?.value == "STEPS" })
-    }
-
-    @Test
-    fun `only pill opens the drawer and only close closes it`() {
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        assertTrue(TileDrawerState.isOpen(DailySummaryTileService.TILE_ID))
-
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-        assertTrue(!TileDrawerState.isOpen(DailySummaryTileService.TILE_ID))
-
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, "something-else")
-        assertTrue("an unknown id is not a command", TileDrawerState.isOpen(DailySummaryTileService.TILE_ID))
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, null)
-        assertTrue("a plain load is not an invitation: the panel closes", !TileDrawerState.isOpen(DailySummaryTileService.TILE_ID))
-
-        TileDrawerState.apply(DailySummaryTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_OPEN)
-        assertTrue(!TileDrawerState.isOpen(DailySummaryTileService.TILE_ID))
-        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_CLOSE)
-    }
-
-    @Test
-    fun `the face pill opens the drawer instead of launching the app`() {
-        val root = rootFor(live)
-        val pill = clickables(root).single { it.id == TileDrawerState.ID_OPEN }
-        assertTrue(
-            "the pill must ask for a reload, not start the activity",
-            pill.onClick is ActionBuilders.LoadAction
-        )
-    }
-
-    @Test
-    fun `the drawer replaces the face and prints the real trend copy`() {
-        val root = drawerRoot()
-        assertEquals(1, drawerPanels(root).size)
-
-        assertTrue(TileTestKit.texts(root).none { it.text?.value == "STEPS" })
-        assertTrue(TileTestKit.arcLines(root).isEmpty())
-
-        val kicker = TileTestKit.texts(root).first { it.text?.value == "DAILY CADENCE" }
-        assertEquals(TileType.LABEL, kicker.fontStyle?.size?.value)
-        assertEquals(TileAccents.steps.first(), kicker.fontStyle?.color?.argb)
-
-        val title = TileTestKit.texts(root)
-            .first { it.text?.value == "${DailySummaryTileService.stepsText(8420)} steps · 320 kcal" }
-        assertEquals("the title is one line", 1, title.maxLines?.value)
-
-        TileTestKit.texts(root).first { it.text?.value == "42 active min · 6.1 km" }
-    }
-
-    @Test
-    fun `the drawer draws one bar per day of history and none without it`() {
-        val seven = bars(drawerRoot())
-        assertEquals("seven days, seven bars", 7, seven.size)
-
-        // Proportional to the series' own maximum (9 800); the last bar is today.
-        val accent = TileAccents.steps.last()
-        assertEquals(accent, seven.last().modifiers?.background?.color?.argb)
-        seven.dropLast(1).forEach {
+    fun `the trend row draws the last seven days of steps`() {
+        val row = bars(rootFor(live, sevenDays()))
+        assertEquals("one bar per day of history", 7, row.size)
+        row.forEach {
             assertEquals(
-                TileInk.withAlpha(accent, TileDrawer.BAR_ALPHA),
-                it.modifiers?.background?.color?.argb
+                "seven bars of 7dp",
+                TileGeometry.SPARK_BAR_WIDTH,
+                TileTestKit.dpOf(it.width),
+                0.001f
             )
-            assertTrue(
-                "a past bar can reach the full track only when it is the series maximum",
-                TileTestKit.dpOf(it.height) <= TileGeometry.DRAWER_BAR_TRACK
+        }
+    }
+
+    @Test
+    fun `the bars are proportional to the series maximum with a two dp floor`() {
+        // 9 800 is the series maximum; today's 8 420 is a share of it.
+        val row = bars(rootFor(live, sevenDays()))
+        assertEquals(TileGeometry.SPARK_HEIGHT * (8420f / 9800f), TileTestKit.dpOf(row.last().height), 0.01f)
+        listOf(7200, 8400, 6100, 9800, 7600, 8800).forEachIndexed { index, steps ->
+            assertEquals(
+                "bar $index is $steps of 9800",
+                TileGeometry.SPARK_HEIGHT * (steps / 9800f),
+                TileTestKit.dpOf(row[index].height),
+                0.01f
             )
         }
 
-        val empty = drawerRoot(history = emptyList())
-        assertTrue("no series, no bars", bars(empty).isEmpty())
-        TileTestKit.texts(empty).first { it.text?.value == "${DailySummaryTileService.stepsText(8420)} steps · 320 kcal" }
-        assertEquals(1, drawerPanels(empty).size)
-    }
-
-    @Test
-    fun `the drawer close pill closes and its open pill keeps the app reachable`() {
-        val root = drawerRoot()
-        val close = clickables(root).single { it.id == TileDrawerState.ID_CLOSE }
-        assertTrue(close.onClick is ActionBuilders.LoadAction)
-
-        val open = clickables(root).single { it.onClick is ActionBuilders.LaunchAction }
-        assertTrue("only the drawer ids steer the state", open.id.isNullOrEmpty())
-
-        TileTestKit.texts(root).first { it.text?.value == "Close" }
-        TileTestKit.texts(root).first { it.text?.value == "Open" }
-    }
-
-    @Test
-    fun `a plain load shows the face, and the open panel asks not to be refreshed`() {
-        rootFor(live, TileDrawerState.ID_OPEN)
-        assertTrue(
-            "entering the tile shows the face, not the panel the user left open",
-            drawerPanels(rootFor(live, lastClickableId = null)).isEmpty()
-        )
-
-        val panel = DailySummaryTileService.buildTile(
-            strings, packageName, deviceParams, live, TileDrawerState.ID_OPEN
-        )
+        val quiet = listOf(7200, 8400, 6100, 9800, 7600, 8800, 12).mapIndexed { i, steps ->
+            DailyHistoryEntry(epochDay = 30_000L + i, steps = steps)
+        }
         assertEquals(
-            "a refresh would close the panel, so the panel is not refreshed",
-            TileDrawerState.DRAWER_FRESHNESS_MS,
-            panel.freshnessIntervalMillis
+            TileGeometry.SPARK_MIN_HEIGHT,
+            TileTestKit.dpOf(bars(rootFor(live, quiet)).last().height),
+            0.001f
+        )
+    }
+
+    @Test
+    fun `today keeps the full accent and the other days fade to forty five`() {
+        val accent = TileAccents.steps.last()
+        val row = bars(rootFor(live, sevenDays()))
+        assertEquals(accent, row.last().modifiers?.background?.color?.argb)
+        row.dropLast(1).forEach {
+            assertEquals(
+                TileInk.withAlpha(accent, TileGeometry.SPARK_PAST_ALPHA),
+                it.modifiers?.background?.color?.argb
+            )
+        }
+    }
+
+    @Test
+    fun `with a trend row the daytime readings move to the sub and the pill is the action`() {
+        val root = rootFor(live, sevenDays())
+        val texts = TileTestKit.texts(root).mapNotNull { it.text?.value }
+        assertTrue("the sub carries the three readings, had $texts", texts.any { it == "42m · 320 · 6.1km" })
+        assertTrue("the pill is the one action, had $texts", texts.any { it == "Details" })
+        assertTrue(
+            "the pill launches the detail activity",
+            clickables(root).any { it.onClick is ActionBuilders.LaunchAction }
+        )
+        assertTrue(
+            "no load action survives the drawer",
+            clickables(root).none { it.onClick is ActionBuilders.LoadAction }
+        )
+    }
+
+    @Test
+    fun `the row sits under the hero on the S14 rhythm`() {
+        val stack = TileTestKit.flatten(rootFor(live, sevenDays()))
+            .filterIsInstance<LayoutElementBuilders.Box>()
+            .first { TileTestKit.dpOf(it.height) == TileGeometry.TILE_DP }
+        val centres = stack.contents.mapNotNull {
+            (it as? LayoutElementBuilders.Box)?.modifiers?.transformation?.translationY?.value
+        }
+        assertEquals(
+            listOf(
+                TileGeometry.TREND_LABEL_Y,
+                TileGeometry.TREND_HERO_Y,
+                TileGeometry.TREND_ROW_Y,
+                TileGeometry.TREND_SUB_Y
+            ),
+            centres
+        )
+    }
+
+    @Test
+    fun `no history means no row and the face it had before`() {
+        val root = rootFor(live)
+        assertTrue("nothing is invented", bars(root).isEmpty())
+        assertTrue(
+            "the stack keeps the column of a face with no trend",
+            TileTestKit.flatten(root).any { it is LayoutElementBuilders.Column }
+        )
+        assertTrue(
+            "and the pill keeps the readings",
+            TileTestKit.texts(root).any { it.text?.value == "42m" }
         )
     }
 

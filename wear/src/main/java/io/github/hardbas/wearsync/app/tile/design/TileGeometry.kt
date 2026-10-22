@@ -87,33 +87,42 @@ object TileGeometry {
     const val PILL_PADDING = 6f
     const val PILL_CENTER_Y = 63f
 
-    /** Nominal vertical centres of the centred metric stack, from the tile centre. */
+    /**
+     * Vertical centres of the three-block stack, from the tile centre: the
+     * rhythm of a face with no trend row.
+     */
     const val LABEL_Y = -38f
     const val HERO_Y = 0f
     const val SUB_Y = 30f
 
     /**
-     * The in-tile drawer (S12): a full-face panel with a centred column.
-     *
-     * `DRAWER_PADDING` is the inset the panel keeps from the rim on all four
-     * sides, so its content sits inside the circle instead of hugging the bezel.
+     * Vertical centres of the five-block face of S14, from the tile centre:
+     * label, hero, trend row, subtitle and the pill. The row pushes the label
+     * and the hero up and the subtitle down, so the hero keeps the eye and the
+     * trend reads as an aside under it.
      */
-    const val DRAWER_PADDING = 20f
+    const val TREND_LABEL_Y = -48f
+    const val TREND_HERO_Y = -10f
+    const val TREND_ROW_Y = 22f
+    const val TREND_SUB_Y = 42f
 
-    /** Drawer bars: 7dp wide, 5dp apart, radius 3.5, tallest a 34dp track. */
-    const val DRAWER_BAR_WIDTH = 7f
+    /** Seven days of trend: 7dp bars, 5dp apart, radius 3.5, 16dp at most. */
+    const val SPARK_DAYS = 7
+    const val SPARK_BAR_WIDTH = 7f
+    const val SPARK_BAR_GAP = 5f
+    const val SPARK_BAR_RADIUS = 3.5f
+    const val SPARK_HEIGHT = 16f
 
-    /** Sleep shows four phases, not a seven-day trend: fewer, wider bars read better. */
-    const val DRAWER_PHASE_BAR_WIDTH = 16f
-    const val DRAWER_BAR_GAP = 5f
-    const val DRAWER_BAR_RADIUS = 3.5f
-    const val DRAWER_BAR_TRACK = 34f
-
-    /** The sleep drawer paints four phase bars, one per phase, oldest first. */
-    const val DRAWER_PHASES = 4
+    /** Sleep shows the four phases of the night, not a seven-day trend. */
+    const val SPARK_PHASES = 4
+    const val SPARK_PHASE_BAR_WIDTH = 16f
+    const val SPARK_PHASE_BAR_GAP = 6f
 
     /** A bar never disappears when its value is zero: it keeps a sliver. */
-    const val DRAWER_BAR_MIN_HEIGHT = 2f
+    const val SPARK_MIN_HEIGHT = 2f
+
+    /** How much of the accent a past day keeps; today keeps all of it. */
+    const val SPARK_PAST_ALPHA = 0.45f
 
     /** Box size an arc of [radius] and [thickness] needs to land on that radius. */
     fun containerDp(radius: Float, thickness: Float): Float = 2f * (radius + thickness / 2f)

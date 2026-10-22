@@ -20,12 +20,12 @@ import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
-import io.github.hardbas.wearsync.app.tile.design.TileDrawer
-import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
+import io.github.hardbas.wearsync.app.tile.design.TileSparkline
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
@@ -40,15 +40,7 @@ import java.util.Locale
 class StressTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
-        // A LoadAction tap returns here with its clickable id; the builder turns
-        // that id into open/closed before it renders either the face or the drawer.
-        return Futures.immediateFuture(
-            buildTile(
-                this,
-                requestParams.deviceConfiguration,
-                lastClickableId = requestParams.currentState.lastClickableId
-            )
-        )
+        return Futures.immediateFuture(buildTile(this, requestParams.deviceConfiguration))
     }
 
     override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> {
@@ -62,16 +54,10 @@ class StressTileService : TileService() {
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-stress-v1"
 
-        /** Key of this tile in [TileDrawerState]. */
-        const val TILE_ID = "stress"
-
-        /** Face refresh period; the open panel asks for [TileDrawerState.DRAWER_FRESHNESS_MS] instead. */
+        /** Face refresh period. */
         private const val DEFAULT_FRESHNESS_MS = 60_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.StressDetailActivity"
-
-        /** The drawer's bar series is the last seven days, never more. */
-        private const val DRAWER_DAYS = 7
 
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
@@ -80,22 +66,17 @@ class StressTileService : TileService() {
             context: Context,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = RingConnHistoryStore.getHistory(context)
         ): TileBuilders.Tile = buildTile(
             AndroidTileStrings(context),
             context.packageName,
             deviceParams,
             vitals,
-            lastClickableId,
             history
         )
 
         /**
-         * @param lastClickableId the id the system carried back from a
-         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
-         *   drawer ids leaves the tile in the state it is already in.
-         * @param history the seven-day cache the drawer bars come from. Passed in
+         * @param history the seven-day cache the trend row comes from. Passed in
          *   so the contract tests can build entries directly; production reads it
          *   from [RingConnHistoryStore].
          */
@@ -104,14 +85,8 @@ class StressTileService : TileService() {
             packageName: String,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals,
-            lastClickableId: String? = null,
             history: List<DailyHistoryEntry> = emptyList()
         ): TileBuilders.Tile {
-            TileDrawerState.apply(TILE_ID, lastClickableId)
-            if (TileDrawerState.isOpen(TILE_ID)) {
-                return drawerTile(strings, packageName, vitals, history)
-            }
-
             val hasStress = vitals.stressScore > 0
             val score = vitals.stressScore.coerceIn(0, 100)
             val stale = vitals.isStale
@@ -138,9 +113,6 @@ class StressTileService : TileService() {
             // The pearl's position is the reading itself: 0..100 across the sweep.
             val fraction = score / 100f
 
-            // The pill asks for a reload and comes back with id `pill`, which
-            // opens the drawer; the face behind it keeps launching the detail
-            // screen, exactly like the pulse tile.
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
@@ -189,6 +161,22 @@ class StressTileService : TileService() {
                 )
             }
 
+            // The trend row: the score of the last seven days, oldest first, in the
+            // level accent of today. S14 keeps one accent per row: the shape is the
+            // trend, the colour is the reading.
+            val series = stressSeries(history)
+            val sparkline = if (series.isEmpty()) {
+                null
+            } else {
+                TileSparkline.row(
+                    values = series,
+                    accent = accent,
+                    heightDp = TileGeometry.SPARK_HEIGHT,
+                    barWidthDp = TileGeometry.SPARK_BAR_WIDTH,
+                    gapDp = TileGeometry.SPARK_BAR_GAP
+                )
+            }
+
             val stack = TileShell.stack(
                 label = TileShell.text(
                     value = strings.text(R.string.tile_stress_title).uppercase(Locale.getDefault()),
@@ -205,12 +193,13 @@ class StressTileService : TileService() {
                         TileShell.text(" · ", TileType.sub(TileInk.SECONDARY)),
                         TileShell.text(hrvRead, TileType.sub())
                     )
-                )
+                ),
+                trend = sparkline
             )
 
             val pill = TileShell.pill(
                 content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
-                clickable = TileDrawer.tapToOpen()
+                clickable = clickable
             )
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
@@ -225,52 +214,14 @@ class StressTileService : TileService() {
         }
 
         /**
-         * The open drawer: the whole face becomes the S12 panel, built from the
-         * tile's own score and the real seven-day history.
+         * The stress index of the last seven days, oldest first. A day with no
+         * reading is left out instead of drawn as a dip.
          */
-        private fun drawerTile(
-            strings: TileStrings,
-            packageName: String,
-            vitals: RingConnVitals,
-            history: List<DailyHistoryEntry>
-        ): TileBuilders.Tile {
-            val days = history.sortedBy { it.epochDay }.takeLast(DRAWER_DAYS)
-            val hasStress = vitals.stressScore > 0
-            val score = vitals.stressScore.coerceIn(0, 100)
-            val level = levelOf(score)
-            // The level drives the drawer's accent too, so the panel and the face
-            // can never disagree about how the day reads.
-            val accent = if (hasStress) {
-                TileAccents.step(TileAccents.stress, levelStop(level))
-            } else {
-                TileInk.DIM
-            }
-
-            val root = TileDrawer.drawer(
-                accent = accent,
-                kicker = strings.text(R.string.tile_drawer_stress_kicker).uppercase(Locale.getDefault()),
-                title = String.format(
-                    Locale.getDefault(),
-                    strings.text(R.string.tile_drawer_stress_title),
-                    if (hasStress) "$score" else NO_VALUE,
-                    levelWord(strings, hasStress, level)
-                ),
-                meta = strings.text(R.string.tile_drawer_stress_meta),
-                bars = days.map { it.stressScore.toFloat() },
-                barColor = accent,
-                closeLabel = strings.text(R.string.tile_drawer_close),
-                openLabel = strings.text(R.string.tile_drawer_open),
-                packageName = packageName,
-                detailActivity = DETAIL_ACTIVITY
-            )
-
-            return tile(
-                TimelineBuilders.TimelineEntry.Builder()
-                    .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
-                    .build(),
-                freshnessMs = TileDrawerState.DRAWER_FRESHNESS_MS
-            )
-        }
+        private fun stressSeries(history: List<DailyHistoryEntry>): List<Float> =
+            history.sortedBy { it.epochDay }
+                .takeLast(TileGeometry.SPARK_DAYS)
+                .map { it.stressScore.toFloat() }
+                .filter { it > 0f }
 
         private fun tile(
             entry: TimelineBuilders.TimelineEntry,
@@ -289,8 +240,6 @@ class StressTileService : TileService() {
             level == 2 -> strings.text(R.string.stress_moderate)
             else -> strings.text(R.string.stress_high)
         }
-
-        private const val NO_VALUE = "--"
 
         /** Calm below 30, balanced below 60, moderate below 80, high from 80. */
         fun levelOf(score: Int): Int = when {
