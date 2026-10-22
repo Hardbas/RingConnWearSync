@@ -96,13 +96,14 @@ class HeartRateTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two animators, one of them infinite`() {
+    fun `live tile spends exactly two loops, never three`() {
         val specs = TileTestKit.animators(liveRoot)
         assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
-        assertTrue(
-            "the entrance must settle once",
-            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
+        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "one is the bezel breath at its measured period",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
     }
 
@@ -125,8 +126,8 @@ class HeartRateTileContractTest {
         assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("PULSE") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
-        // No halo in the stale frame, so the value arc sits right after the track.
-        val value = TileTestKit.arcLines(root)[1]
+        // Track, static halo, then the value arc.
+        val value = TileTestKit.arcLines(root)[2]
         assertEquals(TileAccents.dim(TileAccents.heartRate).last(), value.color?.argb)
         assertTrue(
             "a stale tile is a still frame: no entrance and no halo",

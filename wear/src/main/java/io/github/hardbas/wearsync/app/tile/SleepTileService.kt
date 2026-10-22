@@ -17,6 +17,7 @@ import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileResources
@@ -163,13 +164,21 @@ class SleepTileService : TileService() {
                 add(TileShell.overlay(TileResources.STARS))
                 add(TileShell.overlay(TileResources.TICKS_R74))
                 if (hasData) {
-                    // The four segments are solid colours, so the ring cannot share one
-                    // length animation. Its life comes from a single band behind them:
-                    // one line, one animator, the night breathing under the phases.
+                    // "Expresivo" layer: a body of violet light drifting behind the
+                    // ring, the tile's second animator. The first is the rim breath.
                     if (!stale) {
-                        add(TileDial.halo(ramp.first()))
+                        add(
+                            TileAmbient.drifting(
+                                resourceId = TileResources.GLOW,
+                                accent = TileAccents.sleep.first(),
+                                sizeDp = 130f,
+                                opacity = 0.50f,
+                                travelDp = 70f
+                            )
+                        )
                     }
-                    add(TileDial.phases(colors = ramp, fractions = phaseFractions, halo = false))
+                    add(TileDial.track(ramp.first(), breathing = !stale))
+                    add(TileDial.phases(colors = ramp, fractions = phaseFractions))
                 }
             }
 

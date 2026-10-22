@@ -16,6 +16,7 @@ import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
@@ -94,8 +95,23 @@ class HeartRateTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
+                // The design's "Expresivo" layer: a cardiogram travelling across
+                // the face. It spends the tile's second animator; the first is the
+                // bezel breath.
+                if (hasHr && !stale) {
+                    add(
+                        TileAmbient.scrolling(
+                            resourceId = TileResources.ECG,
+                            accent = TileAccents.heartRateLabel,
+                            widthDp = 384f,
+                            heightDp = TileGeometry.TILE_DP,
+                            travelDp = 192f,
+                            opacity = 0.45f
+                        )
+                    )
+                }
                 add(TileShell.glow(TileResources.GLOW, accent))
-                add(TileDial.track(accent))
+                add(TileDial.track(accent, breathing = hasHr && !stale))
                 add(TileShell.overlay(TileResources.TICKS_R84))
                 if (hasHr) {
                     // A live dial settles in and breathes; a stale one is a still
@@ -104,9 +120,7 @@ class HeartRateTileService : TileService() {
                         TileDial.value(
                             accent = ramp,
                             fraction = fraction,
-                            pearlColor = TileAccents.heartRateLabel,
-                            halo = !stale,
-                            sweepIn = !stale
+                            pearlColor = TileAccents.heartRateLabel
                         )
                     )
                 }

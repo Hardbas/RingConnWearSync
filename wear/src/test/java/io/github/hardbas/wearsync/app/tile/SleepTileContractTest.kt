@@ -62,26 +62,15 @@ class SleepTileContractTest {
 
     private val liveRoot by lazy { rootFor(live) }
 
-    private fun phaseSegments(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.ArcLine> =
-        TileTestKit.arcLines(root)
-            .filter { TileTestKit.dpOf(it.thickness) == TileGeometry.ARC_THICKNESS }
+    /** The four phase segments: the rim track is excluded by its full-span length. */
+    private fun phaseSegments(root: LayoutElementBuilders.LayoutElement) =
+        TileTestKit.arcLines(root).filter {
+            TileTestKit.dpOf(it.thickness) == TileGeometry.ARC_THICKNESS &&
+                (it.length?.value ?: 0f) < TileGeometry.ARC_SPAN
+        }
 
-    private fun degrees(lines: List<LayoutElementBuilders.ArcLine>): List<Float> =
+    private fun degrees(lines: List<androidx.wear.protolayout.LayoutElementBuilders.ArcLine>) =
         lines.map { it.length?.value ?: 0f }
-
-    // ---- the reading ----------------------------------------------------
-
-    @Test
-    fun `label is the sentence case quality word behind the crescent`() {
-        val label = TileTestKit.texts(liveRoot).first { it.text?.value == "Excellent" }
-        assertEquals("sleep labels its quality in sentence case", false, TileTestKit.isUppercase(label.text!!.value))
-        assertEquals(TileType.SLEEP_LABEL, label.fontStyle?.size?.value)
-        assertEquals(TileAccents.sleepLabel, label.fontStyle?.color?.argb)
-        assertTrue(
-            "the label row must carry the design's crescent",
-            TileTestKit.images(liveRoot).any { it.resourceId?.value == TileResources.MOON }
-        )
-    }
 
     @Test
     fun `hero is the sleep score at the display size`() {
@@ -129,16 +118,20 @@ class SleepTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends its single animator on the breathing band`() {
+    fun `live tile spends its two loops on the rim breath and the drifting body`() {
         val specs = TileTestKit.animators(liveRoot)
+        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
+        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
         assertEquals(
-            "the four solid segments cannot share a length animation, so the ring breathes instead",
+            "the rim breathes at the measured period",
             1,
-            specs.size
+            specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
-        val infinite = specs.single()
-        assertTrue("the band must breathe for ever", TileTestKit.loopsForever(infinite))
-        assertEquals(TileMotion.HALO_MS, TileTestKit.durationMs(infinite))
+        assertEquals(
+            "the violet body drifts slowly",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.DRIFT_MS }
+        )
     }
 
     // ---- degraded states ------------------------------------------------

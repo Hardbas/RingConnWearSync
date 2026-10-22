@@ -16,6 +16,7 @@ import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileResources
@@ -100,7 +101,21 @@ class StressTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
+                // "Expresivo" layer: the radial body breathing behind the scale,
+                // the tile's second animator. The first is the rim breath.
+                if (hasStress && !stale) {
+                    add(
+                        TileAmbient.breathing(
+                            resourceId = TileResources.GLOW,
+                            accent = accent,
+                            sizeDp = 110f,
+                            min = 0.10f,
+                            max = 0.45f
+                        )
+                    )
+                }
                 add(TileShell.glow(TileResources.GLOW, accent))
+                add(TileDial.track(accent, breathing = hasStress && !stale))
                 add(TileShell.overlay(TileResources.TICKS_STRESS))
                 add(
                     if (hasStress) {
@@ -108,13 +123,11 @@ class StressTileService : TileService() {
                         TileDial.spectrum(
                             stops = ramp,
                             pearlColor = TileAccents.ramp(ramp, fraction),
-                            pearlAt = fraction,
-                            halo = !stale,
-                            sweepIn = !stale
+                            pearlAt = fraction
                         )
                     } else {
                         // No reading: rim only — no halo, no pearl, no entrance.
-                        TileDial.spectrum(TileAccents.stress, pearlColor = null, halo = false, sweepIn = false)
+                        TileDial.spectrum(TileAccents.stress, pearlColor = null, halo = false)
                     }
                 )
             }

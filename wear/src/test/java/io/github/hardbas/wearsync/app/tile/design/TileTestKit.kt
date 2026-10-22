@@ -78,7 +78,9 @@ object TileTestKit {
         modifiers?.opacity?.dynamicValue,
         modifiers?.transformation?.rotation?.dynamicValue,
         modifiers?.transformation?.scaleX?.dynamicValue,
-        modifiers?.transformation?.scaleY?.dynamicValue
+        modifiers?.transformation?.scaleY?.dynamicValue,
+        modifiers?.transformation?.translationX?.dynamicValue,
+        modifiers?.transformation?.translationY?.dynamicValue
     )
 
     private fun arcDynamics(line: LayoutElementBuilders.ArcLine): List<Any?> = listOf(

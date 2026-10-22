@@ -109,8 +109,8 @@ class StressTileContractTest {
     @Test
     fun `the spectrum is the rim, the reading and a pearl`() {
         val lines = TileTestKit.arcLines(liveRoot)
-        assertEquals("halo, spectrum, ivory pearl, accent pearl", 4, lines.size)
-        val spectrum = lines[1]
+        assertEquals("track, halo, spectrum, ivory pearl, accent pearl", 5, lines.size)
+        val spectrum = lines.first { it.brush != null }
         assertEquals(TileGeometry.ARC_THICKNESS, TileTestKit.dpOf(spectrum.thickness), 0.001f)
         assertEquals(TileAccents.stress.first(), spectrum.color?.argb)
         assertTrue("the spectrum must keep its brush", spectrum.brush != null)
@@ -119,13 +119,14 @@ class StressTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two animators, one of them infinite`() {
+    fun `live tile spends exactly two loops, never three`() {
         val specs = TileTestKit.animators(liveRoot)
         assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
-        assertTrue(
-            "the entrance must settle once",
-            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
+        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "one is the bezel breath at its measured period",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
     }
 
@@ -135,9 +136,9 @@ class StressTileContractTest {
     fun `empty tile keeps the spectrum rim and runs no animator`() {
         val root = rootFor(RingConnVitals(refreshTimestamp = 0L))
         val lines = TileTestKit.arcLines(root)
-        assertEquals("rim only: no halo and no pearl", 1, lines.size)
+        assertEquals("bare rim only: the track and the spectrum, no halo, no pearl", 2, lines.size)
         assertTrue(TileTestKit.animators(root).isEmpty())
-        assertEquals(TileAccents.stress.first(), lines[0].color?.argb)
+        assertEquals(TileAccents.stress.first(), lines.first { it.brush != null }.color?.argb)
 
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
@@ -152,8 +153,8 @@ class StressTileContractTest {
         assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
-        // No halo in the stale frame, so the spectrum is the first arc line.
-        assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[0].color?.argb)
+        // Track, halo, then the spectrum.
+        assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[2].color?.argb)
         assertTrue(
             "a stale tile is a still frame: no entrance and no halo",
             TileTestKit.animators(root).isEmpty()

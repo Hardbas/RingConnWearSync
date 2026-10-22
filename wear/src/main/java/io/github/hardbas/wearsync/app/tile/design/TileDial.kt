@@ -19,21 +19,25 @@ import androidx.wear.protolayout.expression.DynamicBuilders
  * different radii can coexist in one 192dp face. Paint order inside a dial box
  * is: halo, fill, pearl — the same order the design render uses.
  *
- * Motion uses only the two mechanisms measured on the target watch
- * (SM-L500): an arc-length sweep and an `ArcLine` opacity loop. Both are
- * one-shot-or-loop animations on the arc itself, so a tile never depends on a
- * container transformation the renderer may not animate.
+ * The only motion this file owns is the bezel breath on the track: `ArcLine`
+ * opacity, 0.45..0.95 over 3400 ms, the exact band and period measured animating
+ * on the target watch. Everything else here is static; the expressive backdrop
+ * of the design's "Expresivo" mode lives in [TileBackdrop].
  */
 object TileDial {
 
     /**
      * The quiet rim every tile keeps, even with no data: the metric accent at
-     * 16 % over black, full 260 degrees, round caps. Static by design.
+     * 16 % over black, full 260 degrees, round caps.
+     *
+     * @param breathing drives the tile's ambient animator. A tile with no data,
+     *   or one reading stale data, passes false and renders a still frame.
      */
     fun track(
         accent: Int,
         radius: Float = TileGeometry.ARC_RADIUS,
-        thickness: Float = TileGeometry.ARC_THICKNESS
+        thickness: Float = TileGeometry.ARC_THICKNESS,
+        breathing: Boolean = true
     ): LayoutElementBuilders.Box = container(
         radius = radius,
         thickness = thickness,
@@ -43,20 +47,19 @@ object TileDial {
                 line(
                     lengthDegrees = TileGeometry.ARC_SPAN,
                     thicknessDp = thickness,
-                    color = TileInk.track(accent)
+                    color = TileInk.track(accent),
+                    opacity = if (breathing) breathingTrack() else null
                 )
             )
         )
     )
 
     /**
-     * The value arc: gradient across the swept range, breathing halo behind it,
+     * The value arc: gradient across the swept range, soft static halo behind it,
      * optional pearl at its end.
      *
      * @param accent ramp, calmest stop first. The last stop is the fallback colour
      *   for renderers that ignore the sweep-gradient brush.
-     * @param sweepIn grows the arc from zero on tile entry. Pass false for the
-     *   still frame a stale reading deserves.
      */
     fun value(
         accent: IntArray,
@@ -64,8 +67,7 @@ object TileDial {
         radius: Float = TileGeometry.ARC_RADIUS,
         thickness: Float = TileGeometry.ARC_THICKNESS,
         pearlColor: Int? = null,
-        halo: Boolean = true,
-        sweepIn: Boolean = true
+        halo: Boolean = true
     ): LayoutElementBuilders.Box {
         val sweep = TileGeometry.sweepDegrees(fraction)
         val arcs = buildList {
@@ -75,12 +77,11 @@ object TileDial {
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
-                    sweepLine(
+                    line(
                         lengthDegrees = sweep,
                         thicknessDp = thickness,
                         color = accent.last(),
-                        brush = gradient(accent, sweep / TileGeometry.ARC_SPAN),
-                        sweepIn = sweepIn
+                        brush = gradient(accent, sweep / TileGeometry.ARC_SPAN)
                     )
                 )
             )
@@ -92,16 +93,13 @@ object TileDial {
     /**
      * The two concentric rings of the vitals and activity tiles.
      *
-     * Two rings on two radii need two containers, but they still share ONE halo:
-     * the budget is per tile, not per ring. Only the outer ring sweeps in — a
-     * second length animation would be a third animator, and the inner ring is
-     * hidden behind the outer stroke for most of the sweep anyway.
+     * Two rings on two radii need two containers, and they share one static halo:
+     * the budget is per tile, not per ring.
      */
     fun rings(
         outer: Ring,
         inner: Ring,
-        halo: Boolean = true,
-        sweepOuter: Boolean = true
+        halo: Boolean = true
     ): LayoutElementBuilders.Box {
         val outerArcs = buildList {
             if (halo) {
@@ -119,12 +117,11 @@ object TileDial {
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
-                    sweepLine(
+                    line(
                         lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
                         thicknessDp = outer.thickness,
                         color = outer.accent.last(),
-                        brush = gradient(outer.accent, outer.fraction),
-                        sweepIn = sweepOuter
+                        brush = gradient(outer.accent, outer.fraction)
                     )
                 )
             )
@@ -166,8 +163,7 @@ object TileDial {
         thickness: Float = TileGeometry.ARC_THICKNESS,
         pearlColor: Int? = null,
         pearlAt: Float = 0f,
-        halo: Boolean = true,
-        sweepIn: Boolean = true
+        halo: Boolean = true
     ): LayoutElementBuilders.Box {
         val arcs = buildList {
             if (halo) {
@@ -176,12 +172,11 @@ object TileDial {
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
-                    sweepLine(
+                    line(
                         lengthDegrees = TileGeometry.ARC_SPAN,
                         thicknessDp = thickness,
                         color = stops.first(),
-                        brush = gradient(stops, 1f),
-                        sweepIn = sweepIn
+                        brush = gradient(stops, 1f)
                     )
                 )
             )
@@ -192,8 +187,8 @@ object TileDial {
 
     /**
      * Sleep's ring: four segments, proportional to the phases, separated by a
-     * dark gap. Each segment is solid, so the whole ring cannot share one length
-     * animation; its ambient loop comes from [halo] instead.
+     * dark gap. Each segment is a solid colour, so the ring cannot share one
+     * gradient; its life comes from the track behind it.
      */
     fun phases(
         colors: IntArray,
@@ -219,7 +214,11 @@ object TileDial {
                     add(
                         arc(
                             anchorDegrees = TileGeometry.angleOf(start),
-                            line(length * TileGeometry.ARC_SPAN, thickness + TileGeometry.HALO_EXTRA, color)
+                            line(
+                                lengthDegrees = length * TileGeometry.ARC_SPAN,
+                                thicknessDp = thickness + TileGeometry.HALO_EXTRA,
+                                color = TileInk.withAlpha(color, TileGeometry.HALO_ALPHA)
+                            )
                         )
                     )
                 }
@@ -235,21 +234,6 @@ object TileDial {
         }
         return container(radius, thickness, arcs)
     }
-
-    /**
-     * One full-span band behind the dial that breathes for ever. This is the
-     * sleep tile's ambient loop: its four phase segments cannot share a length
-     * animation, so the life has to live in a single line.
-     */
-    fun halo(
-        accent: Int,
-        radius: Float = TileGeometry.ARC_RADIUS,
-        thickness: Float = TileGeometry.ARC_THICKNESS
-    ): LayoutElementBuilders.Box = container(
-        radius = radius,
-        thickness = thickness,
-        arcs = listOf(arc(TileGeometry.ARC_START, haloLine(TileGeometry.ARC_SPAN, thickness, accent)))
-    )
 
     // ---- primitives ------------------------------------------------------
 
@@ -306,43 +290,20 @@ object TileDial {
     }
 
     /**
-     * The fill line. With [sweepIn] its length is a dynamic value growing from
-     * zero, which is the one entrance this renderer is known to animate on the
-     * target watch; the angular constraint is required or the tile crashes.
+     * The bezel breath: the one opacity loop measured working on this watch. The
+     * band is wide on purpose — a 0.16-0.34 band on this same line moved 0.6 of a
+     * luminance step and the tile read as frozen.
      */
-    private fun sweepLine(
-        lengthDegrees: Float,
-        thicknessDp: Float,
-        color: Int,
-        brush: Brush? = null,
-        sweepIn: Boolean
-    ): LayoutElementBuilders.ArcLine {
-        val builder = LayoutElementBuilders.ArcLine.Builder()
-            .setThickness(dp(thicknessDp))
-            .setStrokeCap(LayoutElementBuilders.STROKE_CAP_ROUND)
-            .setColor(argb(color))
-        if (sweepIn) {
-            builder
-                .setLength(
-                    DimensionBuilders.DegreesProp.Builder(lengthDegrees)
-                        .setDynamicValue(
-                            DynamicBuilders.DynamicFloat.animate(
-                                0f,
-                                lengthDegrees,
-                                TileMotion.entrance()
-                            )
-                        )
-                        .build()
+    private fun breathingTrack(): TypeBuilders.FloatProp =
+        TypeBuilders.FloatProp.Builder(TileMotion.AMBIENT_MAX)
+            .setDynamicValue(
+                DynamicBuilders.DynamicFloat.animate(
+                    TileMotion.AMBIENT_MIN,
+                    TileMotion.AMBIENT_MAX,
+                    TileMotion.ambient()
                 )
-                .setLayoutConstraintsForDynamicLength(
-                    DimensionBuilders.AngularLayoutConstraint.Builder(TileGeometry.ARC_SPAN).build()
-                )
-        } else {
-            builder.setLength(DimensionBuilders.degrees(lengthDegrees))
-        }
-        if (brush != null) builder.setBrush(brush)
-        return builder.build()
-    }
+            )
+            .build()
 
     /** Same arc, 4dp wider on each side: the soft band the design calls resplandor. */
     private fun haloLine(
@@ -353,25 +314,8 @@ object TileDial {
         line(
             lengthDegrees = lengthDegrees,
             thicknessDp = thicknessDp + TileGeometry.HALO_EXTRA,
-            color = color,
-            opacity = breathingHalo()
+            color = TileInk.withAlpha(color, TileGeometry.HALO_ALPHA)
         )
-
-    /**
-     * The ambient loop. The band is deliberately wider than the design's
-     * 0.10-0.32: measured on the target watch, a narrow band on a thin line moves
-     * less than one luminance step and reads as a dead tile.
-     */
-    private fun breathingHalo(): TypeBuilders.FloatProp =
-        TypeBuilders.FloatProp.Builder(TileMotion.HALO_MAX)
-            .setDynamicValue(
-                DynamicBuilders.DynamicFloat.animate(
-                    TileMotion.HALO_MIN,
-                    TileMotion.HALO_MAX,
-                    TileMotion.halo()
-                )
-            )
-            .build()
 
     /** Ivory pearl with the metric colour in its middle, riding the reading's angle. */
     private fun pearl(

@@ -17,6 +17,8 @@ import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.Ring
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileAmbient
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
@@ -104,9 +106,34 @@ class DailySummaryTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
+                // "Expresivo" layer: a slow scan of the inner face, the tile's
+                // second animator. The first is the outer bezel breath.
+                if (hasData && !stale) {
+                    add(
+                        TileAmbient.scanning(
+                            accent = TileAccents.steps.first(),
+                            opacity = 0.45f,
+                            durationMs = TileMotion.SCAN_MS * 2
+                        )
+                    )
+                }
                 add(TileShell.glow(TileResources.GLOW, stepsRamp.last()))
-                add(TileDial.track(stepsRamp.last(), TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS_ACTIVITY))
-                add(TileDial.track(kcalRamp.last(), TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS_ACTIVITY))
+                add(
+                    TileDial.track(
+                        stepsRamp.last(),
+                        TileGeometry.RING_RADIUS,
+                        TileGeometry.RING_THICKNESS_ACTIVITY,
+                        breathing = hasData && !stale
+                    )
+                )
+                add(
+                    TileDial.track(
+                        kcalRamp.last(),
+                        TileGeometry.RING_INNER_RADIUS,
+                        TileGeometry.RING_THICKNESS_ACTIVITY,
+                        breathing = false
+                    )
+                )
                 add(TileShell.overlay(TileResources.TICKS_R78))
                 if (hasData) {
                     // ONE call for both rings: it shares the entrance rotation and
@@ -125,9 +152,7 @@ class DailySummaryTileService : TileService() {
                                 fraction = kcalFraction,
                                 radius = TileGeometry.RING_INNER_RADIUS,
                                 thickness = TileGeometry.RING_THICKNESS_ACTIVITY
-                            ),
-                            halo = !stale,
-                            sweepOuter = !stale
+                            )
                         )
                     )
                 }

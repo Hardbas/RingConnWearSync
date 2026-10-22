@@ -17,6 +17,7 @@ import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.Ring
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
@@ -91,9 +92,28 @@ class VitalsTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
+                // "Expresivo" layer: a scan ring travelling the inner face, the
+                // tile's second animator. The first is the outer bezel breath.
+                if (hasData && !stale) {
+                    add(TileAmbient.scanning(TileAccents.spo2Label, opacity = 0.45f))
+                }
                 add(TileShell.glow(TileResources.GLOW, spo2Ramp.last()))
-                add(TileDial.track(spo2Ramp.last(), TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS))
-                add(TileDial.track(batteryRamp.last(), TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS))
+                add(
+                    TileDial.track(
+                        spo2Ramp.last(),
+                        TileGeometry.RING_RADIUS,
+                        TileGeometry.RING_THICKNESS,
+                        breathing = hasData && !stale
+                    )
+                )
+                add(
+                    TileDial.track(
+                        batteryRamp.last(),
+                        TileGeometry.RING_INNER_RADIUS,
+                        TileGeometry.RING_THICKNESS,
+                        breathing = false
+                    )
+                )
                 add(TileShell.overlay(TileResources.TICKS_R78))
                 if (hasData) {
                     // One call for both rings: two `value()` calls would cost four
@@ -101,9 +121,7 @@ class VitalsTileService : TileService() {
                     add(
                         TileDial.rings(
                             outer = Ring(spo2Ramp, spo2Fraction, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
-                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS),
-                            halo = !stale,
-                            sweepOuter = !stale
+                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
                         )
                     )
                 }

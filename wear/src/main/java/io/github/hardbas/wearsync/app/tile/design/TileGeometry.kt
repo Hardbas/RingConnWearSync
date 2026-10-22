@@ -48,6 +48,13 @@ object TileGeometry {
     /** The arc halo is the same arc, 4dp wider on each side. */
     const val HALO_EXTRA = 8f
 
+    /** How much of the accent the static halo keeps. Static: the track breathes. */
+    const val HALO_ALPHA = 0.18f
+
+    /** The scanning arc of the vitals and steps backdrop. */
+    const val SCAN_RADIUS = 62f
+    const val SCAN_THICKNESS = 1.5f
+
     /** Dark gap between two sleep phases, in degrees (0.008 of the 260 span). */
     const val SEGMENT_GAP_DEGREES = 2.1f
 

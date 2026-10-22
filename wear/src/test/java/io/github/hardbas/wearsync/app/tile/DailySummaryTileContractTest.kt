@@ -104,23 +104,26 @@ class DailySummaryTileContractTest {
     @Test
     fun `the dial is two tracks and two concentric rings`() {
         val lines = TileTestKit.arcLines(liveRoot)
-        assertEquals("track, track, halo, outer ring, inner ring", 5, lines.size)
-        assertEquals(TileGeometry.RING_THICKNESS_ACTIVITY, TileTestKit.dpOf(lines[3].thickness), 0.001f)
-        assertEquals(TileAccents.steps.last(), lines[3].color?.argb)
-        assertEquals(TileGeometry.RING_THICKNESS_ACTIVITY, TileTestKit.dpOf(lines[4].thickness), 0.001f)
-        assertEquals(TileAccents.kcal.last(), lines[4].color?.argb)
+        assertEquals("scan backdrop, track, track, halo, outer ring, inner ring", 6, lines.size)
+        val rings = lines.filter { it.brush != null }
+        assertEquals("two rings", 2, rings.size)
+        assertEquals(TileGeometry.RING_THICKNESS_ACTIVITY, TileTestKit.dpOf(rings[0].thickness), 0.001f)
+        assertEquals(TileAccents.steps.last(), rings[0].color?.argb)
+        assertEquals(TileGeometry.RING_THICKNESS_ACTIVITY, TileTestKit.dpOf(rings[1].thickness), 0.001f)
+        assertEquals(TileAccents.kcal.last(), rings[1].color?.argb)
     }
 
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two animators, one of them infinite`() {
+    fun `live tile spends exactly two loops, never three`() {
         val specs = TileTestKit.animators(liveRoot)
         assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
-        assertTrue(
-            "the entrance must settle once",
-            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
+        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "one is the bezel breath at its measured period",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
     }
 

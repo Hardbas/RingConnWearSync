@@ -86,23 +86,28 @@ class VitalsTileContractTest {
     @Test
     fun `the dial is two tracks and two concentric rings`() {
         val lines = TileTestKit.arcLines(liveRoot)
-        assertEquals("track, track, halo, outer ring, inner ring", 5, lines.size)
-        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(lines[3].thickness), 0.001f)
-        assertEquals(TileAccents.spo2.last(), lines[3].color?.argb)
-        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(lines[4].thickness), 0.001f)
-        assertEquals(TileAccents.battery.last(), lines[4].color?.argb)
+        assertEquals("scan backdrop, track, track, halo, outer ring, inner ring", 6, lines.size)
+        // Only the two rings carry a gradient brush: pick them out instead of
+        // counting positions, which shift whenever a static layer is added.
+        val rings = lines.filter { it.brush != null }
+        assertEquals("two rings", 2, rings.size)
+        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(rings[0].thickness), 0.001f)
+        assertEquals(TileAccents.spo2.last(), rings[0].color?.argb)
+        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(rings[1].thickness), 0.001f)
+        assertEquals(TileAccents.battery.last(), rings[1].color?.argb)
     }
 
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two animators, one of them infinite`() {
+    fun `live tile spends exactly two loops, never three`() {
         val specs = TileTestKit.animators(liveRoot)
         assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
-        assertTrue(
-            "the entrance must settle once",
-            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
+        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "one is the bezel breath at its measured period",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
     }
 
@@ -130,9 +135,9 @@ class VitalsTileContractTest {
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("VITALS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
         val lines = TileTestKit.arcLines(root)
-        // Two tracks then two rings: a stale frame carries no halo line.
-        assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[2].color?.argb)
-        assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[3].color?.argb)
+        // Two tracks, the outer halo, then the two rings.
+        assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[3].color?.argb)
+        assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[4].color?.argb)
         assertTrue(
             "a stale tile is a still frame: no entrance and no halo",
             TileTestKit.animators(root).isEmpty()

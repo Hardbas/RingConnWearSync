@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The cardiogram strip the pulse tile scrolls behind the dial, straight from the
+    design render's `.bg-0` layer: a 192dp beat repeated at +192 so a linear
+    translation of exactly -192dp loops without a seam.
+
+    Drawn white on purpose. The tile tints it with TileAccents.heartRateLabel, so
+    the palette stays in Kotlin and this file never carries a colour decision.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="384dp"
+    android:height="192dp"
+    android:viewportWidth="384"
+    android:viewportHeight="192">
+
+    <path
+        android:pathData="M0,100 H34 l5,-5 l5,5 H66 l4,8 l6,-40 l6,50 l4,-18 H98 l7,-6 l8,6 H192"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <group android:translateX="192">
+        <path
+            android:pathData="M0,100 H34 l5,-5 l5,5 H66 l4,8 l6,-40 l6,50 l4,-18 H98 l7,-6 l8,6 H192"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="1.4"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

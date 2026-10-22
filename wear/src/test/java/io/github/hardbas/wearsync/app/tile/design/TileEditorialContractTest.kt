@@ -113,32 +113,35 @@ class TileEditorialContractTest {
     @Test
     fun `two animators, never more`() {
         assertEquals(2, TileMotion.MAX_ANIMATORS)
-        val specs = TileTestKit.animators(valueArc())
-        assertEquals(2, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
-    }
-
-    @Test
-    fun `the value arc sweeps in from zero, not from a rotated container`() {
-        val value = TileTestKit.arcLines(valueArc())[1]
-        val spec = TileTestKit.specOf(value.length?.dynamicValue)
-        assertEquals(TileMotion.ENTRANCE_MS, TileTestKit.durationMs(spec))
-        assertFalse("the entrance must not loop", TileTestKit.loopsForever(spec))
-        assertEquals(
-            "the static fallback is the settled length",
-            TileGeometry.sweepDegrees(0.5f),
-            value.length?.value ?: 0f,
-            0.001f
+        // A tile assembles one breath (the track) plus one expressive backdrop.
+        val breath = TileTestKit.animators(TileDial.track(accent))
+        assertEquals(1, breath.size)
+        val backdrop = TileTestKit.animators(
+            TileAmbient.scanning(accent)
         )
+        assertEquals(1, backdrop.size)
+        assertTrue("a live tile may run exactly these two", breath.size + backdrop.size <= TileMotion.MAX_ANIMATORS)
     }
 
     @Test
-    fun `the halo breathes for ever at the design period`() {
+    fun `the bezel breathes at the band measured on the watch`() {
+        val line = TileTestKit.arcLines(TileDial.track(accent)).single()
+        val spec = TileTestKit.specOf(line.modifiers?.opacity?.dynamicValue)
+        assertEquals(TileMotion.AMBIENT_MS, TileTestKit.durationMs(spec))
+        assertTrue(TileTestKit.loopsForever(spec))
+        assertEquals(TileMotion.AMBIENT_MAX, line.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertTrue(TileMotion.AMBIENT_MIN == 0.45f && TileMotion.AMBIENT_MAX == 0.95f)
+    }
+
+    @Test
+    fun `the halo is a static band, the track carries the motion`() {
         val halos = TileTestKit.arcLines(valueArc()).filter { TileTestKit.dpOf(it.thickness) > TileGeometry.ARC_THICKNESS }
         assertEquals(1, halos.size)
-        val spec = TileTestKit.specOf(halos.first().modifiers?.opacity?.dynamicValue)
-        assertEquals(TileMotion.HALO_MS, TileTestKit.durationMs(spec))
-        assertTrue(TileTestKit.loopsForever(spec))
+        assertEquals("a static band costs no animator", null, halos.first().modifiers?.opacity)
+        assertEquals(
+            TileInk.withAlpha(TileAccents.heartRate.last(), TileGeometry.HALO_ALPHA),
+            halos.first().color?.argb
+        )
     }
 
     // ---- S3 / S6: geometry ----------------------------------------------
@@ -211,9 +214,10 @@ class TileEditorialContractTest {
             outer = Ring(TileAccents.spo2, 0.98f, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
             inner = Ring(TileAccents.battery, 0.82f, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
         )
-        val specs = TileTestKit.animators(rings)
-        assertEquals("one entrance plus one halo, never four", 2, specs.size)
-        assertEquals(1, specs.count(TileTestKit::loopsForever))
+        assertTrue(
+            "the rings are static: the bezel track carries the breath",
+            TileTestKit.animators(rings).isEmpty()
+        )
 
         val boxes = TileTestKit.boxes(rings)
         assertEquals(
@@ -226,7 +230,7 @@ class TileEditorialContractTest {
 
     @Test
     fun `the empty dial is a bare track with no animators`() {
-        val track = TileDial.track(accent)
+        val track = TileDial.track(accent, breathing = false)
         assertEquals(1, TileTestKit.arcLines(track).size)
         assertTrue(TileTestKit.animators(track).isEmpty())
     }
