@@ -290,12 +290,13 @@ class VitalsTileContractTest {
         TileDrawerState.apply(VitalsTileService.TILE_ID, TileDrawerState.ID_CLOSE)
         assertTrue(!TileDrawerState.isOpen(VitalsTileService.TILE_ID))
 
-        // Any other id, and a plain refresh with no id, preserve the state.
+        // An unknown id is not a command; a plain load is the carousel entering
+        // the tile, and it shows the face instead of a panel left open.
         TileDrawerState.apply(VitalsTileService.TILE_ID, TileDrawerState.ID_OPEN)
         TileDrawerState.apply(VitalsTileService.TILE_ID, "something-else")
         assertTrue("an unknown id is not a command", TileDrawerState.isOpen(VitalsTileService.TILE_ID))
         TileDrawerState.apply(VitalsTileService.TILE_ID, null)
-        assertTrue("a load without an id leaves the tile as it was", TileDrawerState.isOpen(VitalsTileService.TILE_ID))
+        assertTrue("a plain load is not an invitation: the panel closes", !TileDrawerState.isOpen(VitalsTileService.TILE_ID))
 
         // The state is per tile: another tile's tap cannot open this one.
         TileDrawerState.apply(VitalsTileService.TILE_ID, TileDrawerState.ID_CLOSE)
@@ -374,14 +375,21 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `an open drawer survives a refresh and closes on its own id`() {
+    fun `a plain load shows the face, and the open panel asks not to be refreshed`() {
         rootFor(live, TileDrawerState.ID_OPEN)
-        val refreshed = rootFor(live, lastClickableId = null)
-        assertEquals(1, drawerPanels(refreshed).size)
+        assertTrue(
+            "entering the tile shows the face, not the panel the user left open",
+            drawerPanels(rootFor(live, lastClickableId = null)).isEmpty()
+        )
 
-        val closed = rootFor(live, TileDrawerState.ID_CLOSE)
-        assertTrue(drawerPanels(closed).isEmpty())
-        assertTrue(TileTestKit.texts(closed).any { it.text?.value == "VITALS" })
+        val panel = VitalsTileService.buildTile(
+            strings, packageName, deviceParams, live, TileDrawerState.ID_OPEN
+        )
+        assertEquals(
+            "a refresh would close the panel, so the panel is not refreshed",
+            TileDrawerState.DRAWER_FRESHNESS_MS,
+            panel.freshnessIntervalMillis
+        )
     }
 
     // ---- previous behaviour ---------------------------------------------

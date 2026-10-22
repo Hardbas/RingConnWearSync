@@ -32,15 +32,24 @@ object TileDrawerState {
     /** Closes the drawer. Carried by the drawer's close pill. */
     const val ID_CLOSE = "close"
 
+    /**
+     * While the panel is open the tile asks not to be refreshed: a refresh is a
+     * load with no click id, and that closes the panel.
+     */
+    const val DRAWER_FRESHNESS_MS = 600_000L
+
     private val open: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
     fun isOpen(tile: String): Boolean = open.contains(tile)
 
-    /** Applies one click, or leaves the tile untouched for any other id. */
+    /** Applies one click: the panel opens only for [ID_OPEN], and closes for a close or a plain load. */
     fun apply(tile: String, lastClickableId: String?) {
         when (lastClickableId) {
             ID_OPEN -> open.add(tile)
-            ID_CLOSE -> open.remove(tile)
+            // A load with no click id is the carousel entering the tile or the
+            // system refreshing it: the panel is something the user opened, so it
+            // is not shown again uninvited.
+            ID_CLOSE, null -> open.remove(tile)
             else -> Unit
         }
     }

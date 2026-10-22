@@ -66,6 +66,9 @@ class HeartRateTileService : TileService() {
         /** Key of this tile in [TileDrawerState]. */
         const val TILE_ID = "pulse"
 
+        /** Face refresh period; the open panel asks for a much longer one. */
+        private const val DEFAULT_FRESHNESS_MS = 30_000L
+
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity"
 
         /** The drawer's bar series is the last seven days, never more. */
@@ -245,10 +248,13 @@ class HeartRateTileService : TileService() {
                 detailActivity = DETAIL_ACTIVITY
             )
 
-            return tile(root)
+            return tile(root, TileDrawerState.DRAWER_FRESHNESS_MS)
         }
 
-        private fun tile(root: LayoutElementBuilders.LayoutElement): TileBuilders.Tile {
+        private fun tile(
+            root: LayoutElementBuilders.LayoutElement,
+            freshnessMs: Long = DEFAULT_FRESHNESS_MS
+        ): TileBuilders.Tile {
             val entry = TimelineBuilders.TimelineEntry.Builder()
                 .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
                 .build()
@@ -256,7 +262,7 @@ class HeartRateTileService : TileService() {
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
-                .setFreshnessIntervalMillis(30_000L)
+                .setFreshnessIntervalMillis(freshnessMs)
                 .build()
         }
 

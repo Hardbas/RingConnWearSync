@@ -98,6 +98,9 @@ class SleepTileService : TileService() {
         /** Key of this tile in [TileDrawerState]. */
         const val TILE_ID = "sleep"
 
+        /** Face refresh period; the open panel asks for [TileDrawerState.DRAWER_FRESHNESS_MS] instead. */
+        private const val DEFAULT_FRESHNESS_MS = 60_000L
+
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 
         /** The four phases, in the order the design paints them. */
@@ -272,15 +275,19 @@ class SleepTileService : TileService() {
             return tile(
                 TimelineBuilders.TimelineEntry.Builder()
                     .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
-                    .build()
+                    .build(),
+                freshnessMs = TileDrawerState.DRAWER_FRESHNESS_MS
             )
         }
 
-        private fun tile(entry: TimelineBuilders.TimelineEntry): TileBuilders.Tile =
+        private fun tile(
+            entry: TimelineBuilders.TimelineEntry,
+            freshnessMs: Long = DEFAULT_FRESHNESS_MS
+        ): TileBuilders.Tile =
             TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
-                .setFreshnessIntervalMillis(60_000L)
+                .setFreshnessIntervalMillis(freshnessMs)
                 .build()
 
         /** Asleep time, without the awake minutes, in the design's h/m wording. */

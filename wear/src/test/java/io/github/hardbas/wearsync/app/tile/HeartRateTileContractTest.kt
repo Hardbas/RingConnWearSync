@@ -291,7 +291,7 @@ class HeartRateTileContractTest {
         TileDrawerState.apply("pulse", "something-else")
         assertTrue("an unknown id is not a command", TileDrawerState.isOpen("pulse"))
         TileDrawerState.apply("pulse", null)
-        assertTrue("a load without an id leaves the tile as it was", TileDrawerState.isOpen("pulse"))
+        assertTrue("a plain load is not an invitation: the panel closes", !TileDrawerState.isOpen("pulse"))
 
         // The state is per tile: another tile's tap cannot open this one.
         TileDrawerState.apply("pulse", TileDrawerState.ID_CLOSE)
@@ -369,14 +369,21 @@ class HeartRateTileContractTest {
     }
 
     @Test
-    fun `an open drawer survives a refresh and closes on its own id`() {
+    fun `a plain load shows the face, and the open panel asks not to be refreshed`() {
         rootFor(live, TileDrawerState.ID_OPEN)
-        val refreshed = rootFor(live, lastClickableId = null)
-        assertEquals(1, drawerPanels(refreshed).size)
+        assertTrue(
+            "entering the tile shows the face, not the panel the user left open",
+            drawerPanels(rootFor(live, lastClickableId = null)).isEmpty()
+        )
 
-        val closed = rootFor(live, TileDrawerState.ID_CLOSE)
-        assertTrue(drawerPanels(closed).isEmpty())
-        assertTrue(TileTestKit.texts(closed).any { it.text?.value == "PULSE · Z4" })
+        val panel = HeartRateTileService.buildTile(
+            strings, packageName, deviceParams, live, TileDrawerState.ID_OPEN
+        )
+        assertEquals(
+            "a refresh would close the panel, so the panel is not refreshed",
+            TileDrawerState.DRAWER_FRESHNESS_MS,
+            panel.freshnessIntervalMillis
+        )
     }
 
     // ---- degraded states ------------------------------------------------

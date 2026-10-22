@@ -314,7 +314,7 @@ class SleepTileContractTest {
         TileDrawerState.apply(SleepTileService.TILE_ID, "something-else")
         assertTrue("an unknown id is not a command", TileDrawerState.isOpen(SleepTileService.TILE_ID))
         TileDrawerState.apply(SleepTileService.TILE_ID, null)
-        assertTrue("a load without an id leaves the tile as it was", TileDrawerState.isOpen(SleepTileService.TILE_ID))
+        assertTrue("a plain load is not an invitation: the panel closes", !TileDrawerState.isOpen(SleepTileService.TILE_ID))
 
         TileDrawerState.apply(SleepTileService.TILE_ID, TileDrawerState.ID_CLOSE)
         TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_OPEN)
@@ -397,14 +397,21 @@ class SleepTileContractTest {
     }
 
     @Test
-    fun `an open drawer survives a refresh and closes on its own id`() {
+    fun `a plain load shows the face, and the open panel asks not to be refreshed`() {
         rootFor(live, TileDrawerState.ID_OPEN)
-        val refreshed = rootFor(live, lastClickableId = null)
-        assertEquals(1, drawerPanels(refreshed).size)
+        assertTrue(
+            "entering the tile shows the face, not the panel the user left open",
+            drawerPanels(rootFor(live, lastClickableId = null)).isEmpty()
+        )
 
-        val closed = rootFor(live, TileDrawerState.ID_CLOSE)
-        assertTrue(drawerPanels(closed).isEmpty())
-        assertTrue(TileTestKit.texts(closed).any { it.text?.value == "Excellent" })
+        val panel = SleepTileService.buildTile(
+            strings, packageName, deviceParams, live, TileDrawerState.ID_OPEN
+        )
+        assertEquals(
+            "a refresh would close the panel, so the panel is not refreshed",
+            TileDrawerState.DRAWER_FRESHNESS_MS,
+            panel.freshnessIntervalMillis
+        )
     }
 
     // ---- previous behaviour ---------------------------------------------
