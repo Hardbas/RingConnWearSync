@@ -154,11 +154,21 @@ object TileAmbient {
      * image from the tile centre to that point: the dial position measured from
      * the tile's top-left corner minus half the tile.
      */
+    /**
+     * Offset of [angleDeg] on [radiusDp], in the renderer's own angle convention:
+     * zero at 12 o'clock, clockwise, which is what `Arc.setAnchorAngle` uses.
+     *
+     * It is NOT the mathematical convention. Measured on the SM-L500: an arc
+     * anchored at 140 starts 49 degrees clockwise from 3 o'clock, so the arc
+     * angles and the screen trigonometry differ by a quarter turn. A bloom placed
+     * with `cos/sin` of the arc angle lands 90 degrees away from the pearl it is
+     * meant to light.
+     */
     private fun offsetAt(angleDeg: Float, radiusDp: Float): Pair<Float, Float> {
         val radians = Math.toRadians(angleDeg.toDouble())
-        val x = TileGeometry.RADIUS_DP + radiusDp * cos(radians).toFloat()
-        val y = TileGeometry.RADIUS_DP + radiusDp * sin(radians).toFloat()
-        return (x - TileGeometry.TILE_DP / 2f) to (y - TileGeometry.TILE_DP / 2f)
+        val x = radiusDp * sin(radians).toFloat()
+        val y = -radiusDp * cos(radians).toFloat()
+        return x to y
     }
 
     /** A scale prop whose static value is [resting] and whose animation starts at [from]. */

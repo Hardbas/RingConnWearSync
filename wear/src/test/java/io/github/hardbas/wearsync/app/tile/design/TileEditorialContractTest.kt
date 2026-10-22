@@ -150,10 +150,11 @@ class TileEditorialContractTest {
         assertEquals(TileGeometry.BLOOM_SIZE_DP, TileTestKit.dpOf(bloom.width), 0.001f)
         assertEquals(accent, bloom.colorFilter?.tint?.argb)
 
-        // angleOf(0) is 140 degrees: down and to the left of the centre.
+        // The renderer's zero is 12 o'clock and it sweeps clockwise, so the dial
+        // start (230 degrees) is 7:40: down and to the left of the centre.
         val angle = Math.toRadians(TileGeometry.ARC_START.toDouble())
-        val x = TileGeometry.ARC_RADIUS * kotlin.math.cos(angle).toFloat()
-        val y = TileGeometry.ARC_RADIUS * kotlin.math.sin(angle).toFloat()
+        val x = TileGeometry.ARC_RADIUS * kotlin.math.sin(angle).toFloat()
+        val y = -TileGeometry.ARC_RADIUS * kotlin.math.cos(angle).toFloat()
         assertEquals(x, bloom.modifiers?.transformation?.translationX?.value ?: 0f, 0.01f)
         assertEquals(y, bloom.modifiers?.transformation?.translationY?.value ?: 0f, 0.01f)
 
@@ -182,11 +183,13 @@ class TileEditorialContractTest {
             )
         ).single().modifiers?.transformation?.translationY?.value ?: 0f
 
-        assertEquals("0 degrees is 3 o'clock", 84f, translationXAt(0f), 0.01f)
-        assertEquals(0f, translationYAt(0f), 0.01f)
-        assertEquals("90 degrees is 6 o'clock, and clockwise is positive Y", 84f, translationYAt(90f), 0.01f)
-        assertEquals(0f, translationXAt(90f), 0.01f)
-        assertEquals("180 degrees is 9 o'clock", -84f, translationXAt(180f), 0.01f)
+        assertEquals("0 degrees is 12 o'clock", 0f, translationXAt(0f), 0.01f)
+        assertEquals(-84f, translationYAt(0f), 0.01f)
+        assertEquals("90 degrees is 3 o'clock, and clockwise is positive X", 84f, translationXAt(90f), 0.01f)
+        assertEquals(0f, translationYAt(90f), 0.01f)
+        assertEquals("180 degrees is 6 o'clock", 0f, translationXAt(180f), 0.01f)
+        assertEquals(84f, translationYAt(180f), 0.01f)
+        assertEquals("270 degrees is 9 o'clock", -84f, translationXAt(270f), 0.01f)
     }
 
     @Test

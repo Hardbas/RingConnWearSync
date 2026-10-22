@@ -132,16 +132,17 @@ class HeartRateTileContractTest {
 
         // The bloom sits on the pearl: same radius, same angle as the end of the
         // value arc, derived from the arc itself instead of recomputing the bpm
-        // maths here.
+        // maths here. The renderer's zero is 12 o'clock and it sweeps clockwise,
+        // so the screen position is (sin, -cos) of the arc angle.
         val pearlAngle = TileGeometry.ARC_START + (TileTestKit.arcLines(liveRoot)[2].length?.value ?: 0f)
         val radians = Math.toRadians(pearlAngle.toDouble())
         assertEquals(
-            TileGeometry.ARC_RADIUS * kotlin.math.cos(radians).toFloat(),
+            TileGeometry.ARC_RADIUS * kotlin.math.sin(radians).toFloat(),
             bloom.modifiers?.transformation?.translationX?.value ?: 0f,
             0.01f
         )
         assertEquals(
-            TileGeometry.ARC_RADIUS * kotlin.math.sin(radians).toFloat(),
+            -TileGeometry.ARC_RADIUS * kotlin.math.cos(radians).toFloat(),
             bloom.modifiers?.transformation?.translationY?.value ?: 0f,
             0.01f
         )

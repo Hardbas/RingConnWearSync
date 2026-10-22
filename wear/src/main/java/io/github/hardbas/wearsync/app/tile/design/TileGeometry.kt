@@ -21,9 +21,20 @@ object TileGeometry {
     /** Rim kept free on both sides of any text line. */
     const val BEZEL_INSET_DP = 10f
 
-    /** One UI dial silhouette: 260 degrees starting at 140. */
+    /** One UI dial silhouette: 260 degrees, starting at 7:40 and leaving the gap at the bottom. */
     const val ARC_SPAN = 260f
-    const val ARC_START = 140f
+
+    /**
+     * Anchor angle of the dial start, in the renderer's own convention.
+     *
+     * The renderer measures angles from 12 o'clock and sweeps clockwise, not
+     * from 3 o'clock like the design render does. Measured on the SM-L500: an
+     * anchor of 140 puts the arc start at 49 degrees from 3 o'clock (4:40 on the
+     * face) and the gap on the right flank, 100 degrees away from where the tick
+     * drawable puts it. 140 + 90 lands the start at 7:40 with the gap at the
+     * bottom, which is what [TileGeometry.angleOf] and the tick overlay assume.
+     */
+    const val ARC_START = 230f
 
     /** The single bezel arc of the pulse, stress and sleep tiles. */
     const val ARC_RADIUS = 84f
