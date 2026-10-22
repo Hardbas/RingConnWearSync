@@ -18,9 +18,9 @@ import org.junit.Test
 
 /**
  * Executable contract for the sleep tile: the quality label with its crescent,
- * the phase ring, the duration/temperature line, the two-animator budget and the
- * chord budget. Built through the public text seam, so the whole layout is
- * inspectable on the JVM.
+ * the phase ring, the duration/temperature line, the measured expressive layer (a
+ * slow light streak sweeping the rim) and the chord budget. Built through the
+ * public text seam, so the whole layout is inspectable on the JVM.
  */
 class SleepTileContractTest {
 
@@ -118,20 +118,52 @@ class SleepTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends its two loops on the rim breath and the shooting star`() {
+    fun `live tile spends its two loops on the rim breath and the light streak`() {
+        val streak = TileTestKit.imagesOf(liveRoot, TileResources.SWEEP).single()
+        assertEquals(TileGeometry.TILE_DP, TileTestKit.dpOf(streak.width), 0.001f)
+        assertEquals(0.30f, streak.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertEquals(
+            "a renderer that ignores the animation shows the streak at the top",
+            360f,
+            streak.modifiers?.transformation?.rotation?.value ?: 0f,
+            0.001f
+        )
+        val spin = TileTestKit.specOf(streak.modifiers?.transformation?.rotation?.dynamicValue)
+        assertEquals("the slowest streak of the carousel", TileMotion.SWEEP_MS_SLEEP, TileTestKit.durationMs(spin))
+        assertTrue(TileTestKit.loopsForever(spin))
+
         val specs = TileTestKit.animators(liveRoot)
-        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
+        assertEquals(2, specs.size)
         assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
         assertEquals(
             "the rim breathes at the measured period",
             1,
             specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
-        assertEquals(
-            "and the shooting star crosses on its own cycle",
-            1,
-            specs.count { TileTestKit.durationMs(it) == TileMotion.METEOR_MS }
+        assertEquals(1, specs.count { TileTestKit.durationMs(it) == TileMotion.SWEEP_MS_SLEEP })
+    }
+
+    @Test
+    fun `the removed shooting star is gone from tree and resources`() {
+        val drawables = SleepTileService.buildResources().idToImageMapping
+        assertTrue(
+            "tile_meteor was removed",
+            drawables.keys.none { it == "tile_meteor" } &&
+                TileTestKit.images(liveRoot).none { it.resourceId?.value == "tile_meteor" }
         )
+        assertTrue(drawables.keys.any { it == TileResources.SWEEP })
+    }
+
+    @Test
+    fun `no brush carries a dynamic value`() {
+        listOf(live, RingConnVitals(refreshTimestamp = 0L), live.copy(refreshTimestamp = now() - 3_600L))
+            .map(::rootFor)
+            .forEach { root ->
+                assertTrue(
+                    "the phase ring must stay static; a brush is snapshotted when the tile is built",
+                    TileTestKit.brushDynamics(root).isEmpty()
+                )
+            }
     }
 
     // ---- degraded states ------------------------------------------------
@@ -141,6 +173,7 @@ class SleepTileContractTest {
         val root = rootFor(RingConnVitals(refreshTimestamp = 0L))
         assertTrue("no phase box without data", phaseSegments(root).isEmpty())
         assertTrue(TileTestKit.animators(root).isEmpty())
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
         assertTrue(TileTestKit.texts(root).any { it.text?.value == "--" })
         val label = TileTestKit.texts(root).first { it.text?.value == "No data" }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
@@ -163,9 +196,10 @@ class SleepTileContractTest {
         assertEquals(4, segments.size)
         segments.forEach { assertEquals(TileInk.DIM, it.color?.argb) }
         assertTrue(
-            "a stale tile paints no halo and no entrance, so it runs zero animators",
+            "a stale tile paints no streak and no breath, so it runs zero animators",
             TileTestKit.animators(root).isEmpty()
         )
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
     }
 
     // ---- fit ------------------------------------------------------------

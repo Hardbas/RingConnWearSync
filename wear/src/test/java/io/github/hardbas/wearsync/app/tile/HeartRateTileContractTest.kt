@@ -8,17 +8,20 @@ import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
+import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Executable contract for the pulse tile: the reading, its zone, the two-animator
- * budget and the chord budget. Built through the public text seam, so the whole
- * layout is inspectable on the JVM.
+ * Executable contract for the pulse tile: the reading, its zone, the measured
+ * expressive layer (a spinning light streak plus a bloom that beats at the
+ * reading's rate) and the chord budget. Built through the public text seam, so
+ * the whole layout is inspectable on the JVM.
  */
 class HeartRateTileContractTest {
 
@@ -96,15 +99,106 @@ class HeartRateTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two loops, never three`() {
-        val specs = TileTestKit.animators(liveRoot)
-        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+    fun `the expressive layer is a spinning streak behind the dial`() {
+        val streak = TileTestKit.imagesOf(liveRoot, TileResources.SWEEP).single()
+        assertEquals(TileGeometry.TILE_DP, TileTestKit.dpOf(streak.width), 0.001f)
+        assertEquals(0.50f, streak.modifiers?.opacity?.value ?: 0f, 0.001f)
+
+        val rotation = streak.modifiers?.transformation?.rotation
         assertEquals(
-            "one is the bezel breath at its measured period",
-            1,
+            "a renderer that ignores the animation shows the streak at the top",
+            360f,
+            rotation?.value ?: 0f,
+            0.001f
+        )
+        val spin = TileTestKit.specOf(rotation?.dynamicValue)
+        assertNotNull("the streak must rotate dynamically", spin)
+        assertEquals(TileMotion.SWEEP_MS_PULSE, TileTestKit.durationMs(spin))
+        assertTrue("the turn loops for ever", TileTestKit.loopsForever(spin))
+
+        assertEquals(
+            "drawn first, so it stays behind the dial, the ticks and the number",
+            TileResources.SWEEP,
+            TileTestKit.images(liveRoot).first().resourceId?.value
+        )
+    }
+
+    @Test
+    fun `the pearl carries a bloom that brightens and grows`() {
+        val bloom = TileTestKit.images(liveRoot)
+            .single { TileTestKit.specOf(it.modifiers?.transformation?.scaleX?.dynamicValue) != null }
+        assertEquals(TileGeometry.BLOOM_SIZE_DP, TileTestKit.dpOf(bloom.width), 0.001f)
+        assertEquals(TileGeometry.BLOOM_SIZE_DP, TileTestKit.dpOf(bloom.height), 0.001f)
+
+        // The bloom sits on the pearl: same radius, same angle as the end of the
+        // value arc, derived from the arc itself instead of recomputing the bpm
+        // maths here.
+        val pearlAngle = TileGeometry.ARC_START + (TileTestKit.arcLines(liveRoot)[2].length?.value ?: 0f)
+        val radians = Math.toRadians(pearlAngle.toDouble())
+        assertEquals(
+            TileGeometry.ARC_RADIUS * kotlin.math.cos(radians).toFloat(),
+            bloom.modifiers?.transformation?.translationX?.value ?: 0f,
+            0.01f
+        )
+        assertEquals(
+            TileGeometry.ARC_RADIUS * kotlin.math.sin(radians).toFloat(),
+            bloom.modifiers?.transformation?.translationY?.value ?: 0f,
+            0.01f
+        )
+
+        val opacity = bloom.modifiers?.opacity
+        assertEquals("static fallback is the brightest state", 0.72f, opacity?.value ?: 0f, 0.001f)
+        val fade = TileTestKit.specOf(opacity?.dynamicValue)
+        assertNotNull("the bloom must brighten dynamically", fade)
+        assertEquals(
+            "one leg is half a beat of the live 138 bpm",
+            TileMotion.beatLegMs(138),
+            TileTestKit.durationMs(fade)
+        )
+
+        val scaleX = bloom.modifiers?.transformation?.scaleX
+        val scaleY = bloom.modifiers?.transformation?.scaleY
+        assertEquals(1.15f, scaleX?.value ?: 0f, 0.001f)
+        assertEquals(1.15f, scaleY?.value ?: 0f, 0.001f)
+        val grow = TileTestKit.specOf(scaleX?.dynamicValue)
+        assertNotNull("the bloom must grow dynamically", grow)
+        assertEquals(TileTestKit.durationMs(fade), TileTestKit.durationMs(grow))
+        assertNotNull(TileTestKit.specOf(scaleY?.dynamicValue))
+        assertTrue(TileTestKit.loopsForever(fade) && TileTestKit.loopsForever(grow))
+    }
+
+    @Test
+    fun `the beat leg is half a beat and stays inside its measured bounds`() {
+        assertEquals("60000 / 60 / 2", 500L, TileMotion.beatLegMs(60))
+        assertEquals("138 bpm is faster than the floor", 220L, TileMotion.beatLegMs(138))
+        assertEquals("a missing rate gets the slowest leg, never a division by zero", 900L, TileMotion.beatLegMs(0))
+        assertEquals(TileMotion.BEAT_MIN_MS, TileMotion.beatLegMs(400))
+        assertEquals(TileMotion.BEAT_MAX_MS, TileMotion.beatLegMs(30))
+    }
+
+    @Test
+    fun `live tile spends four animated nodes and lets the track rest`() {
+        val specs = TileTestKit.animators(liveRoot)
+        assertEquals("streak spin, bloom opacity, bloom scale X and scale Y", 4, specs.size)
+        assertTrue("every one of them loops for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "the bloom is this tile's pulse, so the bezel track does not breathe",
+            0,
             specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
+    }
+
+    @Test
+    fun `no brush carries a dynamic value`() {
+        val roots = listOf(
+            live, RingConnVitals(refreshTimestamp = 0L), live.copy(refreshTimestamp = now() - 3_600L)
+        ).map(::rootFor)
+        roots.forEach { root ->
+            assertTrue(
+                "a brush is snapshotted when the tile is built; a dynamic value there never animates",
+                TileTestKit.brushDynamics(root).isEmpty()
+            )
+        }
     }
 
     // ---- degraded states ------------------------------------------------
@@ -115,6 +209,13 @@ class HeartRateTileContractTest {
         val lines = TileTestKit.arcLines(root)
         assertEquals("the track survives, the value arc does not", 1, lines.size)
         assertTrue(TileTestKit.animators(root).isEmpty())
+        assertTrue("no streak without a reading", TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
+        assertTrue(
+            "no bloom without a pearl",
+            TileTestKit.images(root).none {
+                TileTestKit.specOf(it.modifiers?.transformation?.scaleX?.dynamicValue) != null
+            }
+        )
         assertTrue(TileTestKit.texts(root).any { it.text?.value == "--" })
         assertTrue(TileTestKit.texts(root).any { it.text?.value == "PULSE" })
     }
@@ -130,8 +231,25 @@ class HeartRateTileContractTest {
         val value = TileTestKit.arcLines(root)[2]
         assertEquals(TileAccents.dim(TileAccents.heartRate).last(), value.color?.argb)
         assertTrue(
-            "a stale tile is a still frame: no entrance and no halo",
+            "a stale tile is a still frame: no streak, no bloom, no animator",
             TileTestKit.animators(root).isEmpty()
+        )
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
+    }
+
+    @Test
+    fun `the removed layers are gone from tree and resources`() {
+        val drawables = HeartRateTileService.buildResources().idToImageMapping
+        listOf("tile_ecg", "tile_meteor").forEach { dead ->
+            assertTrue(
+                "$dead was removed",
+                drawables.keys.none { it == dead } &&
+                    TileTestKit.images(liveRoot).none { it.resourceId?.value == dead }
+            )
+        }
+        assertTrue(
+            "the streak must be shipped in the tile's resources",
+            drawables.keys.any { it == TileResources.SWEEP }
         )
     }
 

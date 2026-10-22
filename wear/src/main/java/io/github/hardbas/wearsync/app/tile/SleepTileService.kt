@@ -20,6 +20,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
@@ -164,15 +165,16 @@ class SleepTileService : TileService() {
                 add(TileShell.overlay(TileResources.STARS))
                 add(TileShell.overlay(TileResources.TICKS_R74))
                 if (hasData) {
-                    // "Expresivo" layer: a body of violet light drifting behind the
-                    // ring, the tile's second animator. The first is the rim breath.
+                    // The measured expressive layer: a slow light streak sweeping
+                    // the rim, drawn behind the phase ring. Rotation only, pivot on
+                    // the tile centre.
                     if (!stale) {
                         add(
-                            TileAmbient.meteor(
-                                resourceId = TileResources.METEOR,
+                            TileAmbient.sweep(
+                                resourceId = TileResources.SWEEP,
                                 accent = TileAccents.sleepLabel,
-                                travelDp = 130f,
-                                opacity = 0.75f
+                                durationMs = TileMotion.SWEEP_MS_SLEEP,
+                                opacity = 0.30f
                             )
                         )
                     }

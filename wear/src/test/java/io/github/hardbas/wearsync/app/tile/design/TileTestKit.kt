@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.app.tile.design
 
+import androidx.wear.protolayout.ColorBuilders
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
@@ -41,6 +42,12 @@ object TileTestKit {
 
     fun images(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Image> =
         flatten(root).filterIsInstance<LayoutElementBuilders.Image>()
+
+    /** Every image drawn with [resourceId]: one per expressive layer that uses it. */
+    fun imagesOf(
+        root: LayoutElementBuilders.LayoutElement,
+        resourceId: String
+    ): List<LayoutElementBuilders.Image> = images(root).filter { it.resourceId?.value == resourceId }
 
     fun arcs(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Arc> =
         flatten(root).filterIsInstance<LayoutElementBuilders.Arc>()
@@ -117,6 +124,35 @@ object TileTestKit {
 
     fun infiniteAnimators(root: LayoutElementBuilders.LayoutElement): List<AnimationParameterBuilders.AnimationSpec> =
         animators(root).filter(::loopsForever)
+
+    /**
+     * Every dynamic value carried by a brush in the tree.
+     *
+     * The probe measured brushes frozen: a `SweepGradient` is snapshotted when
+     * the tile is built, so a dynamic color stop or a dynamic start angle is a
+     * dead end and must never appear. Walking the trees is the only way to know;
+     * nothing in the protocol reports "this will not animate".
+     */
+    fun brushDynamics(root: LayoutElementBuilders.LayoutElement): List<Any> =
+        arcLines(root).mapNotNull { it.brush }.flatMap(::brushDynamics)
+
+    /** Dynamic values inside one brush: its stops and, where it has them, its angles. */
+    fun brushDynamics(brush: ColorBuilders.Brush): List<Any> = when (brush) {
+        is ColorBuilders.SweepGradient -> listOfNotNull(
+            brush.startAngle?.dynamicValue,
+            brush.endAngle?.dynamicValue
+        ) + brush.colorStops.flatMap(::stopDynamics)
+        is ColorBuilders.LinearGradient -> listOfNotNull(
+            (brush.startX as? DimensionBuilders.DpProp)?.dynamicValue,
+            (brush.startY as? DimensionBuilders.DpProp)?.dynamicValue,
+            (brush.endX as? DimensionBuilders.DpProp)?.dynamicValue,
+            (brush.endY as? DimensionBuilders.DpProp)?.dynamicValue
+        ) + brush.colorStops.flatMap(::stopDynamics)
+        else -> emptyList()
+    }
+
+    private fun stopDynamics(stop: ColorBuilders.ColorStop): List<Any> =
+        listOfNotNull(stop.offset?.dynamicValue, stop.color?.dynamicValue)
 
     /**
      * Conservative width estimate for a text run, so a fit check can never

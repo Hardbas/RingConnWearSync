@@ -3,29 +3,41 @@ package io.github.hardbas.wearsync.app.tile.design
 import androidx.wear.protolayout.expression.AnimationParameterBuilders
 
 /**
- * Two animators per tile, never three.
+ * The motion vocabulary, limited to what a probe tile measured animating on the
+ * target watch (SM-L500).
  *
- * Wear OS renders tiles in SysUI with a quota-aware animator pool, so the budget
- * is not a style preference: a third animator starts dropping frames.
+ * The probe carried a known-good control in the same tree, so a property that
+ * came out still is a fact about the mechanism and not about the watch. What the
+ * measurement says, and what this file is allowed to use:
  *
- * Every spec here uses a mechanism that has been measured animating on the
- * target watch (SM-L500). Two earlier attempts failed on hardware and are gone:
- * a dynamic **container rotation** (rendered still) and a narrow opacity band on
- * a thin line (moved less than one luminance step). What is left:
+ *  - **Animates**: `Transformation` rotation, `Transformation` scale,
+ *    `Transformation` translation, `Modifiers.opacity`, `ArcLine` length,
+ *    `ArcLine` opacity and `Arc.anchorAngle`.
+ *  - **Does not animate**: anything dynamic inside a `Brush` — `ColorStop`
+ *    offsets and the `SweepGradient` start/end angle — because the brush is
+ *    snapshotted when the tile is built; and rotation on a container. Both were
+ *    measured still, so neither appears below.
  *
- *  1. `ArcLine` opacity — the bezel breathing at 0.45..0.95, the exact band and
- *     period measured working in production;
- *  2. `Image` translation, `ArcLine` length and `Image` opacity — the expressive
- *     backdrop layers, which are what the design render shows in its
- *     "Expresivo" mode.
+ * An earlier version of this file also claimed a hard budget of two animators
+ * per tile and shapes its vocabulary around it. The measurement says that claim
+ * was false: the renderer runs four animated nodes on the pulse tile without
+ * dropping frames. There is no budget constant any more; each tile documents the
+ * nodes it spends instead.
  *
- * The static value of every animated property is the one the renderer falls back
+ * With that map, the gestures are:
+ *  - [sweep] spins a light streak baked into a 192dp drawable around the bezel,
+ *    pivot on the tile centre, so the light travels the rim and never enters the
+ *    face;
+ *  - [beat] drives the pearl bloom: one round trip is one heartbeat, so the
+ *    bloom brightens and grows at the wearer's rate;
+ *  - [ambient] is the bezel breath and [pulse] the slow breath of a radial halo;
+ *  - [swell] is the bloom's own growth curve, for a bloom with no pulse behind
+ *    it.
+ *
+ * The static value of every animated property is the one a renderer falls back
  * to if it ignores the animation, so a mute renderer still shows a settled dial.
  */
 object TileMotion {
-
-    /** Hard ceiling, enforced by the design contract test. */
-    const val MAX_ANIMATORS = 2
 
     /**
      * Bezel breath. Values copied from the production build that was measured on
@@ -36,43 +48,61 @@ object TileMotion {
     const val AMBIENT_MIN = 0.45f
     const val AMBIENT_MAX = 0.95f
 
-    /** Linear travel used by a scrolling backdrop (the ECG strip). */
-    const val SCROLL_MS = 3000L
+    /** One full turn of the light streak, per tile. */
+    const val SWEEP_MS_PULSE = 14_000L
+    const val SWEEP_MS_RINGS = 18_000L
+    const val SWEEP_MS_STRESS = 20_000L
+    const val SWEEP_MS_SLEEP = 40_000L
 
-    /** Long, soft drift used by the glowing blobs. */
-    const val DRIFT_MS = 9000L
-
-    /** One pass of a scanning arc (vitals, steps). */
-    const val SCAN_MS = 4200L
-
-    /** One shooting star across the sleep face, straight from the design's 7s cycle. */
-    const val METEOR_MS = 7000L
+    /** Bounds of one leg of a heartbeat: 136 bpm at the fast end, 33 at the slow. */
+    const val BEAT_MIN_MS = 220L
+    const val BEAT_MAX_MS = 900L
 
     /** Slow breath of a radial glow. */
     const val PULSE_MS = 7000L
 
+    /** The bloom's growth when it is not tied to a heart rate. */
+    const val SWELL_MS = 1600L
+
     /** Bezel breath: slow sine in, slow sine out, for ever. */
     fun ambient(): AnimationParameterBuilders.AnimationSpec = loop(AMBIENT_MS, EASING)
 
-    /** Backdrop travel that restarts from the origin, so a repeated strip looks continuous. */
-    fun scroll(durationMs: Long = SCROLL_MS): AnimationParameterBuilders.AnimationSpec =
-        restart(durationMs)
+    /**
+     * One full, seamless turn of the baked light streak.
+     *
+     * Linear and restarting: a rotation is symmetric under a full turn, so the
+     * restart is invisible and the light never appears to reverse.
+     */
+    fun sweep(durationMs: Long): AnimationParameterBuilders.AnimationSpec = restart(durationMs)
 
-    /** Backdrop travel that goes back and forth, so nothing ever snaps. */
-    fun drift(durationMs: Long = DRIFT_MS): AnimationParameterBuilders.AnimationSpec =
+    /**
+     * One heartbeat, out and back, for ever.
+     *
+     * Each leg is half a beat — [beatLegMs] — so the round trip is one beat at
+     * [bpm]. A missing or zero reading gets the slowest leg instead of a division
+     * by zero.
+     */
+    fun beat(bpm: Int): AnimationParameterBuilders.AnimationSpec = loop(beatLegMs(bpm), EASING)
+
+    /** The bloom's growth: out and back, cubic ease. */
+    fun swell(durationMs: Long = SWELL_MS): AnimationParameterBuilders.AnimationSpec =
         loop(durationMs, EASING)
-
-    /** A streak that crosses the face and starts over. */
-    fun meteor(durationMs: Long = METEOR_MS): AnimationParameterBuilders.AnimationSpec =
-        restart(durationMs)
-
-    /** An arc that sweeps and starts over. */
-    fun scan(durationMs: Long = SCAN_MS): AnimationParameterBuilders.AnimationSpec =
-        restart(durationMs)
 
     /** A radial glow that breathes. */
     fun pulse(durationMs: Long = PULSE_MS): AnimationParameterBuilders.AnimationSpec =
         loop(durationMs, EASING)
+
+    /**
+     * One leg of the heartbeat in milliseconds: half a beat, clamped to
+     * [BEAT_MIN_MS]..[BEAT_MAX_MS]. Faster than the floor reads as flicker;
+     * slower than the ceiling reads as a stuck glow.
+     */
+    fun beatLegMs(bpm: Int): Long =
+        if (bpm <= 0) {
+            BEAT_MAX_MS
+        } else {
+            (60_000L / bpm / 2L).coerceIn(BEAT_MIN_MS, BEAT_MAX_MS)
+        }
 
     private fun loop(
         durationMs: Long,

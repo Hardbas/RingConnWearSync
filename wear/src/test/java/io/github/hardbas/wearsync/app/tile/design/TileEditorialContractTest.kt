@@ -5,6 +5,7 @@ import androidx.wear.protolayout.LayoutElementBuilders
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,9 +13,9 @@ import org.junit.Test
  * Executable contract of the warm editorial dial.
  *
  * These assertions are what "the Claude Design render" means in code: the exact
- * palette, the type scale, the arc geometry, the two-animator budget and the
- * chord budget. A tile that stops using this vocabulary breaks here instead of
- * drifting silently.
+ * palette, the type scale, the arc geometry, the measured motion vocabulary and
+ * the chord budget. A tile that stops using this vocabulary breaks here instead
+ * of drifting silently.
  */
 class TileEditorialContractTest {
 
@@ -111,16 +112,101 @@ class TileEditorialContractTest {
     }
 
     @Test
-    fun `two animators, never more`() {
-        assertEquals(2, TileMotion.MAX_ANIMATORS)
-        // A tile assembles one breath (the track) plus one expressive backdrop.
-        val breath = TileTestKit.animators(TileDial.track(accent))
-        assertEquals(1, breath.size)
-        val backdrop = TileTestKit.animators(
-            TileAmbient.scanning(accent)
+    fun `the streak spins a full turn around the tile centre`() {
+        val streak = TileAmbient.sweep(
+            resourceId = TileResources.SWEEP,
+            accent = accent,
+            durationMs = TileMotion.SWEEP_MS_PULSE,
+            opacity = 0.5f
         )
-        assertEquals(1, backdrop.size)
-        assertTrue("a live tile may run exactly these two", breath.size + backdrop.size <= TileMotion.MAX_ANIMATORS)
+        assertEquals(TileGeometry.TILE_DP, TileTestKit.dpOf(streak.width), 0.001f)
+        assertEquals(accent, streak.colorFilter?.tint?.argb)
+        assertEquals("static opacity is enough: the streak does not breathe", 0.5f, streak.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertNull(streak.modifiers?.opacity?.dynamicValue)
+
+        val rotation = streak.modifiers?.transformation?.rotation
+        assertEquals("the fallback is a full turn, which looks like no turn", 360f, rotation?.value ?: 0f, 0.001f)
+        val spin = TileTestKit.specOf(rotation?.dynamicValue)
+        assertEquals(TileMotion.SWEEP_MS_PULSE, TileTestKit.durationMs(spin))
+        assertTrue(TileTestKit.loopsForever(spin))
+        assertTrue("one property, one animator", TileTestKit.animators(streak).size == 1)
+    }
+
+    @Test
+    fun `the bloom is positioned on the dial and animates opacity and scale`() {
+        val spec = TileMotion.beat(72)
+        val bloom = TileAmbient.bloomAt(
+            resourceId = TileResources.GLOW,
+            angleDeg = TileGeometry.angleOf(0f),
+            radiusDp = TileGeometry.ARC_RADIUS,
+            sizeDp = TileGeometry.BLOOM_SIZE_DP,
+            accent = accent,
+            minOpacity = 0.05f,
+            maxOpacity = 0.72f,
+            minScale = 0.55f,
+            maxScale = 1.15f,
+            spec = spec
+        )
+        assertEquals(TileGeometry.BLOOM_SIZE_DP, TileTestKit.dpOf(bloom.width), 0.001f)
+        assertEquals(accent, bloom.colorFilter?.tint?.argb)
+
+        // angleOf(0) is 140 degrees: down and to the left of the centre.
+        val angle = Math.toRadians(TileGeometry.ARC_START.toDouble())
+        val x = TileGeometry.ARC_RADIUS * kotlin.math.cos(angle).toFloat()
+        val y = TileGeometry.ARC_RADIUS * kotlin.math.sin(angle).toFloat()
+        assertEquals(x, bloom.modifiers?.transformation?.translationX?.value ?: 0f, 0.01f)
+        assertEquals(y, bloom.modifiers?.transformation?.translationY?.value ?: 0f, 0.01f)
+
+        assertEquals(0.72f, bloom.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertEquals(1.15f, bloom.modifiers?.transformation?.scaleX?.value ?: 0f, 0.001f)
+        assertEquals(1.15f, bloom.modifiers?.transformation?.scaleY?.value ?: 0f, 0.001f)
+        assertEquals("opacity, scale X, scale Y", 3, TileTestKit.animators(bloom).size)
+        TileTestKit.animators(bloom).forEach {
+            assertEquals("one gesture, so the same spec on all three", TileTestKit.durationMs(spec), TileTestKit.durationMs(it))
+        }
+    }
+
+    @Test
+    fun `the polar position is the measured centre-angle convention`() {
+        fun translationXAt(angleDeg: Float): Float = TileTestKit.images(
+            TileAmbient.bloomAt(
+                TileResources.GLOW, angleDeg, 84f, 66f, accent,
+                0.05f, 0.72f, 0.55f, 1.15f, TileMotion.swell()
+            )
+        ).single().modifiers?.transformation?.translationX?.value ?: 0f
+
+        fun translationYAt(angleDeg: Float): Float = TileTestKit.images(
+            TileAmbient.bloomAt(
+                TileResources.GLOW, angleDeg, 84f, 66f, accent,
+                0.05f, 0.72f, 0.55f, 1.15f, TileMotion.swell()
+            )
+        ).single().modifiers?.transformation?.translationY?.value ?: 0f
+
+        assertEquals("0 degrees is 3 o'clock", 84f, translationXAt(0f), 0.01f)
+        assertEquals(0f, translationYAt(0f), 0.01f)
+        assertEquals("90 degrees is 6 o'clock, and clockwise is positive Y", 84f, translationYAt(90f), 0.01f)
+        assertEquals(0f, translationXAt(90f), 0.01f)
+        assertEquals("180 degrees is 9 o'clock", -84f, translationXAt(180f), 0.01f)
+    }
+
+    @Test
+    fun `no brush inside the dial builders carries a dynamic value`() {
+        val dials = listOf(
+            TileDial.track(accent),
+            valueArc(),
+            TileDial.spectrum(TileAccents.stress, pearlColor = accent, pearlAt = 0.62f),
+            TileDial.phases(TileAccents.sleep, floatArrayOf(0.3f, 0.2f, 0.45f, 0.05f)),
+            TileDial.rings(
+                outer = Ring(TileAccents.spo2, 0.98f, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
+                inner = Ring(TileAccents.battery, 0.82f, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
+            )
+        )
+        dials.forEach { dial ->
+            assertTrue(
+                "a brush is snapshotted when the tile is built: a dynamic stop or angle never animates",
+                TileTestKit.brushDynamics(dial).isEmpty()
+            )
+        }
     }
 
     @Test

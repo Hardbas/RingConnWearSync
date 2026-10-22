@@ -7,7 +7,7 @@ import io.github.hardbas.wearsync.app.R
  * The drawables every tile shares, exposed once.
  *
  * ProtoLayout only paints images it has been handed by id, so each tile's
- * `buildResources` has to carry the same seven mappings. Keeping the ids and the
+ * `buildResources` has to carry the same mappings. Keeping the ids and the
  * resource lookup here is what stops five files from drifting apart.
  */
 object TileResources {
@@ -33,11 +33,11 @@ object TileResources {
     /** The crescent in front of the sleep quality word. */
     const val MOON = "tile_moon_badge"
 
-    /** The cardiogram strip the pulse tile scrolls behind its dial. */
-    const val ECG = "tile_ecg"
-
-    /** The shooting star of the sleep tile. */
-    const val METEOR = "tile_meteor"
+    /**
+     * The light streak every tile rotates around its bezel: the arc and its fade
+     * are baked into the drawable, the tile only tints and spins it.
+     */
+    const val SWEEP = "tile_sweep"
 
     private val shared: List<Pair<String, Int>> = listOf(
         GLOW to R.drawable.tile_warm_glow,
@@ -47,8 +47,7 @@ object TileResources {
         TICKS_STRESS to R.drawable.tile_ticks_stress,
         STARS to R.drawable.tile_stars,
         MOON to R.drawable.tile_moon_badge,
-        ECG to R.drawable.tile_ecg,
-        METEOR to R.drawable.tile_meteor
+        SWEEP to R.drawable.tile_sweep
     )
 
     /** Everything the warm dial needs, on top of whatever a tile adds itself. */

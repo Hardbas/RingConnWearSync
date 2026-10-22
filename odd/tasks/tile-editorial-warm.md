@@ -10,7 +10,17 @@ S2 — **Jerarquía tipográfica del diseño.** Héroe: 50sp (44sp en Vitales, 3
 
 S3 — **Geometría del bisel.** Un solo arco de 260° que arranca en 140°, radio 84dp (contenedor de 180dp), trazo 12dp, puntas redondeadas. Anillos concéntricos cuando el tile lleva dos lecturas: exterior radio 85 (trazo 10.5 Vitales / 11.5 Pasos) e interior radio 71 (contenedor 152dp). La píldora mide 28dp de alto, radio 14, centro 63dp debajo del centro del tile. El resplandor radial ocupa 156dp (inset 18dp).
 
-S4 — **Dos animadores, sólo con mecanismos medidos en el reloj.** Cada tile usa exactamente dos loops: (1) la respiración del bisel, opacidad de `ArcLine` 0.45→0.95 en 3400ms con reversa —la banda y el período que producción midió en el SM-L500—; (2) una capa de fondo del modo `Expresivo` del render, con traslación de imagen, largo de arco u opacidad: ECG que corre en Pulso, barrido en Vitales y Pasos, cuerpo radial que respira en Estrés, halo violeta que deriva en Sueño. Ningún animador toca el héroe, y ninguno depende de rotaciones ni de bandas angostas. Sin datos ni en estado viejo: cero animadores.
+S4 — **Animación medida, no adivinada.** Cada tile usa sólo gestos verificados en el SM-L500 con una sonda que incluye un control de una palanca ya conocida en el mismo árbol. Lo que anima: `Transformation` (rotación, escala, traslación), `Modifiers.opacity`, `ArcLine` (largo y opacidad) y `Arc.anchorAngle`. Lo que **no** anima y queda prohibido: cualquier dinámica dentro de un `Brush` (paradas de `ColorStop`, `startAngle`/`endAngle` del `SweepGradient`), la rotación de un contenedor, y cualquier forma que cruce la esfera o pase por detrás de un número.
+
+Los gestos permitidos, con sus números:
+1. **Latido del pulso**: `Image` del resplandor sobre la perla, opacidad 0.05→0.72 y escala 0.55→1.15, ida y vuelta; duración de cada tramo = `60 000 / bpm / 2` ms (una ida y vuelta es un latido), acotada a 220..900 ms.
+2. **Estela de luz**: `Image` de 192dp con la estela horneada en el radio 84, rotación lineal 0→360 sin reversa. 14 s en Pulso, 18 s en Vitales y Pasos, 20 s en Estrés, 40 s en Sueño. Opacidad 0.35 (Sueño) a 0.50 (Pulso).
+3. **Respiración del bisel**: opacidad de `ArcLine` 0.45→0.95 en 3400 ms con reversa (la banda medida en producción).
+4. **Respiración del resplandor** (Estrés): opacidad de la `Image` del halo 0.08→0.40 en 4500 ms con reversa.
+
+Ningún animador toca el héroe. Sin datos o en estado viejo: cero animadores.
+
+S11 — **Estela (`tile_sweep.xml`).** Vector 192×192 blanco con el alfa horneado: tres trazos de arco concéntricos sobre el radio 84 (12dp al 10%, 7dp al 22%, 3.5dp al 60%), cada uno con degradé de alfa a lo largo del trazo (0 en ambas puntas, máximo al centro) y 46° de longitud. Blanco para que cada tile lo tiña con su acento. El pivote de la rotación es el centro del tile, así que la luz recorre el canto y nunca entra a la esfera.
 
 S5 — **Lecturas conservadas.** HR: bpm, zona Z1–Z5 (`<62`, ≤96, ≤128, ≤154, resto) y HRV. Vitales: bpm, SpO2 y batería del anillo. Estrés: índice, nivel (Calma <30, Normal <60, Medio <80, Alto) y HRV. Pasos: pasos (con `12.4k` a partir de 10 000), minutos activos, kcal y km. Sueño: score, calidad, duración y desvío de temperatura cutánea (`+0.3°`).
 
@@ -34,8 +44,12 @@ S10 — **Motor real.** Todo se construye con `protolayout 1.3.0`: `ArcLine` + `
 - T6 — Tile de sueño + contrato + baja de los cuatro drawables del atardecer. Commit `d0eb18c`.
 - T7 — Estado «viejo» sin animadores en los cinco. Commit `21266cc`.
 - T8 — Baja del sistema de diseño de primera generación (`TileDesign`, `TileGauge`, `TileChrome`, `TileMeter`, `TileDesignContractTest`) + este documento. Verificación final.
+- T9 — Motor de movimiento medido: `TileMotion` (latido, estela, respiración, oleaje) y `TileAmbient` (estela rotada, bloom posicionado con traslación + escala), `tile_sweep.xml`, baja de `tile_ecg.xml` y `tile_meteor.xml`. Commit `32a250e`.
+- T10 — Pulso: fuera el ECG; bloom que late a 60/bpm sobre la perla; estela 14 s. Commit `32a250e`.
+- T11 — Vitales y Pasos: fuera el arco que barre; estela 18 s. Commit `32a250e`.
+- T12 — Estrés y Sueño: fuera la estrella fugaz; estela 20 s y 40 s. Commit `32a250e`.
 
-Corte de revisión: la rama ya acumulaba historial de diseño antes de esta feature; el corte de esta entrega es `965af31..HEAD` (T1-T8), 24 commits. No se apila con el resto del historial porque el sistema anterior se borra en T8.
+Corte de revisión: la rama ya acumulaba historial de diseño antes de esta feature. Se entrega en dos rebanadas: `965af31..644c701` (T1-T8) y `32a250e` (T9-T12, motor de movimiento medido), que es la que hay que revisar contra la anterior. No se apila con el resto del historial porque el sistema anterior se borra en T8.
 
 ## Log
 
@@ -62,3 +76,9 @@ L10 — Alcance no implementado del render de diseño, por imposibilidad del mot
 L11 — Bug reportado en el reloj con 1.9.17-warm1: «ningún tile tiene animación». Causa: la entrada era una rotación dinámica de contenedor (`Transformation.setRotation` con `DynamicFloat.animate`), un mecanismo que nunca se midió en el SM-L500, y el loop infinito era un halo de 4dp de ancho con banda 0.10–0.32, la misma lección que L10 del documento anterior ya había registrado como invisible. Corrección: se descarta la rotación y se vuelve a los dos únicos mecanismos medidos en este reloj — barrido de longitud de `ArcLine` (la vieja entrada del arco) y opacidad de `ArcLine` (la vieja respiración del bisel) — con banda 0.15–0.55. El resplandor radial queda estático y Sueño estrena una banda única respirando detrás de las cuatro fases. Tokens muertos (`ENTRANCE_FROM_DEGREES`, `HALO_STATIC_ALPHA`, `SLEEP_*`, `sleepGlow()`) borrados.
 
 L12 — Segundo reporte de hardware con 1.9.17-warm2: «no veo release version la ultima fue hace 11 horas» (publicación) y «ningún tile tiene animación». Con warm2 tampoco se movía nada. Diagnóstico definitivo: los dos únicos mecanismos que este reloj animó alguna vez son el largo de `ArcLine` y la opacidad de `ArcLine` con banda ancha; la rotación de contenedor nunca funcionó y la banda 0.15–0.55 sobre una franja de 4dp tampoco se ve. Corrección (warm3): la entrada por barrido desaparece, la respiración se muda al track visible (0.45→0.95 en 3400ms, los valores exactos medidos en producción) y el segundo animador pasa a una capa de fondo expresiva por tile (`TileAmbient`), que es lo que el render muestra en su modo por defecto. Verificado: 76 tests, `assembleDebug` y `assembleRelease`.
+
+L13 — «las animaciones de los tiles estan horribles... parecen imagenes 2D animadas... y el del heart beat es horrible». Diagnóstico sobre el código y el render: el ECG era una silueta **rellena** de 384×192 que se trasladaba a 64 dp/s por detrás del número; el arco que barre era un spinner de carga literal (largo 0→260° con restart); la estrella cruzaba la esfera. Nada tenía relación con la medición. Decisión del usuario: «sólo la luz se mueve» — el pulso late a su intervalo, nada se desplaza por la esfera.
+
+L14 — Sonda de medición en el SM-L500 (tres builds descartables, control dentro del mismo tile). Resultado: **animan** rotación de `Image`, escala de `Image` y `anchorAngle` del `Arc`; **no anima** ninguna dinámica dentro de un `Brush` (offsets de `ColorStop`, `endAngle` del `SweepGradient`): 0,00 de diferencia en 28/28 pares de frames con el control latiendo 25/28 en el mismo árbol. Corolario: el techo de «2 animadores por tile» que gobernaba S4 desde la primera sesión **era una inferencia falsa** — se vieron cuatro nodos animando a la vez. El barrido de luz sale de rotar una `Image`, no del degradado. Decisión del usuario: estela en los cinco tiles.
+
+L15 — Instalación en el reloj: los APK release se firman con el keystore debug y se actualizan con `adb install -r`, pero **no** se puede volver atrás (`INSTALL_FAILED_VERSION_DOWNGRADE`, y `-d` no lo salta porque el release no es debuggable): el `versionCode` siempre sube. El reloj apaga pantalla a los 15 s y eso tira el adb inalámbrico; medir exige despertar, navegar y verificar la captura antes de comparar.

@@ -8,6 +8,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
+import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
@@ -17,8 +18,9 @@ import org.junit.Test
 
 /**
  * Executable contract for the vitals tile: the pulse, the two rings, the pill
- * state, the two-animator budget and the chord budget. Built through the public
- * text seam, so the whole layout is inspectable on the JVM.
+ * state, the measured expressive layer (a light streak sweeping the rim) and the
+ * chord budget. Built through the public text seam, so the whole layout is
+ * inspectable on the JVM.
  */
 class VitalsTileContractTest {
 
@@ -86,7 +88,7 @@ class VitalsTileContractTest {
     @Test
     fun `the dial is two tracks and two concentric rings`() {
         val lines = TileTestKit.arcLines(liveRoot)
-        assertEquals("scan backdrop, track, track, halo, outer ring, inner ring", 6, lines.size)
+        assertEquals("track, track, halo, outer ring, inner ring", 5, lines.size)
         // Only the two rings carry a gradient brush: pick them out instead of
         // counting positions, which shift whenever a static layer is added.
         val rings = lines.filter { it.brush != null }
@@ -100,15 +102,53 @@ class VitalsTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two loops, never three`() {
+    fun `the expressive layer is a light streak sweeping the rim`() {
+        val streak = TileTestKit.imagesOf(liveRoot, TileResources.SWEEP).single()
+        assertEquals(TileGeometry.TILE_DP, TileTestKit.dpOf(streak.width), 0.001f)
+        assertEquals(0.40f, streak.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertEquals(
+            "a renderer that ignores the animation shows the streak at the top",
+            360f,
+            streak.modifiers?.transformation?.rotation?.value ?: 0f,
+            0.001f
+        )
+        val spin = TileTestKit.specOf(streak.modifiers?.transformation?.rotation?.dynamicValue)
+        assertEquals(TileMotion.SWEEP_MS_RINGS, TileTestKit.durationMs(spin))
+        assertTrue(TileTestKit.loopsForever(spin))
+        assertEquals(
+            "drawn first, so it sits behind both rings",
+            TileResources.SWEEP,
+            TileTestKit.images(liveRoot).first().resourceId?.value
+        )
+    }
+
+    @Test
+    fun `live tile spends two loops on the streak and the bezel breath`() {
         val specs = TileTestKit.animators(liveRoot)
-        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
+        assertEquals(2, specs.size)
         assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
         assertEquals(
             "one is the bezel breath at its measured period",
             1,
             specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
+        assertEquals(
+            "the other is one turn of the streak",
+            1,
+            specs.count { TileTestKit.durationMs(it) == TileMotion.SWEEP_MS_RINGS }
+        )
+    }
+
+    @Test
+    fun `no brush carries a dynamic value`() {
+        listOf(live, RingConnVitals(refreshTimestamp = 0L), live.copy(refreshTimestamp = now() - 3_600L))
+            .map(::rootFor)
+            .forEach { root ->
+                assertTrue(
+                    "the two rings must stay static; a brush is snapshotted when the tile is built",
+                    TileTestKit.brushDynamics(root).isEmpty()
+                )
+            }
     }
 
     // ---- degraded states ------------------------------------------------
@@ -119,6 +159,7 @@ class VitalsTileContractTest {
         val lines = TileTestKit.arcLines(root)
         assertEquals("the tracks survive, the rings do not", 2, lines.size)
         assertTrue(TileTestKit.animators(root).isEmpty())
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
         assertTrue(TileTestKit.texts(root).any { it.text?.value == "VITALS" })
         assertEquals(
             "hero and both pill readings fall back to --",
@@ -139,9 +180,10 @@ class VitalsTileContractTest {
         assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[3].color?.argb)
         assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[4].color?.argb)
         assertTrue(
-            "a stale tile is a still frame: no entrance and no halo",
+            "a stale tile is a still frame: no streak and no animator",
             TileTestKit.animators(root).isEmpty()
         )
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
     }
 
     // ---- fit ------------------------------------------------------------

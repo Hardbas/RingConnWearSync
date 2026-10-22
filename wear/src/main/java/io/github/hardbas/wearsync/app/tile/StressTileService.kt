@@ -19,6 +19,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
@@ -101,8 +102,21 @@ class StressTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
-                // "Expresivo" layer: the radial body breathing behind the scale,
-                // the tile's second animator. The first is the rim breath.
+                // The measured expressive layer: a light streak sweeping the rim,
+                // drawn first so it sits behind the scale. Rotation only, pivot on
+                // the tile centre.
+                if (hasStress && !stale) {
+                    add(
+                        TileAmbient.sweep(
+                            resourceId = TileResources.SWEEP,
+                            accent = accent,
+                            durationMs = TileMotion.SWEEP_MS_STRESS,
+                            opacity = 0.35f
+                        )
+                    )
+                }
+                // The radial body breathing behind the scale: the 4500ms period of
+                // the measured glow breath.
                 if (hasStress && !stale) {
                     add(
                         TileAmbient.breathing(
@@ -110,7 +124,8 @@ class StressTileService : TileService() {
                             accent = accent,
                             sizeDp = 110f,
                             min = 0.10f,
-                            max = 0.45f
+                            max = 0.45f,
+                            durationMs = 4500L
                         )
                     )
                 }

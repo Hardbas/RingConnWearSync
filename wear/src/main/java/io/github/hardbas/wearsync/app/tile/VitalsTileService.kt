@@ -21,6 +21,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
@@ -92,10 +93,18 @@ class VitalsTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
-                // "Expresivo" layer: a scan ring travelling the inner face, the
-                // tile's second animator. The first is the outer bezel breath.
+                // The measured expressive layer: a light streak sweeping the rim,
+                // drawn first so it sits behind both rings. Rotation only, pivot on
+                // the tile centre; the track keeps its own breath.
                 if (hasData && !stale) {
-                    add(TileAmbient.scanning(TileAccents.spo2Label, opacity = 0.45f))
+                    add(
+                        TileAmbient.sweep(
+                            resourceId = TileResources.SWEEP,
+                            accent = spo2Ramp.last(),
+                            durationMs = TileMotion.SWEEP_MS_RINGS,
+                            opacity = 0.40f
+                        )
+                    )
                 }
                 add(TileShell.glow(TileResources.GLOW, spo2Ramp.last()))
                 add(

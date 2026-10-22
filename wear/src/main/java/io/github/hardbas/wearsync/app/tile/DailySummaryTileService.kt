@@ -18,10 +18,10 @@ import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.Ring
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
-import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
@@ -106,14 +106,16 @@ class DailySummaryTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
-                // "Expresivo" layer: a slow scan of the inner face, the tile's
-                // second animator. The first is the outer bezel breath.
+                // The measured expressive layer: a light streak sweeping the rim,
+                // drawn first so it sits behind both rings. Rotation only, pivot on
+                // the tile centre; the track keeps its own breath.
                 if (hasData && !stale) {
                     add(
-                        TileAmbient.scanning(
-                            accent = TileAccents.steps.first(),
-                            opacity = 0.45f,
-                            durationMs = TileMotion.SCAN_MS * 2
+                        TileAmbient.sweep(
+                            resourceId = TileResources.SWEEP,
+                            accent = stepsRamp.last(),
+                            durationMs = TileMotion.SWEEP_MS_RINGS,
+                            opacity = 0.40f
                         )
                     )
                 }

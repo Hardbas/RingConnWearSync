@@ -8,6 +8,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
+import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
@@ -17,8 +18,9 @@ import org.junit.Test
 
 /**
  * Executable contract for the stress tile: the spectrum, the level word, the
- * two-animator budget and the chord budget. Built through the public text seam,
- * so the whole layout is inspectable on the JVM.
+ * measured expressive layer (a light streak plus the halo's own breath) and the
+ * chord budget. Built through the public text seam, so the whole layout is
+ * inspectable on the JVM.
  */
 class StressTileContractTest {
 
@@ -119,15 +121,56 @@ class StressTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two loops, never three`() {
-        val specs = TileTestKit.animators(liveRoot)
-        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
+    fun `the expressive layers are a slow streak and the measured glow breath`() {
+        val streak = TileTestKit.imagesOf(liveRoot, TileResources.SWEEP).single()
+        assertEquals(TileGeometry.TILE_DP, TileTestKit.dpOf(streak.width), 0.001f)
+        assertEquals(0.35f, streak.modifiers?.opacity?.value ?: 0f, 0.001f)
         assertEquals(
-            "one is the bezel breath at its measured period",
+            "the streak carries the reading's accent",
+            TileAccents.stress.first(),
+            streak.colorFilter?.tint?.argb
+        )
+        assertEquals(
+            "a renderer that ignores the animation shows the streak at the top",
+            360f,
+            streak.modifiers?.transformation?.rotation?.value ?: 0f,
+            0.001f
+        )
+        val spin = TileTestKit.specOf(streak.modifiers?.transformation?.rotation?.dynamicValue)
+        assertEquals(TileMotion.SWEEP_MS_STRESS, TileTestKit.durationMs(spin))
+        assertTrue(TileTestKit.loopsForever(spin))
+
+        val halo = TileTestKit.images(liveRoot).first { it.modifiers?.opacity?.dynamicValue != null }
+        val breath = TileTestKit.specOf(halo.modifiers?.opacity?.dynamicValue)
+        assertEquals("the measured glow breath is 4500ms", 4500L, TileTestKit.durationMs(breath))
+        assertEquals(0.45f, halo.modifiers?.opacity?.value ?: 0f, 0.001f)
+        assertTrue(TileTestKit.loopsForever(breath))
+    }
+
+    @Test
+    fun `live tile spends three loops on the streak, the glow and the rim breath`() {
+        val specs = TileTestKit.animators(liveRoot)
+        assertEquals(3, specs.size)
+        assertTrue("all three loop for ever", specs.all(TileTestKit::loopsForever))
+        assertEquals(
+            "the rim keeps its measured period",
             1,
             specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
+        assertEquals(1, specs.count { TileTestKit.durationMs(it) == TileMotion.SWEEP_MS_STRESS })
+        assertEquals(1, specs.count { TileTestKit.durationMs(it) == 4500L })
+    }
+
+    @Test
+    fun `no brush carries a dynamic value`() {
+        listOf(live, RingConnVitals(refreshTimestamp = 0L), live.copy(refreshTimestamp = now() - 3_600L))
+            .map(::rootFor)
+            .forEach { root ->
+                assertTrue(
+                    "the five-stop spectrum is snapshotted when the tile is built",
+                    TileTestKit.brushDynamics(root).isEmpty()
+                )
+            }
     }
 
     // ---- degraded states ------------------------------------------------
@@ -138,6 +181,7 @@ class StressTileContractTest {
         val lines = TileTestKit.arcLines(root)
         assertEquals("bare rim only: the track and the spectrum, no halo, no pearl", 2, lines.size)
         assertTrue(TileTestKit.animators(root).isEmpty())
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
         assertEquals(TileAccents.stress.first(), lines.first { it.brush != null }.color?.argb)
 
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
@@ -156,9 +200,10 @@ class StressTileContractTest {
         // Track, halo, then the spectrum.
         assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[2].color?.argb)
         assertTrue(
-            "a stale tile is a still frame: no entrance and no halo",
+            "a stale tile is a still frame: no streak, no glow, no animator",
             TileTestKit.animators(root).isEmpty()
         )
+        assertTrue(TileTestKit.imagesOf(root, TileResources.SWEEP).isEmpty())
     }
 
     // ---- fit ------------------------------------------------------------

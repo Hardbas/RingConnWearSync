@@ -6,57 +6,64 @@ import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.TypeBuilders
+import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import androidx.wear.protolayout.expression.DynamicBuilders
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * The expressive backdrop: the layer that makes the design render feel alive.
+ * The two expressive layers the measured motion engine is allowed to build.
  *
- * The design ships two motion modes. "Esencial" is a static face plus one
- * ambient breath, and "Expresivo" adds a moving layer behind the dial — a
- * cardiogram that scrolls, a scan ring, a breathing glow, a drifting halo. This
- * file is that second layer, expressed with the three mechanisms a tile renderer
- * is known to animate on the target watch: image translation, arc length and
- * opacity.
+ * A probe tile on the target watch showed which properties actually animate:
+ * `Transformation` (rotation, scale, translation), `Modifiers.opacity`,
+ * `ArcLine` length/opacity and `Arc.anchorAngle`. It also showed which do not: a
+ * rotation on a container and anything dynamic inside a `Brush`. The previous
+ * engine ignored that and produced shapes sliding across the face, which read as
+ * a 2D animation pasted onto a watch face.
  *
- * Each tile adds exactly one of these, and it spends the tile's second animator:
- * the first one is the bezel breath in [TileDial]. A tile with no data, or one
- * reading stale data, adds none and renders a still frame.
+ * So there are exactly two builders here:
  *
- * What cannot exist here, by construction of ProtoLayout: a conic gradient that
- * rotates, a radial gradient that scales, a blurred layer, a mask, and any text
- * that counts up. Those parts of the render are deliberately not attempted.
+ *  - [sweep], a light streak baked into a 192dp drawable (the arc and its fade
+ *    live in the vector, [TileResources.SWEEP]) that rotates a full turn around
+ *    the tile centre. Nothing crosses the face: the pivot is the centre, so the
+ *    light travels the rim.
+ *  - [bloomAt], a soft radial body pinned on the dial by translation that
+ *    brightens and grows. The caller passes the animation spec, so the pulse
+ *    tile owns the bpm maths and this builder stays free of it.
+ *
+ * [breathing] stays because the stress tile's halo is its own gesture, measured
+ * in production. All of them are still images with one or two animated
+ * properties, which is what the renderer honours.
  */
 object TileAmbient {
 
     /**
-     * A wide strip that scrolls sideways for ever.
+     * The light streak: the baked arc spun a full turn around the tile centre.
      *
-     * The strip must repeat every `travelDp`, otherwise the restart shows a seam.
-     * It is drawn wider than the face on purpose: the tile clips it, so what the
-     * eye sees is a line travelling across the dial.
+     * Linear and restarting, so the seam of the loop is invisible. The static
+     * rotation is 360 degrees — the same visual state as 0 — so a renderer that
+     * ignores the animation shows the streak at the top of the rim instead of
+     * somewhere random.
      */
-    fun scrolling(
+    fun sweep(
         resourceId: String,
         accent: Int,
-        widthDp: Float,
-        heightDp: Float,
-        travelDp: Float,
-        opacity: Float,
-        durationMs: Long = TileMotion.SCROLL_MS
+        durationMs: Long,
+        opacity: Float
     ): LayoutElementBuilders.Image =
-        image(resourceId, accent, widthDp, heightDp, opacity)
+        image(resourceId, accent, TileGeometry.TILE_DP, TileGeometry.TILE_DP)
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
                     .setOpacity(TypeBuilders.FloatProp.Builder(opacity).build())
                     .setTransformation(
                         ModifiersBuilders.Transformation.Builder()
-                            .setTranslationX(
-                                DimensionBuilders.DpProp.Builder(0f)
+                            .setRotation(
+                                DimensionBuilders.DegreesProp.Builder(360f)
                                     .setDynamicValue(
                                         DynamicBuilders.DynamicFloat.animate(
                                             0f,
-                                            -travelDp,
-                                            TileMotion.scroll(durationMs)
+                                            360f,
+                                            TileMotion.sweep(durationMs)
                                         )
                                     )
                                     .build()
@@ -68,122 +75,50 @@ object TileAmbient {
             .build()
 
     /**
-     * A soft radial body that drifts on one axis and comes back, so nothing snaps.
-     * One property, therefore one animator.
+     * A bloom pinned on the dial: it breathes between [minOpacity] and
+     * [maxOpacity] while it grows from [minScale] to [maxScale].
+     *
+     * Positioned by translation from the tile centre, computed with [offsetAt]
+     * from [angleDeg] on [radiusDp] — the same centre-angle convention as
+     * [TileGeometry.angleOf], 0 at 3 o'clock and clockwise. The spec decides the
+     * rhythm; nothing here knows what a heartbeat is.
+     *
+     * @param spec animation of both properties, so one heartbeat moves the bloom
+     *   as one gesture instead of two that drift apart.
      */
-    fun drifting(
+    fun bloomAt(
         resourceId: String,
-        accent: Int,
+        angleDeg: Float,
+        radiusDp: Float,
         sizeDp: Float,
-        opacity: Float,
-        travelDp: Float,
-        durationMs: Long = TileMotion.DRIFT_MS
-    ): LayoutElementBuilders.Image =
-        image(resourceId, accent, sizeDp, sizeDp, opacity)
+        accent: Int,
+        minOpacity: Float,
+        maxOpacity: Float,
+        minScale: Float,
+        maxScale: Float,
+        spec: AnimationParameterBuilders.AnimationSpec
+    ): LayoutElementBuilders.Image {
+        val (x, y) = offsetAt(angleDeg, radiusDp)
+        return image(resourceId, accent, sizeDp, sizeDp)
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
-                    .setOpacity(TypeBuilders.FloatProp.Builder(opacity).build())
+                    .setOpacity(
+                        TypeBuilders.FloatProp.Builder(maxOpacity)
+                            .setDynamicValue(
+                                DynamicBuilders.DynamicFloat.animate(minOpacity, maxOpacity, spec)
+                            )
+                            .build()
+                    )
                     .setTransformation(
                         ModifiersBuilders.Transformation.Builder()
-                            .setTranslationX(
-                                DimensionBuilders.DpProp.Builder(0f)
-                                    .setDynamicValue(
-                                        DynamicBuilders.DynamicFloat.animate(
-                                            0f,
-                                            travelDp,
-                                            TileMotion.drift(durationMs)
-                                        )
-                                    )
-                                    .build()
-                            )
+                            .setTranslationX(dp(x))
+                            .setTranslationY(dp(y))
+                            .setScaleX(animatedScale(maxScale, minScale, maxScale, spec))
+                            .setScaleY(animatedScale(maxScale, minScale, maxScale, spec))
                             .build()
                     )
                     .build()
             )
-            .build()
-
-    /**
-     * The shooting star: a streak that crosses the face and starts over, the one
-     * piece of the design's sleep backdrop that is expressible as a single
-     * animator.
-     */
-    fun meteor(
-        resourceId: String,
-        accent: Int,
-        travelDp: Float,
-        opacity: Float,
-        widthDp: Float = 64f,
-        heightDp: Float = 40f,
-        durationMs: Long = TileMotion.METEOR_MS
-    ): LayoutElementBuilders.Image =
-        image(resourceId, accent, widthDp, heightDp, opacity)
-            .setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setOpacity(TypeBuilders.FloatProp.Builder(opacity).build())
-                    .setTransformation(
-                        ModifiersBuilders.Transformation.Builder()
-                            .setTranslationX(
-                                DimensionBuilders.DpProp.Builder(-travelDp / 2f)
-                                    .setDynamicValue(
-                                        DynamicBuilders.DynamicFloat.animate(
-                                            -travelDp / 2f,
-                                            travelDp / 2f,
-                                            TileMotion.meteor(durationMs)
-                                        )
-                                    )
-                                    .build()
-                            )
-                            .setTranslationY(dp(-34f))
-                            .build()
-                    )
-                    .build()
-            )
-            .build()
-
-    /**
-     * A thin arc that scans the whole dial and starts over: the closest a tile can
-     * get to the design's rotating conic gradient.
-     */
-    fun scanning(
-        accent: Int,
-        radiusDp: Float = TileGeometry.SCAN_RADIUS,
-        thicknessDp: Float = TileGeometry.SCAN_THICKNESS,
-        opacity: Float = 0.5f,
-        durationMs: Long = TileMotion.SCAN_MS
-    ): LayoutElementBuilders.Box {
-        val line = LayoutElementBuilders.ArcLine.Builder()
-            .setLength(
-                DimensionBuilders.DegreesProp.Builder(TileGeometry.ARC_SPAN)
-                    .setDynamicValue(
-                        DynamicBuilders.DynamicFloat.animate(
-                            0f,
-                            TileGeometry.ARC_SPAN,
-                            TileMotion.scan(durationMs)
-                        )
-                    )
-                    .build()
-            )
-            .setLayoutConstraintsForDynamicLength(
-                DimensionBuilders.AngularLayoutConstraint.Builder(TileGeometry.ARC_SPAN).build()
-            )
-            .setThickness(dp(thicknessDp))
-            .setStrokeCap(LayoutElementBuilders.STROKE_CAP_ROUND)
-            .setColor(argb(TileInk.withAlpha(accent, opacity)))
-            .build()
-
-        val arc = LayoutElementBuilders.Arc.Builder()
-            .setAnchorAngle(DimensionBuilders.degrees(TileGeometry.ARC_START))
-            .setAnchorType(LayoutElementBuilders.ARC_ANCHOR_START)
-            .addContent(line)
-            .build()
-
-        val size = dp(TileGeometry.containerDp(radiusDp, thicknessDp))
-        return LayoutElementBuilders.Box.Builder()
-            .setWidth(size)
-            .setHeight(size)
-            .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-            .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-            .addContent(arc)
             .build()
     }
 
@@ -196,7 +131,7 @@ object TileAmbient {
         max: Float,
         durationMs: Long = TileMotion.PULSE_MS
     ): LayoutElementBuilders.Image =
-        image(resourceId, accent, sizeDp, sizeDp, max)
+        image(resourceId, accent, sizeDp, sizeDp)
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
                     .setOpacity(
@@ -214,12 +149,34 @@ object TileAmbient {
             )
             .build()
 
+    /**
+     * Where [angleDeg] on [radiusDp] lands, as the translation that moves an
+     * image from the tile centre to that point: the dial position measured from
+     * the tile's top-left corner minus half the tile.
+     */
+    private fun offsetAt(angleDeg: Float, radiusDp: Float): Pair<Float, Float> {
+        val radians = Math.toRadians(angleDeg.toDouble())
+        val x = TileGeometry.RADIUS_DP + radiusDp * cos(radians).toFloat()
+        val y = TileGeometry.RADIUS_DP + radiusDp * sin(radians).toFloat()
+        return (x - TileGeometry.TILE_DP / 2f) to (y - TileGeometry.TILE_DP / 2f)
+    }
+
+    /** A scale prop whose static value is [resting] and whose animation starts at [from]. */
+    private fun animatedScale(
+        resting: Float,
+        from: Float,
+        to: Float,
+        spec: AnimationParameterBuilders.AnimationSpec
+    ): TypeBuilders.FloatProp =
+        TypeBuilders.FloatProp.Builder(resting)
+            .setDynamicValue(DynamicBuilders.DynamicFloat.animate(from, to, spec))
+            .build()
+
     private fun image(
         resourceId: String,
         accent: Int,
         widthDp: Float,
-        heightDp: Float,
-        opacity: Float
+        heightDp: Float
     ): LayoutElementBuilders.Image.Builder =
         LayoutElementBuilders.Image.Builder()
             .setResourceId(resourceId)
@@ -229,11 +186,6 @@ object TileAmbient {
             .setColorFilter(
                 LayoutElementBuilders.ColorFilter.Builder()
                     .setTint(argb(accent))
-                    .build()
-            )
-            .setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setOpacity(TypeBuilders.FloatProp.Builder(opacity).build())
                     .build()
             )
 }

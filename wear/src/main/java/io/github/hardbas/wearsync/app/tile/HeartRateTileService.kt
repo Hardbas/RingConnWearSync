@@ -20,6 +20,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
 import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
@@ -95,25 +96,46 @@ class HeartRateTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
-                // The design's "Expresivo" layer: a cardiogram travelling across
-                // the face. It spends the tile's second animator; the first is the
-                // bezel breath.
+                // The measured expressive layer, drawn first so both pieces sit
+                // behind the dial: a light streak spinning the rim (rotation only,
+                // pivot on the tile centre) and a bloom on the pearl that beats at
+                // the reading's own rate. Nothing travels across the face.
                 if (hasHr && !stale) {
                     add(
-                        TileAmbient.scrolling(
-                            resourceId = TileResources.ECG,
-                            accent = TileAccents.heartRateLabel,
-                            widthDp = 384f,
-                            heightDp = TileGeometry.TILE_DP,
-                            travelDp = 192f,
-                            opacity = 0.45f
+                        TileAmbient.sweep(
+                            resourceId = TileResources.SWEEP,
+                            accent = accent,
+                            durationMs = TileMotion.SWEEP_MS_PULSE,
+                            opacity = 0.50f
                         )
                     )
                 }
                 add(TileShell.glow(TileResources.GLOW, accent))
-                add(TileDial.track(accent, breathing = hasHr && !stale))
+                // The bloom is this tile's pulse, so the track stays still: four
+                // animated nodes (streak rotation, bloom opacity, bloom scale X
+                // and Y) instead of five.
+                add(TileDial.track(accent, breathing = false))
                 add(TileShell.overlay(TileResources.TICKS_R84))
                 if (hasHr) {
+                    // One round trip of the bloom is one heartbeat, half a beat per
+                    // leg, so the pearl's light follows the reading instead of a
+                    // fixed loop.
+                    if (!stale) {
+                        add(
+                            TileAmbient.bloomAt(
+                                resourceId = TileResources.GLOW,
+                                angleDeg = TileGeometry.angleOf(fraction),
+                                radiusDp = TileGeometry.ARC_RADIUS,
+                                sizeDp = TileGeometry.BLOOM_SIZE_DP,
+                                accent = TileAccents.heartRateLabel,
+                                minOpacity = 0.05f,
+                                maxOpacity = 0.72f,
+                                minScale = 0.55f,
+                                maxScale = 1.15f,
+                                spec = TileMotion.beat(bpm)
+                            )
+                        )
+                    }
                     // A live dial settles in and breathes; a stale one is a still
                     // frame, exactly like the design's `animation: none`.
                     add(

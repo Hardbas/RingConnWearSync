@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The light streak: three concentric arc strokes on the bezel radius (84dp),
+    46 degrees long, centred on the top of the dial.
+
+    It is drawn white on purpose. Every tile tints it with its own accent, so no
+    palette value leaks into a drawable.
+
+    The fade is baked, not filtered. There is no blur and no mask in
+    ProtoLayout, and a gradient inside a Brush is snapshotted when the tile is
+    built, so a soft edge cannot be animated: each stroke carries its own linear
+    alpha gradient instead, zero at both ends and strongest in the middle. That
+    is what makes the light read as a streak rather than as a clipped bar.
+
+    Widths and alphas are the three measured bands of the design's beam: 12dp at
+    10 % white, 7dp at 22 % and 3.5dp at 60 %, so the core is crisp and the halo
+    around it is soft.
+
+    The tile rotates this image around the tile centre with a Transformation, so
+    the light travels the rim and never enters the sphere where the numbers are.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <!-- Halo: 12dp, 10 % white. -->
+    <path
+        android:pathData="M63.18,18.68 A84,84 0 0 1 128.82,18.68"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="63.18"
+                android:startY="18.68"
+                android:endX="128.82"
+                android:endY="18.68">
+                <item android:offset="0.0" android:color="#00FFFFFF" />
+                <item android:offset="0.5" android:color="#1AFFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Body: 7dp, 22 % white. -->
+    <path
+        android:pathData="M63.18,18.68 A84,84 0 0 1 128.82,18.68"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="63.18"
+                android:startY="18.68"
+                android:endX="128.82"
+                android:endY="18.68">
+                <item android:offset="0.0" android:color="#00FFFFFF" />
+                <item android:offset="0.5" android:color="#38FFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Core: 3.5dp, 60 % white. -->
+    <path
+        android:pathData="M63.18,18.68 A84,84 0 0 1 128.82,18.68"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="63.18"
+                android:startY="18.68"
+                android:endX="128.82"
+                android:endY="18.68">
+                <item android:offset="0.0" android:color="#00FFFFFF" />
+                <item android:offset="0.5" android:color="#99FFFFFF" />
+                <item android:offset="1.0" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

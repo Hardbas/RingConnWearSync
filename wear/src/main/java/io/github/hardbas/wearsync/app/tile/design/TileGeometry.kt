@@ -51,9 +51,11 @@ object TileGeometry {
     /** How much of the accent the static halo keeps. Static: the track breathes. */
     const val HALO_ALPHA = 0.18f
 
-    /** The scanning arc of the vitals and steps backdrop. */
-    const val SCAN_RADIUS = 62f
-    const val SCAN_THICKNESS = 1.5f
+    /**
+     * The bloom on the pulse pearl: a soft body wider than the pearl, so its
+     * growth reads as light rather than as a growing dot.
+     */
+    const val BLOOM_SIZE_DP = 66f
 
     /** Dark gap between two sleep phases, in degrees (0.008 of the 260 span). */
     const val SEGMENT_GAP_DEGREES = 2.1f
