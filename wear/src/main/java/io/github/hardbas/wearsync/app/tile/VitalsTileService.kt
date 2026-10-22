@@ -1,11 +1,7 @@
 package io.github.hardbas.wearsync.app.tile
 
 import android.content.Context
-import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
-import androidx.wear.protolayout.DimensionBuilders.dp
-import androidx.wear.protolayout.DimensionBuilders.expand
-import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
@@ -19,22 +15,24 @@ import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
-import io.github.hardbas.wearsync.app.tile.design.TileChrome
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileGauge
-import io.github.hardbas.wearsync.app.tile.design.TileMeter
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.Ring
+import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileDial
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
+import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileResources
+import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
-import java.text.DateFormat
-import java.util.Date
+import io.github.hardbas.wearsync.app.tile.design.TileType
 import java.util.Locale
 
 /**
- * Dedicated Circular Bezel Arc Vitals Tile for Samsung Galaxy Watch (Wear OS 5 / 6).
+ * Vitals tile: two concentric rings, the pulse in the middle, the ring state in
+ * the pill.
  *
- * Same design system as the other four tiles: shared gauge, shared backdrop,
- * shared type scale. Its own second read is the SpO2 bar, because oxygen
- * saturation is the vitals metric you glance at without reading a number.
+ * The file only supplies meaning. Every colour, size, radius and animation comes
+ * from the warm editorial design system, so the carousel reads as one watch face
+ * family instead of five hand-painted gauges.
  */
 class VitalsTileService : TileService() {
 
@@ -53,24 +51,11 @@ class VitalsTileService : TileService() {
     }
 
     companion object {
-        const val RESOURCES_VERSION = "oneui8-vitals-circular-v1"
-        private const val RES_IC_HR = "ic_vitals_hr"
+        const val RESOURCES_VERSION = "warm-editorial-vitals-v1"
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.VitalsDetailActivity"
 
-        fun buildResources(): ResourceBuilders.Resources {
-            return ResourceBuilders.Resources.Builder()
-                .setVersion(RESOURCES_VERSION)
-                .addIdToImageMapping(
-                    RES_IC_HR,
-                    ResourceBuilders.ImageResource.Builder()
-                        .setAndroidResourceByResId(
-                            ResourceBuilders.AndroidImageResourceByResId.Builder()
-                                .setResourceId(R.drawable.ic_vitals_hr)
-                                .build()
-                        ).build()
-                )
-                .build()
-        }
+        fun buildResources(): ResourceBuilders.Resources =
+            TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
 
         fun buildTile(
             context: Context,
@@ -84,183 +69,87 @@ class VitalsTileService : TileService() {
             deviceParams: DeviceParameters,
             vitals: RingConnVitals
         ): TileBuilders.Tile {
-            val accent = TileDesign.Accent.vitals
-
             val hasHr = vitals.lastHeartRate > 0
-            val hrVal = vitals.lastHeartRate
-            val hrValue = if (hasHr) "$hrVal" else "--"
-
             val hasSpo2 = vitals.lastSpo2 > 0
-            val spo2Value = if (hasSpo2) "${vitals.lastSpo2}%" else "--"
-
             val hasBattery = vitals.ringBattery > 0
-            val batteryValue = if (hasBattery) "${vitals.ringBattery}%" else "--"
+            // The rings are a second graphic, not a reading of their own: they only
+            // appear once there is something to ring.
+            val hasData = hasHr || hasSpo2 || hasBattery
+            val stale = vitals.isStale
 
-            val fraction = if (hasHr) ((hrVal - 40f) / 120f).coerceIn(0f, 1f) else 0f
+            // Two ramps, one per ring. Warm when the reading is live, the palette's
+            // grey when it is not: the design's "Viejo" state desaturates the face.
+            val spo2Ramp = if (stale) TileAccents.dim(TileAccents.spo2) else TileAccents.spo2
+            val batteryRamp = if (stale) TileAccents.dim(TileAccents.battery) else TileAccents.battery
+            val labelColor = if (hasData && !stale) TileAccents.spo2Label else TileInk.DIM
 
-            val timeText = if (vitals.refreshTimestamp > 0L) {
-                DateFormat.getTimeInstance(DateFormat.SHORT, Locale.getDefault())
-                    .format(Date(vitals.refreshTimestamp * 1000L))
-            } else {
-                strings.text(R.string.just_now)
+            // Saturation and charge share one scale: percent of full, floored at
+            // 6 % so a low reading still shows a ring instead of a dot.
+            val spo2Fraction = (vitals.lastSpo2 / 100f).coerceIn(0.06f, 1f)
+            val batteryFraction = (vitals.ringBattery / 100f).coerceIn(0.06f, 1f)
+
+            val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
+
+            val layers = buildList {
+                add(TileShell.glow(TileResources.GLOW, spo2Ramp.last()))
+                add(TileDial.track(spo2Ramp.last(), TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS))
+                add(TileDial.track(batteryRamp.last(), TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS))
+                add(TileShell.overlay(TileResources.TICKS_R78))
+                if (hasData) {
+                    // One call for both rings: two `value()` calls would cost four
+                    // animators, and the budget is per tile, not per ring.
+                    add(
+                        TileDial.rings(
+                            outer = Ring(spo2Ramp, spo2Fraction, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
+                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
+                        )
+                    )
+                }
             }
 
-            val clickable = TileChrome.launchDetail(packageName, DETAIL_ACTIVITY)
-
-            // Block 1 — header: icon + ONE short uppercase metric word. It has to
-            // fit the chord of the 192dp circle at ~67dp above centre (~119dp), so
-            // the timestamp moved into the frosted card instead of riding here.
-            val headerIcon = LayoutElementBuilders.Image.Builder()
-                .setResourceId(RES_IC_HR)
-                .setWidth(dp(14f))
-                .setHeight(dp(14f))
-                .setColorFilter(
-                    LayoutElementBuilders.ColorFilter.Builder()
-                        .setTint(argb(accent))
-                        .build()
+            val stack = TileShell.stack(
+                label = TileShell.text(
+                    value = strings.text(R.string.vitals_short).uppercase(Locale.getDefault()),
+                    style = TileType.label(labelColor)
+                ),
+                hero = TileShell.text(
+                    value = if (hasHr) "${vitals.lastHeartRate}" else "--",
+                    style = TileType.hero(TileType.HERO_RING),
+                    opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
+                ),
+                sub = TileShell.text(
+                    value = strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()),
+                    style = TileType.sub(TileAccents.heartRateLabel)
                 )
-                .build()
-
-            val headerLabel = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.vitals_short).uppercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.label(accent))
-                .build()
-
-            val headerRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(headerIcon)
-                .addContent(TileChrome.hSpacer(4f))
-                .addContent(headerLabel)
-                .build()
-
-            // Hero: 40sp tabular number + unit, alone in its row.
-            val heroNumber = LayoutElementBuilders.Text.Builder()
-                .setText(hrValue)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.hero())
-                .build()
-
-            val heroUnit = LayoutElementBuilders.Text.Builder()
-                .setText(strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()))
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.unit(accent))
-                .build()
-
-            val heroRow = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(heroNumber)
-                .addContent(TileChrome.hSpacer(3f))
-                .addContent(heroUnit)
-                .build()
-
-            // Block 3 — meter on frosted glass: the SpO2 bar on the first line, the
-            // small readings (SpO2 and ring charge) under it, and the sync timestamp
-            // as the quietest caption. The bar plus its readings is one block.
-            val meterCaptions = LayoutElementBuilders.Row.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText("${strings.text(R.string.blood_oxygen_short)} $spo2Value")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Accent.spo2))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText(" · ")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                        .build()
-                )
-                .addContent(
-                    LayoutElementBuilders.Text.Builder()
-                        .setText("${strings.text(R.string.ring_short)} ${batteryValue}")
-                        .setMaxLines(1)
-                        .setFontStyle(TileDesign.Type.caption(TileDesign.Accent.vitals))
-                        .build()
-                )
-                .build()
-
-            val cardTimestamp = LayoutElementBuilders.Text.Builder()
-                .setText(timeText)
-                .setMaxLines(1)
-                .setFontStyle(TileDesign.Type.caption(TileDesign.Text.MUTED))
-                .build()
-
-            val cardContent = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(
-                    TileMeter.progress(
-                        fraction = if (hasSpo2) vitals.lastSpo2 / 100f else 0f,
-                        accent = TileDesign.Accent.spo2
-                    )
-                )
-                .addContent(TileChrome.spacer(3f))
-                .addContent(meterCaptions)
-                .addContent(TileChrome.spacer(2f))
-                .addContent(cardTimestamp)
-                .build()
-
-            val meterCard = TileChrome.card(cardContent)
-
-            val actionPill = TileChrome.actionPill(
-                LayoutElementBuilders.Text.Builder()
-                    .setText(strings.text(R.string.measure_now))
-                    .setMaxLines(1)
-                    .setFontStyle(TileDesign.Type.caption(TileDesign.Text.PRIMARY))
-                    .build(),
-                clickable
             )
 
-            val contentColumn = LayoutElementBuilders.Column.Builder()
-                .setWidth(wrap())
-                .setHeight(wrap())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .addContent(headerRow)
-                .addContent(TileChrome.spacer(3f))
-                .addContent(heroRow)
-                .addContent(TileChrome.spacer(5f))
-                .addContent(meterCard)
-                .addContent(TileChrome.spacer(6f))
-                .addContent(actionPill)
-                .build()
-
-            val gauge = TileGauge.elements(
-                accent = accent,
-                targetSweep = TileGauge.sweepFor(fraction)
+            // The pill carries the two readings the rings stand for, each tied to
+            // its ring by a tone dot: oxygen first, then ring autonomy.
+            val pillContent = TileShell.pillRow(
+                listOf(
+                    TileShell.pillDot(TileAccents.spo2Label),
+                    TileShell.hSpacer(4f),
+                    TileShell.pillText(if (hasSpo2) "${vitals.lastSpo2}%" else "--", TileInk.PRIMARY),
+                    TileShell.pillSeparator(),
+                    TileShell.pillDot(TileAccents.batteryLabel),
+                    TileShell.hSpacer(4f),
+                    TileShell.pillText(if (hasBattery) "${vitals.ringBattery}%" else "--", TileInk.PRIMARY)
+                )
             )
 
-            val rootBox = LayoutElementBuilders.Box.Builder()
-                .setWidth(expand())
-                .setHeight(expand())
-                .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
-                .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(TileChrome.rootModifiers(TileMetric.VITALS, clickable))
-                .addContent(gauge[0])
-                .addContent(gauge[1])
-                .addContent(contentColumn)
-                .build()
+            val pill = TileShell.pill(content = pillContent, clickable = clickable)
 
-            val timelineEntry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(rootBox).build())
-                .build()
-
-            val timeline = TimelineBuilders.Timeline.Builder()
-                .addTimelineEntry(timelineEntry)
+            val entry = TimelineBuilders.TimelineEntry.Builder()
+                .setLayout(
+                    LayoutElementBuilders.Layout.Builder()
+                        .setRoot(TileShell.root(clickable, layers, stack, pill))
+                        .build()
+                )
                 .build()
 
             return TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
-                .setTileTimeline(timeline)
+                .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }

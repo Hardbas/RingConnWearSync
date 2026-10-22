@@ -1,321 +1,176 @@
 package io.github.hardbas.wearsync.app.tile
 
-import androidx.wear.protolayout.ActionBuilders
-import androidx.wear.protolayout.DeviceParametersBuilders
-import androidx.wear.protolayout.DimensionBuilders
+import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.LayoutElementBuilders
-import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.data.RingConnVitals
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
+import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
-import java.util.Locale
+import io.github.hardbas.wearsync.app.tile.design.TileTestKit
+import io.github.hardbas.wearsync.app.tile.design.TileType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Executable contract for the Vitals tile.
- *
- * Same seam, same assertions as the Heart Rate tile: the layout is built with a
- * fake [TileStrings] and inspected directly, so the SpO2 bar, the type scale
- * and the animator budget are regression-tested without a device.
+ * Executable contract for the vitals tile: the pulse, the two rings, the pill
+ * state, the two-animator budget and the chord budget. Built through the public
+ * text seam, so the whole layout is inspectable on the JVM.
  */
 class VitalsTileContractTest {
 
-    /**
-     * Real label word, `s<resId>` for everything else. The header-width estimate is
-     * only meaningful if the label carries its real length.
-     */
     private val strings = TileStrings { resId ->
-        if (resId == R.string.vitals_short) "Vitals" else "s$resId"
+        when (resId) {
+            R.string.vitals_short -> "Vitals"
+            R.string.bpm_unit -> "BPM"
+            R.string.details -> "Details"
+            else -> "s$resId"
+        }
     }
 
-    private val deviceParams = DeviceParametersBuilders.DeviceParameters.Builder()
+    private val deviceParams = DeviceParameters.Builder()
         .setScreenWidthDp(192)
         .setScreenHeightDp(192)
         .build()
 
-    private val vitals = RingConnVitals(
+    private val packageName = "io.github.hardbas.wearsync.test"
+
+    private fun now(): Long = System.currentTimeMillis() / 1000L
+
+    private fun rootFor(vitals: RingConnVitals): LayoutElementBuilders.LayoutElement =
+        VitalsTileService.buildTile(strings, packageName, deviceParams, vitals)
+            .tileTimeline!!.timelineEntries[0].layout!!.root!!
+
+    private val live = RingConnVitals(
         lastHeartRate = 72,
         lastSpo2 = 97,
         ringBattery = 84,
-        refreshTimestamp = 1_730_000_000L
+        refreshTimestamp = now()
     )
 
-    private val packageName = "io.github.hardbas.wearsync.test"
+    private val liveRoot by lazy { rootFor(live) }
 
-    private val tile = VitalsTileService.buildTile(strings, packageName, deviceParams, vitals)
-
-    private val root: LayoutElementBuilders.LayoutElement =
-        tile.tileTimeline!!.timelineEntries[0].layout!!.root!!
-
-    private val rootBox = root as LayoutElementBuilders.Box
-
-    private fun childrenOf(element: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.LayoutElement> =
-        when (element) {
-            is LayoutElementBuilders.Box -> element.contents
-            is LayoutElementBuilders.Row -> element.contents
-            is LayoutElementBuilders.Column -> element.contents
-            else -> emptyList()
-        }
-
-    private fun flatten(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.LayoutElement> {
-        val out = mutableListOf<LayoutElementBuilders.LayoutElement>()
-        fun visit(element: LayoutElementBuilders.LayoutElement) {
-            out += element
-            childrenOf(element).forEach(::visit)
-        }
-        visit(root)
-        return out
-    }
-
-    private val elements by lazy { flatten(root) }
-
-    /** The animation spec only exists on the internal animatable wrapper. */
-    private fun specOf(dynamic: Any?): AnimationParameterBuilders.AnimationSpec? {
-        if (dynamic == null) return null
-        return runCatching {
-            val method = dynamic.javaClass.getMethod("getAnimationSpec")
-            method.isAccessible = true
-            method.invoke(dynamic) as AnimationParameterBuilders.AnimationSpec
-        }.getOrNull()
-    }
-
-    /** Element-level dynamics: tint, width/height, opacity. */
-    private fun elementAnimatorCount(): Int =
-        elements.sumOf { element ->
-            val props: List<Any?> = when (element) {
-                is LayoutElementBuilders.Box -> listOf(
-                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
-                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
-                    element.modifiers?.opacity?.dynamicValue
-                )
-                is LayoutElementBuilders.Row -> listOf(
-                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
-                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
-                    element.modifiers?.opacity?.dynamicValue
-                )
-                is LayoutElementBuilders.Column -> listOf(
-                    (element.width as? DimensionBuilders.DpProp)?.dynamicValue,
-                    (element.height as? DimensionBuilders.DpProp)?.dynamicValue,
-                    element.modifiers?.opacity?.dynamicValue
-                )
-                is LayoutElementBuilders.Text -> listOf(element.modifiers?.opacity?.dynamicValue)
-                is LayoutElementBuilders.Image -> listOf(
-                    element.colorFilter?.tint?.dynamicValue,
-                    element.modifiers?.opacity?.dynamicValue
-                )
-                else -> emptyList()
-            }
-            props.count { specOf(it) != null }
-        }
-
-    /**
-     * Gauge animators. ArcLine is not a `LayoutElement`, so it never appears in
-     * the tree walk above: it is only reachable through `Arc.contents`. Dropping
-     * this pass silently counts 0 gauge animators and the budget assertion stops
-     * testing anything, so keep this second walk explicit.
-     */
-    private fun arcAnimatorCount(): Int =
-        elements.filterIsInstance<LayoutElementBuilders.Arc>()
-            .flatMap { it.contents }
-            .filterIsInstance<LayoutElementBuilders.ArcLine>()
-            .sumOf { line ->
-                listOf(
-                    line.length?.dynamicValue,
-                    line.thickness?.dynamicValue,
-                    line.color?.dynamicValue,
-                    line.modifiers?.opacity?.dynamicValue
-                ).count { specOf(it) != null }
-            }
-
-    private fun animatorCount(): Int = elementAnimatorCount() + arcAnimatorCount()
-
-    private val arcLines: List<LayoutElementBuilders.ArcLine>
-        get() = elements.filterIsInstance<LayoutElementBuilders.Arc>()
-            .flatMap { it.contents }
-            .filterIsInstance<LayoutElementBuilders.ArcLine>()
-
-    private val contentColumn: LayoutElementBuilders.Column
-        get() = (rootBox.contents.firstOrNull { it is LayoutElementBuilders.Column } as LayoutElementBuilders.Column)
-
-    private val contentBlocks: List<LayoutElementBuilders.LayoutElement>
-        get() = contentColumn.contents.filter { it !is LayoutElementBuilders.Spacer }
-
-    private val headerRow: LayoutElementBuilders.Row
-        get() = contentBlocks[0] as LayoutElementBuilders.Row
-
-    /** Readable dp out of a container dimension; wrap/expand simply contribute 0. */
-    private fun dpOf(dimension: Any?): Float =
-        (dimension as? DimensionBuilders.DpProp)?.value ?: 0f
-
-    /**
-     * Conservative width estimate for one header child. Text is estimated as
-     * `chars * sizeSp * 0.62` (bold uppercase average advance), plus the tracking
-     * the style adds, then 10% of slop so the estimate can never flatter the tile.
-     */
-    private fun widthOf(child: LayoutElementBuilders.LayoutElement): Float =
-        when (child) {
-            is LayoutElementBuilders.Image -> dpOf(child.width)
-            is LayoutElementBuilders.Spacer -> dpOf(child.width)
-            is LayoutElementBuilders.Text -> {
-                val size = child.fontStyle?.size?.value ?: 0f
-                val chars = (child.text?.value ?: "").length
-                val tracking = (child.fontStyle?.letterSpacing?.value ?: 0f) * size * chars
-                (chars * size * 0.62f + tracking) * 1.1f
-            }
-            else -> 0f
-        }
-
-    private fun estimatedHeaderWidthDp(row: LayoutElementBuilders.Row): Float =
-        row.contents.fold(0f) { acc, child -> acc + widthOf(child) }
-
-    private val timeText: String by lazy {
-        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, Locale.getDefault())
-            .format(java.util.Date(1_730_000_000L * 1000L))
-    }
-
-    private val frostedCard: LayoutElementBuilders.Box
-        get() = elements.filterIsInstance<LayoutElementBuilders.Box>()
-            .firstOrNull { it.modifiers?.background?.color?.argb == TileDesign.Ink.GLASS_CARD }
-            ?: error("no frosted card in the tile")
-
-    private val hero: LayoutElementBuilders.Text
-        get() = elements.filterIsInstance<LayoutElementBuilders.Text>()
-            .firstOrNull { (it.fontStyle?.size?.value ?: 0f) >= 38f }
-            ?: error("no 40sp hero text in the tile")
+    // ---- the reading ----------------------------------------------------
 
     @Test
-    fun `header is one short metric word that fits inside the bezel`() {
-        // Vertical stack (dp): header 14 + 3 + hero 48 + 5 + card 44 + 6 + pill 28
-        // = 148, so a centred column starts at -74 and the header band's centre
-        // sits 67dp above the middle of the 192dp circle.
-        val headerY = 67f
-        val safeWidth = TileDesign.Layout.safeWidthDp(headerY)
-        val estimated = estimatedHeaderWidthDp(headerRow)
-        val headerTexts = flatten(headerRow).filterIsInstance<LayoutElementBuilders.Text>()
-            .map { it.text?.value ?: "" }
-
-        assertEquals("the header carries exactly one label: $headerTexts", 1, headerTexts.size)
-        assertEquals("the header label is the short metric word", listOf("VITALS"), headerTexts)
-        assertFalse("the timestamp must not be back in the header: $headerTexts", headerTexts.any { "·" in it })
-        assertTrue(
-            "estimated header width ${estimated}dp must fit the ${safeWidth}dp safe width at ${headerY}dp above centre",
-            estimated <= safeWidth
-        )
+    fun `hero is the live pulse at the ring hero size`() {
+        val hero = TileTestKit.texts(liveRoot).first { it.text?.value == "72" }
+        assertEquals(TileType.HERO_RING, hero.fontStyle?.size?.value)
+        assertEquals(LayoutElementBuilders.FONT_WEIGHT_MEDIUM, hero.fontStyle?.weight?.value)
     }
 
     @Test
-    fun `meter sits on a frosted card with the timestamp as its caption`() {
-        assertNotNull("the card must carry a hairline edge", frostedCard.modifiers?.border)
-        assertNotNull(
-            "the card must carry the glass fill",
-            frostedCard.modifiers?.background?.color
-        )
+    fun `label is the short metric word and the sub is the lowercase unit`() {
+        val label = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("VITALS") == true }
+        assertEquals("VITALS", label.text?.value)
+        assertTrue(TileTestKit.isUppercase(label.text!!.value))
+        assertEquals(TileType.LABEL, label.fontStyle?.size?.value)
+        assertEquals(TileAccents.spo2Label, label.fontStyle?.color?.argb)
 
-        val cardTexts = flatten(frostedCard).filterIsInstance<LayoutElementBuilders.Text>()
+        val sub = TileTestKit.texts(liveRoot).first { it.text?.value == "bpm" }
+        assertEquals(TileType.SUB, sub.fontStyle?.size?.value)
+        assertEquals(TileAccents.heartRateLabel, sub.fontStyle?.color?.argb)
+    }
+
+    @Test
+    fun `pill carries both readings with the tone dot of their ring`() {
+        val texts = TileTestKit.texts(liveRoot).mapNotNull { it.text?.value }
+        assertTrue("no SpO2 reading in the pill, had $texts", texts.any { it == "97%" })
+        assertTrue("no ring charge in the pill, had $texts", texts.any { it == "84%" })
+        assertEquals(TileType.PILL, TileTestKit.texts(liveRoot).first { it.text?.value == "97%" }.fontStyle?.size?.value)
+    }
+
+    @Test
+    fun `the dial is two tracks and two concentric rings`() {
+        val lines = TileTestKit.arcLines(liveRoot)
+        assertEquals("track, track, halo, outer ring, inner ring", 5, lines.size)
+        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(lines[3].thickness), 0.001f)
+        assertEquals(TileAccents.spo2.last(), lines[3].color?.argb)
+        assertEquals(TileGeometry.RING_THICKNESS, TileTestKit.dpOf(lines[4].thickness), 0.001f)
+        assertEquals(TileAccents.battery.last(), lines[4].color?.argb)
+    }
+
+    // ---- motion ---------------------------------------------------------
+
+    @Test
+    fun `live tile spends exactly two animators, one of them infinite`() {
+        val specs = TileTestKit.animators(liveRoot)
+        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
+        assertEquals(1, specs.count(TileTestKit::loopsForever))
         assertTrue(
-            "the sync timestamp moved into the card, had $cardTexts",
-            cardTexts.any { it.text?.value == timeText }
+            "the entrance must settle once",
+            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
         )
+    }
+
+    // ---- degraded states ------------------------------------------------
+
+    @Test
+    fun `empty tile keeps both tracks and runs no animator`() {
+        val root = rootFor(RingConnVitals(refreshTimestamp = 0L))
+        val lines = TileTestKit.arcLines(root)
+        assertEquals("the tracks survive, the rings do not", 2, lines.size)
+        assertTrue(TileTestKit.animators(root).isEmpty())
+        assertTrue(TileTestKit.texts(root).any { it.text?.value == "VITALS" })
         assertEquals(
-            "the timestamp caption uses the muted type step",
-            TileDesign.Text.MUTED,
-            cardTexts.first { it.text?.value == timeText }.fontStyle?.color?.argb
+            "hero and both pill readings fall back to --",
+            3,
+            TileTestKit.texts(root).count { it.text?.value == "--" }
         )
+    }
+
+    @Test
+    fun `stale tile desaturates instead of animating`() {
+        val root = rootFor(live.copy(refreshTimestamp = now() - 3_600L))
+        val hero = TileTestKit.texts(root).first { it.text?.value == "72" }
+        assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
+        val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("VITALS") == true }
+        assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
+        val lines = TileTestKit.arcLines(root)
+        assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[3].color?.argb)
+        assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[4].color?.argb)
+    }
+
+    // ---- fit ------------------------------------------------------------
+
+    @Test
+    fun `label and pill fit the chord at their own height`() {
+        val label = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("VITALS") == true }
         assertTrue(
-            "the ring charge is still in the card",
-            cardTexts.any { (it.text?.value ?: "").contains("84") }
+            "label ${TileTestKit.estimatedWidthDp(label)}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)}dp",
+            TileTestKit.estimatedWidthDp(label) <= TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)
         )
-    }
 
-    @Test
-    fun `hero is a 40sp tabular display number`() {
-        val style = hero.fontStyle!!
-        assertTrue("hero must be at least 38sp, was ${style.size?.value}", (style.size?.value ?: 0f) >= 38f)
-        assertTrue("hero must use tabular figures", style.settings.isNotEmpty())
-    }
-
-    @Test
-    fun `value arc is a round-capped gradient that keeps its flat fallback`() {
-        val value = arcLines.lastOrNull() ?: error("no value arc in the tile")
-        assertEquals(LayoutElementBuilders.STROKE_CAP_ROUND, value.strokeCap?.value)
-        assertNotNull("arc must carry the gradient brush", value.brush)
-        assertNotNull("arc must keep a flat colour fallback", value.color)
-    }
-
-    @Test
-    fun `root paints the metric backdrop and stays tappable`() {
-        assertNotNull(
-            "root must carry the ${TileMetric.VITALS.name} gradient",
-            rootBox.modifiers?.background?.brush
-        )
-        assertNotNull("root must stay tappable", rootBox.modifiers?.clickable)
-    }
-
-    @Test
-    fun `content stacks at most four blocks`() {
-        val blocks = contentColumn.contents.filter { it !is LayoutElementBuilders.Spacer }
-        assertEquals("content column must stack exactly four blocks", 4, blocks.size)
-    }
-
-    @Test
-    fun `spo2 bar fills at most its static track width and never animates`() {
-        val fill = elements.filterIsInstance<LayoutElementBuilders.Box>()
-            .firstOrNull { it.modifiers?.background?.color?.argb == TileDesign.Accent.spo2 }
-            ?: error("no SpO2 progress fill in the tile")
-
-        val width = fill.width as? DimensionBuilders.DpProp
-            ?: error("progress fill must use a static dp width")
+        val pill = TileTestKit.boxes(liveRoot)
+            .first { it.modifiers?.background?.color?.argb == TileInk.SURFACE }
+        val padding = (pill.modifiers?.padding?.start?.value ?: 0f) +
+            (pill.modifiers?.padding?.end?.value ?: 0f)
+        val width = pill.contents.sumOf { widthOf(it).toDouble() }.toFloat() + padding
         assertTrue(
-            "fill must stay inside the ${TileDesign.Chrome.LADDER_WIDTH}dp track, was ${width.value}",
-            width.value <= TileDesign.Chrome.LADDER_WIDTH
-        )
-        assertNull("a dynamic width black-screens the tile", width.dynamicValue)
-    }
-
-    @Test
-    fun `tile no longer stores the arc sweep in state`() {
-        val keys = tile.state?.keyToValueMapping?.keys?.map { it.key } ?: emptyList()
-        assertTrue(
-            "vitals_arc_sweep was replaced by the entrance animation, found $keys",
-            "vitals_arc_sweep" !in keys
+            "pill ${width}dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
+            width <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
         )
     }
 
-    @Test
-    fun `tile spends exactly the two gauge animators and nothing else`() {
-        val element = elementAnimatorCount()
-        val arcs = arcAnimatorCount()
-        assertEquals(
-            "expected exactly ${TileDesign.Motion.MAX_ANIMATORS} animators (value-arc length + " +
-                "track opacity); element props gave $element and ArcLine contents gave $arcs, " +
-                "total ${element + arcs}",
-            TileDesign.Motion.MAX_ANIMATORS,
-            element + arcs
-        )
-    }
+    // ---- previous behaviour ---------------------------------------------
 
     @Test
     fun `previous freshness and resource version still hold`() {
+        val tile = VitalsTileService.buildTile(strings, packageName, deviceParams, live)
         assertEquals(30_000L, tile.freshnessIntervalMillis)
-        assertEquals("oneui8-vitals-circular-v1", VitalsTileService.buildResources().version)
+        assertEquals(VitalsTileService.RESOURCES_VERSION, VitalsTileService.buildResources().version)
     }
 
-    @Test
-    fun `ring battery reading is still on the tile`() {
-        val texts = elements.filterIsInstance<LayoutElementBuilders.Text>().mapNotNull { it.text?.value }
-        assertTrue("no text carries the battery percentage, had $texts", texts.any { "84" in it })
-    }
-
-    @Test
-    fun `detail tap launches the package it was built for`() {
-        val action = rootBox.modifiers?.clickable?.onClick as ActionBuilders.LaunchAction
-        assertEquals(packageName, action.androidActivity?.packageName)
+    private fun widthOf(element: LayoutElementBuilders.LayoutElement): Float = when (element) {
+        is LayoutElementBuilders.Text -> TileTestKit.estimatedWidthDp(element)
+        is LayoutElementBuilders.Spacer -> TileTestKit.dpOf(element.width)
+        is LayoutElementBuilders.Box -> TileTestKit.dpOf(element.width)
+        is LayoutElementBuilders.Row -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
+        is LayoutElementBuilders.Column -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
+        else -> 0f
     }
 }
