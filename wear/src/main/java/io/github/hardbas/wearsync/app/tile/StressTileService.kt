@@ -110,11 +110,11 @@ class StressTileService : TileService() {
                             pearlColor = TileAccents.ramp(ramp, fraction),
                             pearlAt = fraction,
                             halo = !stale,
-                            entrance = !stale
+                            sweepIn = !stale
                         )
                     } else {
                         // No reading: rim only — no halo, no pearl, no entrance.
-                        TileDial.spectrum(TileAccents.stress, pearlColor = null, halo = false, entrance = false)
+                        TileDial.spectrum(TileAccents.stress, pearlColor = null, halo = false, sweepIn = false)
                     }
                 )
             }

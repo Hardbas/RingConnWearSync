@@ -119,14 +119,17 @@ class TileEditorialContractTest {
     }
 
     @Test
-    fun `the value arc settles in from minus twenty five degrees`() {
-        val box = valueArc()
-        val rotation = box.modifiers?.transformation?.rotation
-        assertNotNull("the arc group must own the entrance rotation", rotation)
-        val spec = TileTestKit.specOf(rotation?.dynamicValue)
+    fun `the value arc sweeps in from zero, not from a rotated container`() {
+        val value = TileTestKit.arcLines(valueArc())[1]
+        val spec = TileTestKit.specOf(value.length?.dynamicValue)
         assertEquals(TileMotion.ENTRANCE_MS, TileTestKit.durationMs(spec))
         assertFalse("the entrance must not loop", TileTestKit.loopsForever(spec))
-        assertEquals(TileMotion.ENTRANCE_FROM_DEGREES, -25f)
+        assertEquals(
+            "the static fallback is the settled length",
+            TileGeometry.sweepDegrees(0.5f),
+            value.length?.value ?: 0f,
+            0.001f
+        )
     }
 
     @Test
@@ -194,16 +197,12 @@ class TileEditorialContractTest {
     fun `sleep splits its ring into four proportional segments with gaps`() {
         val fractions = floatArrayOf(0.214f, 0.19f, 0.548f, 0.048f)
         val lines = TileTestKit.arcLines(TileDial.phases(TileAccents.sleep, fractions))
-        assertEquals("four segments plus four static halos", 8, lines.size)
-        val segments = lines.filter { (it.brush as? SweepGradient) == null && it.modifiers?.opacity == null }
+        assertEquals("four segments plus four wider halos", 8, lines.size)
+        val segments = lines.filter { TileTestKit.dpOf(it.thickness) == TileGeometry.ARC_THICKNESS }
         assertEquals(4, segments.size)
-        val total = lines.filter { it.modifiers?.opacity == null }.sumOf { (it.length?.value ?: 0f).toDouble() }
+        val total = segments.sumOf { (it.length?.value ?: 0f).toDouble() }
         val expected = TileGeometry.ARC_SPAN - fractions.size * TileGeometry.SEGMENT_GAP_DEGREES
         assertEquals(expected.toDouble(), total, 0.05)
-        val haloOpacity = TileTestKit.arcLines(TileDial.phases(TileAccents.sleep, fractions))
-            .mapNotNull { it.modifiers?.opacity?.value }
-            .first()
-        assertEquals(TileGeometry.HALO_STATIC_ALPHA, haloOpacity, 0.001f)
     }
 
     @Test
@@ -252,17 +251,15 @@ class TileEditorialContractTest {
     }
 
     @Test
-    fun `the glow is a tinted radial drawable, static unless sleep breathes`() {
+    fun `the glow is a static tinted radial drawable`() {
         val glow = TileShell.glow(TileResources.GLOW, accent)
         assertEquals(TileGeometry.GLOW_SIZE, TileTestKit.dpOf(glow.width), 0.001f)
         assertEquals(accent, glow.colorFilter?.tint?.argb)
         assertEquals(TileGeometry.GLOW_OPACITY, glow.modifiers?.opacity?.value ?: 0f, 0.001f)
-        assertTrue(TileTestKit.animators(glow).isEmpty())
-
-        val breathing = TileShell.glow(TileResources.GLOW, accent, breathing = true)
-        val spec = TileTestKit.animators(breathing).singleOrNull()
-        assertEquals(TileMotion.SLEEP_MS, TileTestKit.durationMs(spec))
-        assertTrue(TileTestKit.loopsForever(spec))
+        assertTrue(
+            "the one infinite animator is the arc band, not the glow drawable",
+            TileTestKit.animators(glow).isEmpty()
+        )
     }
 
     @Test

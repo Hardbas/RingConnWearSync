@@ -16,14 +16,19 @@ import androidx.wear.protolayout.expression.DynamicBuilders
  * `Arc`, `ArcLine` and `Box`.
  *
  * Every function returns a centred box of exactly the size the stroke needs, so
- * five different radii can coexist in one 192dp face. Paint order inside a dial
- * box is: halo, track or fill, pearl — the same order the design render uses.
+ * different radii can coexist in one 192dp face. Paint order inside a dial box
+ * is: halo, fill, pearl — the same order the design render uses.
+ *
+ * Motion uses only the two mechanisms measured on the target watch
+ * (SM-L500): an arc-length sweep and an `ArcLine` opacity loop. Both are
+ * one-shot-or-loop animations on the arc itself, so a tile never depends on a
+ * container transformation the renderer may not animate.
  */
 object TileDial {
 
     /**
      * The quiet rim every tile keeps, even with no data: the metric accent at
-     * 16 % over black, full 260 degrees, round caps.
+     * 16 % over black, full 260 degrees, round caps. Static by design.
      */
     fun track(
         accent: Int,
@@ -32,7 +37,6 @@ object TileDial {
     ): LayoutElementBuilders.Box = container(
         radius = radius,
         thickness = thickness,
-        entrance = false,
         arcs = listOf(
             arc(
                 anchorDegrees = TileGeometry.ARC_START,
@@ -47,10 +51,12 @@ object TileDial {
 
     /**
      * The value arc: gradient across the swept range, breathing halo behind it,
-     * optional pearl at its end, and the whole group settling in from -25 degrees.
+     * optional pearl at its end.
      *
      * @param accent ramp, calmest stop first. The last stop is the fallback colour
      *   for renderers that ignore the sweep-gradient brush.
+     * @param sweepIn grows the arc from zero on tile entry. Pass false for the
+     *   still frame a stale reading deserves.
      */
     fun value(
         accent: IntArray,
@@ -59,123 +65,43 @@ object TileDial {
         thickness: Float = TileGeometry.ARC_THICKNESS,
         pearlColor: Int? = null,
         halo: Boolean = true,
-        entrance: Boolean = true
+        sweepIn: Boolean = true
     ): LayoutElementBuilders.Box {
         val sweep = TileGeometry.sweepDegrees(fraction)
         val arcs = buildList {
             if (halo) {
-                add(
-                    arc(
-                        anchorDegrees = TileGeometry.ARC_START,
-                        haloLine(sweep, thickness, accent.last())
-                    )
-                )
+                add(arc(TileGeometry.ARC_START, haloLine(sweep, thickness, accent.last())))
             }
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
-                    line(
+                    sweepLine(
                         lengthDegrees = sweep,
                         thicknessDp = thickness,
                         color = accent.last(),
-                        brush = gradient(accent, sweep / TileGeometry.ARC_SPAN)
+                        brush = gradient(accent, sweep / TileGeometry.ARC_SPAN),
+                        sweepIn = sweepIn
                     )
                 )
             )
             pearlColor?.let { add(pearl(fraction, it)) }
         }
-        return container(radius, thickness, entrance, arcs)
-    }
-
-    /**
-     * The stress dial: the whole 260 degrees *is* the five-stop spectrum, and the
-     * reading is a pearl riding on it. The spectrum is therefore also the empty
-     * state's rim — call it with [pearlColor] null and [halo] false for no data.
-     */
-    fun spectrum(
-        stops: IntArray,
-        radius: Float = TileGeometry.ARC_RADIUS,
-        thickness: Float = TileGeometry.ARC_THICKNESS,
-        pearlColor: Int? = null,
-        pearlAt: Float = 0f,
-        halo: Boolean = true,
-        entrance: Boolean = true
-    ): LayoutElementBuilders.Box {
-        val arcs = buildList {
-            if (halo) {
-                add(arc(TileGeometry.ARC_START, haloLine(TileGeometry.ARC_SPAN, thickness, stops.last())))
-            }
-            add(
-                arc(
-                    anchorDegrees = TileGeometry.ARC_START,
-                    line(
-                        lengthDegrees = TileGeometry.ARC_SPAN,
-                        thicknessDp = thickness,
-                        color = stops.first(),
-                        brush = gradient(stops, 1f)
-                    )
-                )
-            )
-            pearlColor?.let { add(pearl(pearlAt, it)) }
-        }
-        return container(radius, thickness, entrance, arcs)
-    }
-
-    /**
-     * Sleep's ring: four segments, proportional to the phases, separated by a
-     * dark gap. The halo here is static — that tile spends its infinite animator
-     * on the radial glow instead, exactly as the design's motion table says.
-     */
-    fun phases(
-        colors: IntArray,
-        fractions: FloatArray,
-        radius: Float = TileGeometry.ARC_RADIUS,
-        thickness: Float = TileGeometry.ARC_THICKNESS,
-        halo: Boolean = true,
-        entrance: Boolean = true
-    ): LayoutElementBuilders.Box {
-        require(colors.size == fractions.size) { "one colour per phase" }
-        val gap = TileGeometry.SEGMENT_GAP_DEGREES / TileGeometry.ARC_SPAN
-        val segments = mutableListOf<Triple<Float, Float, Int>>()
-        var cursor = 0f
-        fractions.forEachIndexed { index, fraction ->
-            val start = cursor + gap / 2f
-            val length = (fraction - gap).coerceAtLeast(0.002f)
-            segments += Triple(start, length, colors[index])
-            cursor += fraction
-        }
-
-        val arcs = buildList {
-            if (halo) {
-                segments.forEach { (start, length, color) ->
-                    add(arc(TileGeometry.angleOf(start), haloLine(length * TileGeometry.ARC_SPAN, thickness, color, breathing = false)))
-                }
-            }
-            segments.forEach { (start, length, color) ->
-                add(
-                    arc(
-                        anchorDegrees = TileGeometry.angleOf(start),
-                        line(length * TileGeometry.ARC_SPAN, thickness, color)
-                    )
-                )
-            }
-        }
-        return container(radius, thickness, entrance, arcs)
+        return container(radius, thickness, arcs)
     }
 
     /**
      * The two concentric rings of the vitals and activity tiles.
      *
-     * Two rings on two radii need two containers, but they still share ONE
-     * entrance rotation and ONE breathing halo: the budget is per tile, not per
-     * ring. The halo is drawn on the outer ring only — an inner halo would sit
-     * behind the outer stroke anyway, and it would cost a third animator.
+     * Two rings on two radii need two containers, but they still share ONE halo:
+     * the budget is per tile, not per ring. Only the outer ring sweeps in — a
+     * second length animation would be a third animator, and the inner ring is
+     * hidden behind the outer stroke for most of the sweep anyway.
      */
     fun rings(
         outer: Ring,
         inner: Ring,
         halo: Boolean = true,
-        entrance: Boolean = true
+        sweepOuter: Boolean = true
     ): LayoutElementBuilders.Box {
         val outerArcs = buildList {
             if (halo) {
@@ -193,11 +119,12 @@ object TileDial {
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
-                    line(
+                    sweepLine(
                         lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
                         thicknessDp = outer.thickness,
                         color = outer.accent.last(),
-                        brush = gradient(outer.accent, outer.fraction)
+                        brush = gradient(outer.accent, outer.fraction),
+                        sweepIn = sweepOuter
                     )
                 )
             )
@@ -213,26 +140,116 @@ object TileDial {
                 )
             )
         )
-        val outerBox = container(outer.radius, outer.thickness, entrance = false, arcs = outerArcs)
-        val innerBox = container(inner.radius, inner.thickness, entrance = false, arcs = innerArcs)
+
+        val outerBox = container(outer.radius, outer.thickness, outerArcs)
+        val innerBox = container(inner.radius, inner.thickness, innerArcs)
 
         val size = dp(TileGeometry.containerDp(outer.radius, outer.thickness))
-        val builder = LayoutElementBuilders.Box.Builder()
+        return LayoutElementBuilders.Box.Builder()
             .setWidth(size)
             .setHeight(size)
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
             .addContent(outerBox)
             .addContent(innerBox)
-        if (entrance) {
-            builder.setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setTransformation(entranceRotation())
-                    .build()
-            )
-        }
-        return builder.build()
+            .build()
     }
+
+    /**
+     * The stress dial: the whole 260 degrees *is* the five-stop spectrum, and the
+     * reading is a pearl riding on it. The spectrum is therefore also the empty
+     * state's rim — call it with [pearlColor] null and [halo] false for no data.
+     */
+    fun spectrum(
+        stops: IntArray,
+        radius: Float = TileGeometry.ARC_RADIUS,
+        thickness: Float = TileGeometry.ARC_THICKNESS,
+        pearlColor: Int? = null,
+        pearlAt: Float = 0f,
+        halo: Boolean = true,
+        sweepIn: Boolean = true
+    ): LayoutElementBuilders.Box {
+        val arcs = buildList {
+            if (halo) {
+                add(arc(TileGeometry.ARC_START, haloLine(TileGeometry.ARC_SPAN, thickness, stops.last())))
+            }
+            add(
+                arc(
+                    anchorDegrees = TileGeometry.ARC_START,
+                    sweepLine(
+                        lengthDegrees = TileGeometry.ARC_SPAN,
+                        thicknessDp = thickness,
+                        color = stops.first(),
+                        brush = gradient(stops, 1f),
+                        sweepIn = sweepIn
+                    )
+                )
+            )
+            pearlColor?.let { add(pearl(pearlAt, it)) }
+        }
+        return container(radius, thickness, arcs)
+    }
+
+    /**
+     * Sleep's ring: four segments, proportional to the phases, separated by a
+     * dark gap. Each segment is solid, so the whole ring cannot share one length
+     * animation; its ambient loop comes from [halo] instead.
+     */
+    fun phases(
+        colors: IntArray,
+        fractions: FloatArray,
+        radius: Float = TileGeometry.ARC_RADIUS,
+        thickness: Float = TileGeometry.ARC_THICKNESS,
+        halo: Boolean = true
+    ): LayoutElementBuilders.Box {
+        require(colors.size == fractions.size) { "one colour per phase" }
+        val gap = TileGeometry.SEGMENT_GAP_DEGREES / TileGeometry.ARC_SPAN
+        val segments = mutableListOf<Triple<Float, Float, Int>>()
+        var cursor = 0f
+        fractions.forEachIndexed { index, fraction ->
+            val start = cursor + gap / 2f
+            val length = (fraction - gap).coerceAtLeast(0.002f)
+            segments += Triple(start, length, colors[index])
+            cursor += fraction
+        }
+
+        val arcs = buildList {
+            if (halo) {
+                segments.forEach { (start, length, color) ->
+                    add(
+                        arc(
+                            anchorDegrees = TileGeometry.angleOf(start),
+                            line(length * TileGeometry.ARC_SPAN, thickness + TileGeometry.HALO_EXTRA, color)
+                        )
+                    )
+                }
+            }
+            segments.forEach { (start, length, color) ->
+                add(
+                    arc(
+                        anchorDegrees = TileGeometry.angleOf(start),
+                        line(length * TileGeometry.ARC_SPAN, thickness, color)
+                    )
+                )
+            }
+        }
+        return container(radius, thickness, arcs)
+    }
+
+    /**
+     * One full-span band behind the dial that breathes for ever. This is the
+     * sleep tile's ambient loop: its four phase segments cannot share a length
+     * animation, so the life has to live in a single line.
+     */
+    fun halo(
+        accent: Int,
+        radius: Float = TileGeometry.ARC_RADIUS,
+        thickness: Float = TileGeometry.ARC_THICKNESS
+    ): LayoutElementBuilders.Box = container(
+        radius = radius,
+        thickness = thickness,
+        arcs = listOf(arc(TileGeometry.ARC_START, haloLine(TileGeometry.ARC_SPAN, thickness, accent)))
+    )
 
     // ---- primitives ------------------------------------------------------
 
@@ -244,7 +261,6 @@ object TileDial {
     private fun container(
         radius: Float,
         thickness: Float,
-        entrance: Boolean,
         arcs: List<LayoutElementBuilders.Arc>
     ): LayoutElementBuilders.Box {
         val size = dp(TileGeometry.containerDp(radius, thickness))
@@ -253,32 +269,9 @@ object TileDial {
             .setHeight(size)
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-        if (entrance) {
-            builder.setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setTransformation(entranceRotation())
-                    .build()
-            )
-        }
         arcs.forEach(builder::addContent)
         return builder.build()
     }
-
-    /** The entrance rotation itself: one animator, settling to the final angle. */
-    private fun entranceRotation(): ModifiersBuilders.Transformation =
-        ModifiersBuilders.Transformation.Builder()
-            .setRotation(
-                DimensionBuilders.DegreesProp.Builder(0f)
-                    .setDynamicValue(
-                        DynamicBuilders.DynamicFloat.animate(
-                            TileMotion.ENTRANCE_FROM_DEGREES,
-                            0f,
-                            TileMotion.entrance()
-                        )
-                    )
-                    .build()
-            )
-            .build()
 
     private fun arc(
         anchorDegrees: Float,
@@ -312,20 +305,63 @@ object TileDial {
         return builder.build()
     }
 
+    /**
+     * The fill line. With [sweepIn] its length is a dynamic value growing from
+     * zero, which is the one entrance this renderer is known to animate on the
+     * target watch; the angular constraint is required or the tile crashes.
+     */
+    private fun sweepLine(
+        lengthDegrees: Float,
+        thicknessDp: Float,
+        color: Int,
+        brush: Brush? = null,
+        sweepIn: Boolean
+    ): LayoutElementBuilders.ArcLine {
+        val builder = LayoutElementBuilders.ArcLine.Builder()
+            .setThickness(dp(thicknessDp))
+            .setStrokeCap(LayoutElementBuilders.STROKE_CAP_ROUND)
+            .setColor(argb(color))
+        if (sweepIn) {
+            builder
+                .setLength(
+                    DimensionBuilders.DegreesProp.Builder(lengthDegrees)
+                        .setDynamicValue(
+                            DynamicBuilders.DynamicFloat.animate(
+                                0f,
+                                lengthDegrees,
+                                TileMotion.entrance()
+                            )
+                        )
+                        .build()
+                )
+                .setLayoutConstraintsForDynamicLength(
+                    DimensionBuilders.AngularLayoutConstraint.Builder(TileGeometry.ARC_SPAN).build()
+                )
+        } else {
+            builder.setLength(DimensionBuilders.degrees(lengthDegrees))
+        }
+        if (brush != null) builder.setBrush(brush)
+        return builder.build()
+    }
+
     /** Same arc, 4dp wider on each side: the soft band the design calls resplandor. */
     private fun haloLine(
         lengthDegrees: Float,
         thicknessDp: Float,
-        color: Int,
-        breathing: Boolean = true
+        color: Int
     ): LayoutElementBuilders.ArcLine =
         line(
             lengthDegrees = lengthDegrees,
             thicknessDp = thicknessDp + TileGeometry.HALO_EXTRA,
             color = color,
-            opacity = if (breathing) breathingHalo() else staticHalo()
+            opacity = breathingHalo()
         )
 
+    /**
+     * The ambient loop. The band is deliberately wider than the design's
+     * 0.10-0.32: measured on the target watch, a narrow band on a thin line moves
+     * less than one luminance step and reads as a dead tile.
+     */
     private fun breathingHalo(): TypeBuilders.FloatProp =
         TypeBuilders.FloatProp.Builder(TileMotion.HALO_MAX)
             .setDynamicValue(
@@ -336,9 +372,6 @@ object TileDial {
                 )
             )
             .build()
-
-    private fun staticHalo(): TypeBuilders.FloatProp =
-        TypeBuilders.FloatProp.Builder(TileGeometry.HALO_STATIC_ALPHA).build()
 
     /** Ivory pearl with the metric colour in its middle, riding the reading's angle. */
     private fun pearl(

@@ -159,19 +159,17 @@ class SleepTileService : TileService() {
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
-                // Sleep is the tile that breathes through its radial glow, so this is
-                // its infinite animator and the phase halo stays static.
-                add(TileShell.glow(TileResources.GLOW, ramp.first(), breathing = hasData && !stale))
+                add(TileShell.glow(TileResources.GLOW, ramp.first()))
                 add(TileShell.overlay(TileResources.STARS))
                 add(TileShell.overlay(TileResources.TICKS_R74))
                 if (hasData) {
-                    add(
-                        TileDial.phases(
-                            colors = ramp,
-                            fractions = phaseFractions,
-                            entrance = !stale
-                        )
-                    )
+                    // The four segments are solid colours, so the ring cannot share one
+                    // length animation. Its life comes from a single band behind them:
+                    // one line, one animator, the night breathing under the phases.
+                    if (!stale) {
+                        add(TileDial.halo(ramp.first()))
+                    }
+                    add(TileDial.phases(colors = ramp, fractions = phaseFractions, halo = false))
                 }
             }
 

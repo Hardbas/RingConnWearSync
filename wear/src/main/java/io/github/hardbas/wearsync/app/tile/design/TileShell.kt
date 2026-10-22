@@ -8,7 +8,6 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.TypeBuilders
-import androidx.wear.protolayout.expression.DynamicBuilders
 
 /**
  * The shell every tile shares: black face, radial glow, dial layers, centred
@@ -55,27 +54,13 @@ object TileShell {
 
     /**
      * The warm halo behind the dial: a drawable with a radial gradient, tinted
-     * with the metric accent. Only sleep breathes here (5500ms); the other four
-     * spend their second animator on the arc halo.
+     * with the metric accent. Static: the tile's one infinite animator is the
+     * arc band, which is a mechanism the target watch is known to animate.
      */
     fun glow(
         resourceId: String,
-        accent: Int,
-        breathing: Boolean = false
+        accent: Int
     ): LayoutElementBuilders.Image {
-        val opacity = if (breathing) {
-            TypeBuilders.FloatProp.Builder(TileMotion.SLEEP_MAX)
-                .setDynamicValue(
-                    DynamicBuilders.DynamicFloat.animate(
-                        TileMotion.SLEEP_MIN,
-                        TileMotion.SLEEP_MAX,
-                        TileMotion.sleepGlow()
-                    )
-                )
-                .build()
-        } else {
-            TypeBuilders.FloatProp.Builder(TileGeometry.GLOW_OPACITY).build()
-        }
         return image(resourceId, TileGeometry.GLOW_SIZE)
             .setColorFilter(
                 LayoutElementBuilders.ColorFilter.Builder()
@@ -84,7 +69,7 @@ object TileShell {
             )
             .setModifiers(
                 ModifiersBuilders.Modifiers.Builder()
-                    .setOpacity(opacity)
+                    .setOpacity(TypeBuilders.FloatProp.Builder(TileGeometry.GLOW_OPACITY).build())
                     .build()
             )
             .build()

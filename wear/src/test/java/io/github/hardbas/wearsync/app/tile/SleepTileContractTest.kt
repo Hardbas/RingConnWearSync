@@ -129,20 +129,16 @@ class SleepTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends exactly two animators and the infinite one is the glow`() {
+    fun `live tile spends its single animator on the breathing band`() {
         val specs = TileTestKit.animators(liveRoot)
-        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
-        val infinite = specs.filter(TileTestKit::loopsForever)
-        assertEquals(1, infinite.size)
         assertEquals(
-            "the radial glow is the infinite animator, not an arc halo",
-            TileMotion.SLEEP_MS,
-            TileTestKit.durationMs(infinite.single())
+            "the four solid segments cannot share a length animation, so the ring breathes instead",
+            1,
+            specs.size
         )
-        assertTrue(
-            "the entrance must settle once",
-            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
-        )
+        val infinite = specs.single()
+        assertTrue("the band must breathe for ever", TileTestKit.loopsForever(infinite))
+        assertEquals(TileMotion.HALO_MS, TileTestKit.durationMs(infinite))
     }
 
     // ---- degraded states ------------------------------------------------

@@ -127,7 +127,7 @@ class DailySummaryTileService : TileService() {
                                 thickness = TileGeometry.RING_THICKNESS_ACTIVITY
                             ),
                             halo = !stale,
-                            entrance = !stale
+                            sweepOuter = !stale
                         )
                     )
                 }

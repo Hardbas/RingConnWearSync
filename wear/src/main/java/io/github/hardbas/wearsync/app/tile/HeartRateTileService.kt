@@ -106,7 +106,7 @@ class HeartRateTileService : TileService() {
                             fraction = fraction,
                             pearlColor = TileAccents.heartRateLabel,
                             halo = !stale,
-                            entrance = !stale
+                            sweepIn = !stale
                         )
                     )
                 }

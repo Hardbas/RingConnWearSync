@@ -8,8 +8,12 @@ import androidx.wear.protolayout.expression.AnimationParameterBuilders
  * Wear OS renders tiles in SysUI with a quota-aware animator pool, so the budget
  * is not a style preference: a third animator starts dropping frames. The
  * vocabulary is therefore fixed:
- *  1. an entrance — the value arc settles into place from -25 degrees;
- *  2. an ambient loop — either the arc halo breathing, or the sleep radial glow.
+ *  1. an entrance — the value arc grows from zero to its reading;
+ *  2. an ambient loop — the band behind the dial breathing in opacity.
+ *
+ * Only these two mechanisms are used because only these two have been measured
+ * animating on the target watch (SM-L500). A dynamic container rotation was
+ * tried and removed: tiles rendered still.
  *
  * Both degrade gracefully: the static value of every animated property is the
  * *final* one, so a renderer that ignores the animation shows the settled dial.
@@ -20,24 +24,22 @@ object TileMotion {
     const val MAX_ANIMATORS = 2
 
     const val ENTRANCE_MS = 900L
-    const val ENTRANCE_FROM_DEGREES = -25f
 
     const val HALO_MS = 2600L
-    const val HALO_MIN = 0.10f
-    const val HALO_MAX = 0.32f
 
-    const val SLEEP_MS = 5500L
-    const val SLEEP_MIN = 0.35f
-    const val SLEEP_MAX = 0.60f
+    /**
+     * Breathing band of the band behind the dial. Wider than the design's
+     * 0.10-0.32 on purpose: measured on the watch, a narrow band on a thin line
+     * moves less than one luminance step and the tile reads as frozen.
+     */
+    const val HALO_MIN = 0.15f
+    const val HALO_MAX = 0.55f
 
     /** Dial settle: long expo-out, so the arc arrives and stops. */
     fun entrance(): AnimationParameterBuilders.AnimationSpec = oneShot(ENTRANCE_MS)
 
     /** Halo breath: slow sine in, slow sine out, forever. */
     fun halo(): AnimationParameterBuilders.AnimationSpec = loop(HALO_MS)
-
-    /** Sleep's radial glow: the longest loop of the five, so it never draws attention. */
-    fun sleepGlow(): AnimationParameterBuilders.AnimationSpec = loop(SLEEP_MS)
 
     private fun oneShot(durationMs: Long): AnimationParameterBuilders.AnimationSpec =
         AnimationParameterBuilders.AnimationSpec.Builder()
