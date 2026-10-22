@@ -26,13 +26,16 @@ S10 — **Motor real.** Todo se construye con `protolayout 1.3.0`: `ArcLine` + `
 
 ## Tasks
 
-- T1 — Fundación: `TileDesign` v2 (paleta, tipo, geometría, motion), `TileGauge` v2 (track, arco con degradado, anillo, perla, halo), `TileChrome`/`TileFrame` (glow, píldora, stack), drawables `tile_warm_glow`/`tile_ticks_*`/`tile_stars`/`tile_moon_badge`, `TileTestKit` y contrato de diseño. Specs: S1-S4, S9. Commit: `feat(tiles): warm editorial token and gauge foundation`
-- T2 — `HeartRateTileService` + contrato. Specs: S1-S8 (S6 = perla). Commit: `feat(tile-hr): warm editorial dial with zone and HRV`
-- T3 — `VitalsTileService` + contrato. Specs: S1-S8 (S6 = anillos SpO2/batería). Commit: `feat(tile-vitals): concentric SpO2 and ring battery rings`
-- T4 — `StressTileService` + contrato. Specs: S1-S8 (S6 = espectro y muescas). Commit: `feat(tile-stress): five-stop stress spectrum with notches`
-- T5 — `DailySummaryTileService` + contrato. Specs: S1-S8 (S6 = anillos pasos/kcal). Commit: `feat(tile-steps): warm rings and colour-coded activity pill`
-- T6 — `SleepTileService` + contrato. Specs: S1-S8 (S6 = fases, estrellas). Commit: `feat(tile-sleep): phase ring, stars and warm moon`
-- T7 — Verificación: `:wear:testDebugUnitTest`, `:wear:assembleDebug`, auditoría de literales y reporte de hardware. Commit: `chore(tiles): verify warm editorial redesign`
+- T1 — Fundación: `TileInk`/`TileAccents`/`TileType`/`TileGeometry`/`TileMotion`/`TileDial`/`TileShell`/`TileResources`, siete drawables (`tile_warm_glow`, `tile_ticks_r84/r78/r74/stress`, `tile_stars`, `tile_moon_badge`), `TileTestKit` y `TileEditorialContractTest`. Commit `965af31`.
+- T2 — Tile de pulso + contrato. Commit `00c7d00`.
+- T3 — Tile de vitales + contrato. Commit `83866ac`.
+- T4 — Tile de estrés + contrato. Commit `389239a`.
+- T5 — Tile de pasos + contrato (vuelve la costura `TileStrings`). Commit `a16c969`.
+- T6 — Tile de sueño + contrato + baja de los cuatro drawables del atardecer. Commit `d0eb18c`.
+- T7 — Estado «viejo» sin animadores en los cinco. Commit `21266cc`.
+- T8 — Baja del sistema de diseño de primera generación (`TileDesign`, `TileGauge`, `TileChrome`, `TileMeter`, `TileDesignContractTest`) + este documento. Verificación final.
+
+Corte de revisión: la rama ya acumulaba historial de diseño antes de esta feature; el corte de esta entrega es `965af31..HEAD` (T1-T8), 24 commits. No se apila con el resto del historial porque el sistema anterior se borra en T8.
 
 ## Log
 
@@ -45,3 +48,13 @@ L3 — Decisiones de traducción a ProtoLayout: (a) el resplandor radial no exis
 L4 — Evidencia de entorno: `adb devices` vacío y `adb connect 192.168.0.15:38557` rechazado. La verificación de esta sesión es estructural (tests de contrato + build); la visual queda pendiente y se reporta como tal, no se inventa.
 
 L5 — Línea base: `./gradlew :wear:testDebugUnitTest` verde (exit 0) antes de tocar nada.
+
+L6 — Reparto del trabajo: fundación y tile de referencia escritos en la sesión principal; vitales/estrés y pasos/sueño migrados por dos workers acotados con superficies de edición explícitas. Los workers no commitean: cada tile se commitea solo después de correr la suite completa.
+
+L7 — Hueco del sistema detectado por el worker de pasos: `TileDial.rings()` no tenía interruptor de halo, así que un tile «viejo» no podía quedar en cero animadores sin dibujar arcos a mano. Se agregó `halo`/`entrance` a `value()` y `rings()`, se borró el helper privado del tile y los tres tiles restantes usan la misma regla.
+
+L8 — Verificación: `:wear:testDebugUnitTest` = 88 tests verdes (17 de contrato de diseño + 71 de tile y auditorías de fuente); `:wear:assembleDebug` verde. Cada commit de tile se verificó con la suite completa antes de commitear.
+
+L9 — Sin verificación visual: `adb devices` vacío y `adb connect 192.168.0.15:38557` sin respuesta durante toda la sesión. Queda sin confirmar en el SM-L500: (a) que el arco se dibuje con el radio que da el contenedor (180dp → r=84), (b) que el `ColorFilter` del resplandor respete el alfa del gradiente radial (si no, el halo sale blanco), (c) la legibilidad real del héroe de 50sp y de la píldora a +63dp. Nada de eso se reporta como verificado.
+
+L10 — Alcance no implementado del render de diseño, por imposibilidad del motor: los modos `Expresivo` y `Alto Contraste` (sin interruptor en el reloj y sin brush radial, sheen de texto ni cifras que cuenten en ProtoLayout 1.3.0) y el micro-drawer dentro del tile (un tile solo puede lanzar una activity; la píldora abre la pantalla de detalle que ya existía).
