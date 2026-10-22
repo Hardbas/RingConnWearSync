@@ -75,6 +75,18 @@
     <string name="tile_drawer_trend_7d">Tendencia 7 días</string>
     <string name="tile_drawer_pulse_title">Reposo %1$s · Pico %2$s bpm</string>
     <string name="tile_drawer_pulse_meta">HRV media %1$s ms · Zona %2$s</string>
+    <string name="tile_drawer_vitals_kicker">Estado del anillo</string>
+    <string name="tile_drawer_vitals_title">SpO₂ %1$s · Batería %2$s</string>
+    <string name="tile_drawer_vitals_meta">Autonomía ≈ %1$s días</string>
+    <string name="tile_drawer_stress_kicker">Balance autónomo</string>
+    <string name="tile_drawer_stress_title">Índice %1$s · %2$s</string>
+    <string name="tile_drawer_stress_meta">Cortes 30 · 60 · 80</string>
+    <string name="tile_drawer_steps_kicker">Cadencia diaria</string>
+    <string name="tile_drawer_steps_title">%1$s pasos · %2$s kcal</string>
+    <string name="tile_drawer_steps_meta">%1$s min activos · %2$s km</string>
+    <string name="tile_drawer_sleep_kicker">Fases del sueño</string>
+    <string name="tile_drawer_sleep_title">Total %1$s · %2$s</string>
+    <string name="tile_drawer_sleep_meta">Score %1$s</string>
     <string name="tile_drawer_close">Cerrar</string>
     <string name="tile_drawer_open">Abrir</string>
 

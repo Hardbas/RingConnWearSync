@@ -1,19 +1,27 @@
 package io.github.hardbas.wearsync.app.tile
 
+import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.ModifiersBuilders
 import io.github.hardbas.wearsync.app.R
+import io.github.hardbas.wearsync.app.data.DailyHistoryEntry
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileDrawer
+import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
+import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -35,6 +43,11 @@ class StressTileContractTest {
             R.string.hrv_short -> "HRV"
             R.string.details -> "Details"
             R.string.no_data -> "No data"
+            R.string.tile_drawer_stress_kicker -> "Autonomic balance"
+            R.string.tile_drawer_stress_title -> "Index %1\$s · %2\$s"
+            R.string.tile_drawer_stress_meta -> "Cuts 30 · 60 · 80"
+            R.string.tile_drawer_close -> "Close"
+            R.string.tile_drawer_open -> "Open"
             else -> "s$resId"
         }
     }
@@ -48,9 +61,57 @@ class StressTileContractTest {
 
     private fun now(): Long = System.currentTimeMillis() / 1000L
 
-    private fun rootFor(vitals: RingConnVitals): LayoutElementBuilders.LayoutElement =
-        StressTileService.buildTile(strings, packageName, deviceParams, vitals)
+    private fun rootFor(
+        vitals: RingConnVitals,
+        lastClickableId: String? = null,
+        history: List<DailyHistoryEntry> = emptyList()
+    ): LayoutElementBuilders.LayoutElement =
+        StressTileService.buildTile(strings, packageName, deviceParams, vitals, lastClickableId, history)
             .tileTimeline!!.timelineEntries[0].layout!!.root!!
+
+    /** The drawer state is process-wide, so every test starts and ends closed. */
+    @Before
+    fun resetDrawer() {
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_CLOSE)
+    }
+
+    @After
+    fun closeDrawer() {
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_CLOSE)
+    }
+
+    private fun drawerRoot(
+        vitals: RingConnVitals = live,
+        history: List<DailyHistoryEntry> = sevenDays()
+    ): LayoutElementBuilders.LayoutElement = rootFor(vitals, TileDrawerState.ID_OPEN, history)
+
+    /** Seven real-looking days, oldest first; the newest score is 24. */
+    private fun sevenDays(): List<DailyHistoryEntry> = listOf(28, 24, 31, 42, 35, 26, 24).mapIndexed { i, score ->
+        DailyHistoryEntry(epochDay = 20_000L + i, stressScore = score)
+    }
+
+    private fun clickables(root: LayoutElementBuilders.LayoutElement): List<ModifiersBuilders.Clickable> =
+        TileTestKit.flatten(root).mapNotNull { element ->
+            when (element) {
+                is LayoutElementBuilders.Box -> element.modifiers?.clickable
+                is LayoutElementBuilders.Row -> element.modifiers?.clickable
+                is LayoutElementBuilders.Column -> element.modifiers?.clickable
+                is LayoutElementBuilders.Text -> element.modifiers?.clickable
+                is LayoutElementBuilders.Image -> element.modifiers?.clickable
+                is LayoutElementBuilders.Arc -> element.modifiers?.clickable
+                else -> null
+            }
+        }
+
+    private val drawerPanelColor = TileInk.withAlpha(TileDrawer.SURFACE, TileDrawer.SURFACE_ALPHA)
+
+    private fun drawerPanels(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
+        TileTestKit.boxes(root).filter { it.modifiers?.background?.color?.argb == drawerPanelColor }
+
+    private fun bars(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.Box> =
+        TileTestKit.boxes(root)
+            .filter { TileTestKit.dpOf(it.width) == TileGeometry.DRAWER_BAR_WIDTH }
+            .filter { it.modifiers?.background?.color != null }
 
     private val live = RingConnVitals(
         lastHrv = 42,
@@ -85,7 +146,11 @@ class StressTileContractTest {
         assertEquals(TileType.SUB, level.fontStyle?.size?.value)
         assertEquals(TileAccents.stress[0], level.fontStyle?.color?.argb)
         assertTrue(texts.any { it.text?.value == " · " })
-        assertTrue(texts.any { it.text?.value == "HRV 42 ms" })
+        assertTrue(
+            "the subtitle names the read: the word HRV, not a unit",
+            texts.any { it.text?.value == "HRV 42" }
+        )
+        assertTrue("the read is not printed in ms", texts.none { it.text?.value == "HRV 42 ms" })
     }
 
     @Test
@@ -218,14 +283,125 @@ class StressTileContractTest {
         )
 
         val pill = TileTestKit.boxes(liveRoot)
-            .first { it.modifiers?.background?.color?.argb == TileInk.SURFACE }
-        val padding = (pill.modifiers?.padding?.start?.value ?: 0f) +
-            (pill.modifiers?.padding?.end?.value ?: 0f)
-        val width = pill.contents.sumOf { widthOf(it).toDouble() }.toFloat() + padding
-        assertTrue(
-            "pill ${width}dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
-            width <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
+            .first { it.modifiers?.background?.color?.argb == TileShell.PILL_GLASS }
+        assertEquals(
+            "the face pill is the render's fixed width",
+            TileGeometry.PILL_WIDTH,
+            TileTestKit.dpOf(pill.width),
+            0.001f
         )
+        assertTrue(
+            "pill ${TileGeometry.PILL_WIDTH}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
+            TileGeometry.PILL_WIDTH <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
+        )
+    }
+
+    // ---- the in-tile drawer (S12) ---------------------------------------
+
+    @Test
+    fun `the face is what a plain load shows`() {
+        val root = rootFor(live)
+        assertTrue("no drawer panel is painted", drawerPanels(root).isEmpty())
+        assertTrue(TileTestKit.texts(root).any { it.text?.value == "STRESS" })
+    }
+
+    @Test
+    fun `only pill opens the drawer and only close closes it`() {
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_OPEN)
+        assertTrue(TileDrawerState.isOpen(StressTileService.TILE_ID))
+
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_CLOSE)
+        assertTrue(!TileDrawerState.isOpen(StressTileService.TILE_ID))
+
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_OPEN)
+        TileDrawerState.apply(StressTileService.TILE_ID, "something-else")
+        assertTrue("an unknown id is not a command", TileDrawerState.isOpen(StressTileService.TILE_ID))
+        TileDrawerState.apply(StressTileService.TILE_ID, null)
+        assertTrue("a load without an id leaves the tile as it was", TileDrawerState.isOpen(StressTileService.TILE_ID))
+
+        TileDrawerState.apply(StressTileService.TILE_ID, TileDrawerState.ID_CLOSE)
+        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_OPEN)
+        assertTrue(!TileDrawerState.isOpen(StressTileService.TILE_ID))
+        TileDrawerState.apply(HeartRateTileService.TILE_ID, TileDrawerState.ID_CLOSE)
+    }
+
+    @Test
+    fun `the face pill opens the drawer instead of launching the app`() {
+        val root = rootFor(live)
+        val pill = clickables(root).single { it.id == TileDrawerState.ID_OPEN }
+        assertTrue(
+            "the pill must ask for a reload, not start the activity",
+            pill.onClick is ActionBuilders.LoadAction
+        )
+    }
+
+    @Test
+    fun `the drawer replaces the face and prints the real trend copy`() {
+        val root = drawerRoot()
+        assertEquals(1, drawerPanels(root).size)
+
+        assertTrue(TileTestKit.texts(root).none { it.text?.value == "24" })
+        assertTrue(TileTestKit.texts(root).none { it.text?.value == "STRESS" })
+        assertTrue(TileTestKit.arcLines(root).isEmpty())
+
+        val kicker = TileTestKit.texts(root).first { it.text?.value == "AUTONOMIC BALANCE" }
+        assertEquals(TileType.LABEL, kicker.fontStyle?.size?.value)
+        assertEquals(TileAccents.stress[0], kicker.fontStyle?.color?.argb)
+
+        val title = TileTestKit.texts(root).first { it.text?.value == "Index 24 · Relaxed" }
+        assertEquals("the title is one line", 1, title.maxLines?.value)
+
+        TileTestKit.texts(root).first { it.text?.value == "Cuts 30 · 60 · 80" }
+    }
+
+    @Test
+    fun `the drawer draws one bar per day of history and none without it`() {
+        val seven = bars(drawerRoot())
+        assertEquals("seven days, seven bars", 7, seven.size)
+
+        // Proportional to the series' own maximum (42); the last bar is today.
+        val accent = TileAccents.stress[0]
+        assertEquals(accent, seven.last().modifiers?.background?.color?.argb)
+        seven.dropLast(1).forEach {
+            assertEquals(
+                TileInk.withAlpha(accent, TileDrawer.BAR_ALPHA),
+                it.modifiers?.background?.color?.argb
+            )
+            assertTrue(
+                "a past bar can reach the full track only when it is the series maximum",
+                TileTestKit.dpOf(it.height) <= TileGeometry.DRAWER_BAR_TRACK
+            )
+        }
+
+        val empty = drawerRoot(history = emptyList())
+        assertTrue("no series, no bars", bars(empty).isEmpty())
+        TileTestKit.texts(empty).first { it.text?.value == "Index 24 · Relaxed" }
+        assertEquals(1, drawerPanels(empty).size)
+    }
+
+    @Test
+    fun `the drawer close pill closes and its open pill keeps the app reachable`() {
+        val root = drawerRoot()
+        val close = clickables(root).single { it.id == TileDrawerState.ID_CLOSE }
+        assertTrue(close.onClick is ActionBuilders.LoadAction)
+
+        val open = clickables(root).single { it.onClick is ActionBuilders.LaunchAction }
+        assertTrue("only the drawer ids steer the state", open.id.isNullOrEmpty())
+
+        TileTestKit.texts(root).first { it.text?.value == "Close" }
+        TileTestKit.texts(root).first { it.text?.value == "Open" }
+    }
+
+    @Test
+    fun `an open drawer survives a refresh and closes on its own id`() {
+        rootFor(live, TileDrawerState.ID_OPEN)
+        val refreshed = rootFor(live, lastClickableId = null)
+        assertEquals(1, drawerPanels(refreshed).size)
+
+        val closed = rootFor(live, TileDrawerState.ID_CLOSE)
+        assertTrue(drawerPanels(closed).isEmpty())
+        assertTrue(TileTestKit.texts(closed).any { it.text?.value == "STRESS" })
     }
 
     // ---- previous behaviour ---------------------------------------------
@@ -235,14 +411,5 @@ class StressTileContractTest {
         val tile = StressTileService.buildTile(strings, packageName, deviceParams, live)
         assertEquals(60_000L, tile.freshnessIntervalMillis)
         assertEquals(StressTileService.RESOURCES_VERSION, StressTileService.buildResources().version)
-    }
-
-    private fun widthOf(element: LayoutElementBuilders.LayoutElement): Float = when (element) {
-        is LayoutElementBuilders.Text -> TileTestKit.estimatedWidthDp(element)
-        is LayoutElementBuilders.Spacer -> TileTestKit.dpOf(element.width)
-        is LayoutElementBuilders.Box -> TileTestKit.dpOf(element.width)
-        is LayoutElementBuilders.Row -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
-        is LayoutElementBuilders.Column -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
-        else -> 0f
     }
 }

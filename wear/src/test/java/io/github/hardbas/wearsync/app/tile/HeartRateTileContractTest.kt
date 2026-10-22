@@ -14,6 +14,7 @@ import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
+import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
@@ -442,22 +443,17 @@ class HeartRateTileContractTest {
         )
 
         val pill = TileTestKit.boxes(liveRoot)
-            .first { it.modifiers?.background?.color?.argb == TileInk.SURFACE }
-        val padding = (pill.modifiers?.padding?.start?.value ?: 0f) +
-            (pill.modifiers?.padding?.end?.value ?: 0f)
-        val width = pill.contents.sumOf { widthOf(it).toDouble() }.toFloat() + padding
-        assertTrue(
-            "pill ${width}dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
-            width <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
+            .first { it.modifiers?.background?.color?.argb == TileShell.PILL_GLASS }
+        assertEquals(
+            "the face pill is the render's fixed width",
+            TileGeometry.PILL_WIDTH,
+            TileTestKit.dpOf(pill.width),
+            0.001f
         )
-    }
-
-    private fun widthOf(element: LayoutElementBuilders.LayoutElement): Float = when (element) {
-        is LayoutElementBuilders.Text -> TileTestKit.estimatedWidthDp(element)
-        is LayoutElementBuilders.Spacer -> TileTestKit.dpOf(element.width)
-        is LayoutElementBuilders.Box -> TileTestKit.dpOf(element.width)
-        is LayoutElementBuilders.Row -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
-        is LayoutElementBuilders.Column -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
-        else -> 0f
+        assertTrue(
+            "pill ${TileGeometry.PILL_WIDTH}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
+            TileGeometry.PILL_WIDTH <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
+        )
     }
 }

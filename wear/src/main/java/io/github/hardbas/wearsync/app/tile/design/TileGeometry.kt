@@ -75,10 +75,16 @@ object TileGeometry {
     const val GLOW_SIZE = 156f
     const val GLOW_OPACITY = 0.22f
 
-    /** The action pill, pinned 63dp below the tile centre by the design. */
-    const val PILL_HEIGHT = 28f
-    const val PILL_RADIUS = 14f
-    const val PILL_PADDING = 12f
+    /**
+     * The action pill of the render: 26dp tall, radius 13, a fixed 104dp wide and
+     * centred, with a 0.75dp hairline. The drawer's two pills reuse the material
+     * without the fixed width and without the face pin.
+     */
+    const val PILL_HEIGHT = 26f
+    const val PILL_RADIUS = 13f
+    const val PILL_WIDTH = 104f
+    const val PILL_BORDER = 0.75f
+    const val PILL_PADDING = 6f
     const val PILL_CENTER_Y = 63f
 
     /** Nominal vertical centres of the centred metric stack, from the tile centre. */
@@ -96,9 +102,15 @@ object TileGeometry {
 
     /** Drawer bars: 7dp wide, 5dp apart, radius 3.5, tallest a 34dp track. */
     const val DRAWER_BAR_WIDTH = 7f
+
+    /** Sleep shows four phases, not a seven-day trend: fewer, wider bars read better. */
+    const val DRAWER_PHASE_BAR_WIDTH = 16f
     const val DRAWER_BAR_GAP = 5f
     const val DRAWER_BAR_RADIUS = 3.5f
     const val DRAWER_BAR_TRACK = 34f
+
+    /** The sleep drawer paints four phase bars, one per phase, oldest first. */
+    const val DRAWER_PHASES = 4
 
     /** A bar never disappears when its value is zero: it keeps a sliver. */
     const val DRAWER_BAR_MIN_HEIGHT = 2f

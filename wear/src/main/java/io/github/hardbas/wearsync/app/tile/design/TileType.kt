@@ -30,7 +30,15 @@ object TileType {
     const val SLEEP_LABEL = 12f
 
     const val SUB = 12f
-    const val PILL = 10f
+
+    /** The action pill of the render: 11sp monospace, barely tracked. */
+    const val PILL = 11f
+    const val PILL_TRACKING = -0.02f
+    const val PILL_FAMILY = "monospace"
+
+    /** The pill's separator character, one step quieter than the reading. */
+    const val SEPARATOR = 9f
+    const val SEPARATOR_ALPHA = 0.32f
 
     /** Optically tightened hero, as the design sets it. */
     const val HERO_TRACKING = -0.03f
@@ -51,7 +59,8 @@ object TileType {
         weight: Int,
         color: Int,
         tracking: Float,
-        tabular: Boolean = false
+        tabular: Boolean = false,
+        family: String? = null
     ): LayoutElementBuilders.FontStyle {
         val builder = LayoutElementBuilders.FontStyle.Builder()
             .setSize(sp(size))
@@ -60,6 +69,11 @@ object TileType {
             .setLetterSpacing(DimensionBuilders.em(tracking))
         if (tabular) {
             builder.setSettings(LayoutElementBuilders.FontSetting.tabularNum())
+        }
+        // The render sets its pill in a monospace face; the platform picks the
+        // first family it can resolve and falls back to the system one.
+        if (family != null) {
+            builder.setPreferredFontFamilies(family)
         }
         return builder.build()
     }
@@ -83,7 +97,16 @@ object TileType {
     fun sub(color: Int = TileInk.SECONDARY): LayoutElementBuilders.FontStyle =
         style(SUB, LayoutElementBuilders.FONT_WEIGHT_MEDIUM, color, HERO_TRACKING, tabular = true)
 
-    /** Pill copy: small, tabular, tight. */
+    /** Pill copy: small, monospace, tight. */
     fun pill(color: Int): LayoutElementBuilders.FontStyle =
-        style(PILL, LayoutElementBuilders.FONT_WEIGHT_MEDIUM, color, -0.04f, tabular = true)
+        style(PILL, LayoutElementBuilders.FONT_WEIGHT_MEDIUM, color, PILL_TRACKING, tabular = true, family = PILL_FAMILY)
+
+    /** The dot that separates two pill readings: quiet, 9sp, not a hairline. */
+    fun separator(): LayoutElementBuilders.FontStyle =
+        style(
+            SEPARATOR,
+            LayoutElementBuilders.FONT_WEIGHT_MEDIUM,
+            TileInk.withAlpha(TileInk.PRIMARY, SEPARATOR_ALPHA),
+            0f
+        )
 }

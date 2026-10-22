@@ -327,20 +327,99 @@ class TileEditorialContractTest {
     // ---- S3 / S7: chrome ------------------------------------------------
 
     @Test
-    fun `the pill is a solid capsule pinned below the centre`() {
+    fun `the pill is a glass capsule of the render pinned below the centre`() {
         val pill = TileShell.pill(TileShell.pillText("Detalle", TileInk.PRIMARY))
         assertEquals(TileGeometry.PILL_HEIGHT, TileTestKit.dpOf(pill.height), 0.001f)
+        assertEquals(26f, TileGeometry.PILL_HEIGHT, 0.001f)
+        assertEquals(13f, TileGeometry.PILL_RADIUS, 0.001f)
+        assertEquals(
+            "the face pill is centred by the design",
+            TileGeometry.PILL_WIDTH,
+            TileTestKit.dpOf(pill.width),
+            0.001f
+        )
+        assertEquals(104f, TileGeometry.PILL_WIDTH, 0.001f)
         assertEquals(
             TileGeometry.PILL_RADIUS,
             pill.modifiers?.background?.corner?.radius?.value ?: 0f,
             0.001f
         )
         assertEquals(
+            "pinned: the pill keeps the same place on the face",
             TileGeometry.PILL_CENTER_Y,
             pill.modifiers?.transformation?.translationY?.value ?: 0f,
             0.001f
         )
-        assertEquals(TileInk.SURFACE, pill.modifiers?.background?.color?.argb)
+        assertEquals(
+            "white at nine percent, the render's glass",
+            0x17F5F2EB,
+            pill.modifiers?.background?.color?.argb
+        )
+        assertEquals(
+            "a hairline of white at sixteen percent, 0.75dp",
+            0x29F5F2EB,
+            pill.modifiers?.border?.color?.argb
+        )
+        assertEquals(0.75f, TileTestKit.dpOf(pill.modifiers?.border?.width), 0.001f)
+    }
+
+    @Test
+    fun `the drawer pills keep wrapping instead of a fixed width`() {
+        val close = TileDrawer.drawer(
+            accent = accent,
+            kicker = "KICKER",
+            title = "Title",
+            meta = "Meta",
+            bars = emptyList(),
+            barColor = accent,
+            closeLabel = "Close",
+            openLabel = "Open",
+            packageName = "io.github.hardbas.wearsync.test",
+            detailActivity = "io.github.hardbas.wearsync.test.Detail"
+        )
+        val glass = TileTestKit.boxes(close)
+            .filter { it.modifiers?.background?.color?.argb == TileShell.PILL_GLASS }
+        assertEquals(2, glass.size)
+        glass.forEach {
+            assertEquals(
+                "the drawer's two pills wrap: the 104dp width belongs to the face",
+                0f,
+                TileTestKit.dpOf(it.width),
+                0.001f
+            )
+            assertEquals(TileGeometry.PILL_HEIGHT, TileTestKit.dpOf(it.height), 0.001f)
+            assertEquals(
+                "the drawer lays the pills out in a row, without the face pin",
+                null,
+                it.modifiers?.transformation
+            )
+        }
+    }
+
+    @Test
+    fun `the pill reads in the render's monospace at eleven with tight tracking`() {
+        val pill = TileType.pill(TileInk.PRIMARY)
+        assertEquals(11f, pill.size?.value)
+        assertEquals(-0.02f, pill.letterSpacing?.value ?: 0f, 0.0001f)
+        assertEquals(TileType.PILL_FAMILY, pill.preferredFontFamilies?.firstOrNull())
+        assertEquals(LayoutElementBuilders.FONT_WEIGHT_MEDIUM, pill.weight?.value)
+    }
+
+    @Test
+    fun `the pill separator is the character dot at nine sp, not a hairline`() {
+        val separator = TileShell.pillSeparator()
+        assertEquals("·", separator.text?.value)
+        assertEquals(9f, separator.fontStyle?.size?.value)
+        assertEquals(
+            "the dot is the ink at thirty-two percent",
+            0.32 * 255.0,
+            ((separator.fontStyle?.color?.argb ?: 0) ushr 24 and 0xFF).toDouble(),
+            1.0
+        )
+        assertTrue(
+            "no 1dp hairline survives in the pill",
+            TileTestKit.boxes(separator).none { TileTestKit.dpOf(it.width) == 1f && TileTestKit.dpOf(it.height) == 11f }
+        )
     }
 
     @Test

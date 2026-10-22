@@ -91,6 +91,11 @@ object TileDrawer {
      * @param meta quiet one-liner under the bars.
      * @param bars the tile's own series, oldest to newest; empty means no bars.
      * @param barColor the metric accent the bars are painted with.
+     * @param barColors per-bar colours, when a tile's bars are not one series but
+     *   distinct pieces (the sleep phases); the first is the oldest bar.
+     * @param barMaximum the value a full-height bar stands for. `null` means the
+     *   series' own maximum, which is what a trend of one metric needs; a series
+     *   of fractions passes 1 so each bar is its own share of the whole.
      * @param closeLabel copy of the close pill.
      * @param openLabel copy of the pill that opens the detail activity.
      * @param packageName package of the detail activity the open pill launches.
@@ -106,7 +111,10 @@ object TileDrawer {
         closeLabel: String,
         openLabel: String,
         packageName: String,
-        detailActivity: String
+        detailActivity: String,
+        barColors: List<Int>? = null,
+        barMaximum: Float? = null,
+        barWidth: Float = TileGeometry.DRAWER_BAR_WIDTH
     ): LayoutElementBuilders.Box {
         val column = LayoutElementBuilders.Column.Builder()
             .setWidth(wrap())
@@ -118,7 +126,7 @@ object TileDrawer {
 
         if (bars.isNotEmpty()) {
             column.addContent(TileShell.spacer(8f))
-            column.addContent(barRow(bars, barColor))
+            column.addContent(barRow(bars, barColor, barColors, barMaximum, barWidth))
         }
 
         column.addContent(TileShell.spacer(8f))
@@ -130,13 +138,15 @@ object TileDrawer {
                     TileShell.pill(
                         TileShell.pillText(closeLabel, TileInk.PRIMARY),
                         tapToClose(),
-                        centerY = null
+                        centerY = null,
+                        width = null
                     ),
                     TileShell.hSpacer(8f),
                     TileShell.pill(
                         TileShell.pillText(openLabel, TileInk.PRIMARY),
                         TileShell.launchDetail(packageName, detailActivity),
-                        centerY = null
+                        centerY = null,
+                        width = null
                     )
                 )
             )
@@ -166,11 +176,17 @@ object TileDrawer {
     }
 
     /** Seven bars of real data, oldest first, last one at full strength. */
-    private fun barRow(bars: List<Float>, barColor: Int): LayoutElementBuilders.Row {
+    private fun barRow(
+        bars: List<Float>,
+        barColor: Int,
+        barColors: List<Int>?,
+        barMaximum: Float?,
+        barWidth: Float
+    ): LayoutElementBuilders.Row {
         // The series' own maximum, floored at 1 so a flat-zero series cannot
         // divide by zero: heights become a proportion of this series, never of
         // an assumed scale.
-        val max = bars.maxOrNull()?.coerceAtLeast(1f) ?: 1f
+        val max = barMaximum ?: bars.maxOrNull()?.coerceAtLeast(1f) ?: 1f
         val row = LayoutElementBuilders.Row.Builder()
             .setWidth(wrap())
             .setHeight(wrap())
@@ -181,20 +197,24 @@ object TileDrawer {
             val isToday = index == bars.lastIndex
             val height = (TileGeometry.DRAWER_BAR_TRACK * (value / max))
                 .coerceAtLeast(TileGeometry.DRAWER_BAR_MIN_HEIGHT)
+            // One series of one metric fades its past days; a row of distinct
+            // pieces (the four sleep phases) keeps each piece's own colour.
+            val color = if (barColors != null) {
+                barColors.getOrElse(index) { barColor }
+            } else if (isToday) {
+                barColor
+            } else {
+                TileInk.withAlpha(barColor, BAR_ALPHA)
+            }
             row.addContent(
                 LayoutElementBuilders.Box.Builder()
-                    .setWidth(dp(TileGeometry.DRAWER_BAR_WIDTH))
+                    .setWidth(dp(barWidth))
                     .setHeight(dp(height))
                     .setModifiers(
                         ModifiersBuilders.Modifiers.Builder()
                             .setBackground(
                                 ModifiersBuilders.Background.Builder()
-                                    .setColor(
-                                        argb(
-                                            if (isToday) barColor
-                                            else TileInk.withAlpha(barColor, BAR_ALPHA)
-                                        )
-                                    )
+                                    .setColor(argb(color))
                                     .setCorner(
                                         ModifiersBuilders.Corner.Builder()
                                             .setRadius(dp(TileGeometry.DRAWER_BAR_RADIUS))

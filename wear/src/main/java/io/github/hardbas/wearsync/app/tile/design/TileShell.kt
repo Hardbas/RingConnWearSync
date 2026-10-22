@@ -19,6 +19,14 @@ import androidx.wear.protolayout.TypeBuilders
  */
 object TileShell {
 
+    /**
+     * The render's pill material: warm white at 9 % over the face, with a 0.75dp
+     * hairline at 16 %. Both are opaque ARGB values because ProtoLayout has no
+     * backdrop blur; the alphas are the render's own.
+     */
+    const val PILL_GLASS = 0x17F5F2EB
+    const val PILL_GLASS_BORDER = 0x29F5F2EB
+
     /** Root of a tile: face, click target, content cross-fade and paint order. */
     fun root(
         clickable: ModifiersBuilders.Clickable? = null,
@@ -151,17 +159,19 @@ object TileShell {
      *
      * `centerY` carries that translation: the face pins its pill below the dial,
      * while the drawer lays its two pills out in a row and passes `null` so the
-     * material is reused without the pinning.
+     * material is reused without the pinning. `width` is the render's fixed
+     * 104dp on the face; the drawer passes `null` so its two pills wrap their copy.
      */
     fun pill(
         content: LayoutElementBuilders.LayoutElement,
         clickable: ModifiersBuilders.Clickable? = null,
-        centerY: Float? = TileGeometry.PILL_CENTER_Y
+        centerY: Float? = TileGeometry.PILL_CENTER_Y,
+        width: Float? = TileGeometry.PILL_WIDTH
     ): LayoutElementBuilders.Box {
         val modifiers = ModifiersBuilders.Modifiers.Builder()
             .setBackground(
                 ModifiersBuilders.Background.Builder()
-                    .setColor(argb(TileInk.SURFACE))
+                    .setColor(argb(PILL_GLASS))
                     .setCorner(
                         ModifiersBuilders.Corner.Builder()
                             .setRadius(dp(TileGeometry.PILL_RADIUS))
@@ -171,8 +181,8 @@ object TileShell {
             )
             .setBorder(
                 ModifiersBuilders.Border.Builder()
-                    .setWidth(dp(1f))
-                    .setColor(argb(TileInk.SURFACE_BORDER))
+                    .setWidth(dp(TileGeometry.PILL_BORDER))
+                    .setColor(argb(PILL_GLASS_BORDER))
                     .build()
             )
             .setPadding(
@@ -191,7 +201,7 @@ object TileShell {
         clickable?.let(modifiers::setClickable)
 
         return LayoutElementBuilders.Box.Builder()
-            .setWidth(wrap())
+            .setWidth(if (width != null) dp(width) else wrap())
             .setHeight(dp(TileGeometry.PILL_HEIGHT))
             .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
             .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
@@ -224,21 +234,12 @@ object TileShell {
             )
             .build()
 
-    /** 1x11 hairline between two pill readings. */
-    fun pillSeparator(): LayoutElementBuilders.Box =
-        LayoutElementBuilders.Box.Builder()
-            .setWidth(dp(1f))
-            .setHeight(dp(11f))
-            .setModifiers(
-                ModifiersBuilders.Modifiers.Builder()
-                    .setBackground(
-                        ModifiersBuilders.Background.Builder()
-                            .setColor(argb(TileInk.HAIRLINE))
-                            .build()
-                    )
-                    .build()
-            )
-            .build()
+    /**
+     * The separator between two pill readings: the character `·` at 32 %, 9sp,
+     * which is what the render draws. It replaces the old 1dp hairline; the tone
+     * dots stay.
+     */
+    fun pillSeparator(): LayoutElementBuilders.Text = text("·", TileType.separator())
 
     fun text(
         value: String,

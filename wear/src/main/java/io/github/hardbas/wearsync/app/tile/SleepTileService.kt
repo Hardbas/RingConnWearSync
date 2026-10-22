@@ -19,6 +19,9 @@ import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
+import io.github.hardbas.wearsync.app.tile.design.TileDrawer
+import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileResources
@@ -46,8 +49,14 @@ import kotlinx.coroutines.tasks.await
 class SleepTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
+        // A LoadAction tap returns here with its clickable id; the builder turns
+        // that id into open/closed before it renders either the face or the drawer.
         return Futures.immediateFuture(
-            buildTile(this, requestParams.deviceConfiguration)
+            buildTile(
+                this,
+                requestParams.deviceConfiguration,
+                lastClickableId = requestParams.currentState.lastClickableId
+            )
         )
     }
 
@@ -85,10 +94,14 @@ class SleepTileService : TileService() {
 
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-sleep-v1"
+
+        /** Key of this tile in [TileDrawerState]. */
+        const val TILE_ID = "sleep"
+
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 
         /** The four phases, in the order the design paints them. */
-        private const val PHASES = 4
+        private const val PHASES = TileGeometry.DRAWER_PHASES
 
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
@@ -96,15 +109,33 @@ class SleepTileService : TileService() {
         fun buildTile(
             context: Context,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
-        ): TileBuilders.Tile = buildTile(AndroidTileStrings(context), context.packageName, deviceParams, vitals)
+            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
+            lastClickableId: String? = null
+        ): TileBuilders.Tile = buildTile(
+            AndroidTileStrings(context),
+            context.packageName,
+            deviceParams,
+            vitals,
+            lastClickableId
+        )
 
+        /**
+         * @param lastClickableId the id the system carried back from a
+         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
+         *   drawer ids leaves the tile in the state it is already in.
+         */
         fun buildTile(
             strings: TileStrings,
             packageName: String,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals
+            vitals: RingConnVitals,
+            lastClickableId: String? = null
         ): TileBuilders.Tile {
+            TileDrawerState.apply(TILE_ID, lastClickableId)
+            if (TileDrawerState.isOpen(TILE_ID)) {
+                return drawerTile(strings, packageName, vitals)
+            }
+
             val score = vitals.sleepScore
             val stale = vitals.isStale
 
@@ -125,39 +156,16 @@ class SleepTileService : TileService() {
             }
 
             // Asleep time excludes the awake minutes; the ring includes them.
-            val asleepMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
-            val durationText = when {
-                asleepMins <= 0 -> "--"
-                else -> {
-                    val h = asleepMins / 60
-                    val m = asleepMins % 60
-                    if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
-                }
-            }
+            val durationText = durationText(vitals)
 
             // Nocturnal skin temperature, as an offset from the wearer's baseline.
-            val offset = vitals.skinTempOffset
-            val hasTempData = vitals.skinTempBaseline > 0f || offset != 0f
-            val tempText = when {
-                !hasTempData -> "--"
-                offset in -0.05f..0.05f -> "±0.0°"
-                else -> String.format(Locale.US, "%+.1f", offset) + "°"
-            }
+            val tempText = tempText(vitals)
 
-            val phaseFractions = if (hasData) {
-                FloatArray(PHASES) { index ->
-                    val minutes = when (index) {
-                        0 -> vitals.sleepDeepMins
-                        1 -> vitals.sleepRemMins
-                        2 -> vitals.sleepLightMins
-                        else -> vitals.sleepAwakeMins
-                    }
-                    minutes.toFloat() / totalMins
-                }
-            } else {
-                FloatArray(0)
-            }
+            val phaseFractions = if (hasData) phaseFractions(vitals) else FloatArray(0)
 
+            // The pill asks for a reload and comes back with id `pill`, which
+            // opens the drawer; the face behind it keeps launching the detail
+            // screen, exactly like the pulse tile.
             val clickable = TileShell.launchDetail(packageName, DETAIL_ACTIVITY)
 
             val layers = buildList {
@@ -208,18 +216,112 @@ class SleepTileService : TileService() {
 
             val pill = TileShell.pill(
                 content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
-                clickable = clickable
+                clickable = TileDrawer.tapToOpen()
             )
 
             val entry = TimelineBuilders.TimelineEntry.Builder()
                 .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(TileShell.root(clickable, layers, stack, pill)).build())
                 .build()
 
-            return TileBuilders.Tile.Builder()
+            return tile(entry)
+        }
+
+        /**
+         * The open drawer: the whole face becomes the S12 panel. Sleep needs no
+         * stored series: the four bars are the phases of the night the reading
+         * describes, each with its own colour and its own share of the height.
+         */
+        private fun drawerTile(
+            strings: TileStrings,
+            packageName: String,
+            vitals: RingConnVitals
+        ): TileBuilders.Tile {
+            val score = vitals.sleepScore
+            val totalMins = vitals.sleepDeepMins + vitals.sleepRemMins +
+                vitals.sleepLightMins + vitals.sleepAwakeMins
+            val hasData = score > 0 && totalMins > 0
+            val fractions = if (hasData) phaseFractions(vitals) else FloatArray(0)
+
+            val root = TileDrawer.drawer(
+                accent = TileAccents.sleepLabel,
+                kicker = strings.text(R.string.tile_drawer_sleep_kicker).uppercase(Locale.getDefault()),
+                title = String.format(
+                    Locale.getDefault(),
+                    strings.text(R.string.tile_drawer_sleep_title),
+                    durationText(vitals),
+                    tempText(vitals)
+                ),
+                meta = String.format(
+                    Locale.getDefault(),
+                    strings.text(R.string.tile_drawer_sleep_meta),
+                    if (hasData) "$score" else NO_VALUE
+                ),
+                bars = fractions.map { it },
+                barColor = TileAccents.sleepLabel,
+                barColors = TileAccents.sleep.toList(),
+                // The four bars are shares of one night, not a trend: each stands
+                // for its own fraction of the whole, not for a share of the tallest.
+                barMaximum = 1f,
+                barWidth = TileGeometry.DRAWER_PHASE_BAR_WIDTH,
+                closeLabel = strings.text(R.string.tile_drawer_close),
+                openLabel = strings.text(R.string.tile_drawer_open),
+                packageName = packageName,
+                detailActivity = DETAIL_ACTIVITY
+            )
+
+            return tile(
+                TimelineBuilders.TimelineEntry.Builder()
+                    .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
+                    .build()
+            )
+        }
+
+        private fun tile(entry: TimelineBuilders.TimelineEntry): TileBuilders.Tile =
+            TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
                 .setTileTimeline(TimelineBuilders.Timeline.Builder().addTimelineEntry(entry).build())
                 .setFreshnessIntervalMillis(60_000L)
                 .build()
+
+        /** Asleep time, without the awake minutes, in the design's h/m wording. */
+        private fun durationText(vitals: RingConnVitals): String {
+            val asleepMins = vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins
+            return when {
+                asleepMins <= 0 -> NO_VALUE
+                else -> {
+                    val h = asleepMins / 60
+                    val m = asleepMins % 60
+                    if (h > 0 && m > 0) "${h}h ${m}m" else if (h > 0) "${h}h" else "${m}m"
+                }
+            }
         }
+
+        /** Nocturnal skin temperature, as an offset from the wearer's baseline. */
+        private fun tempText(vitals: RingConnVitals): String {
+            val offset = vitals.skinTempOffset
+            val hasTempData = vitals.skinTempBaseline > 0f || offset != 0f
+            return when {
+                !hasTempData -> NO_VALUE
+                offset in -0.05f..0.05f -> "±0.0°"
+                else -> String.format(Locale.US, "%+.1f", offset) + "°"
+            }
+        }
+
+        /** Deep, REM, light and awake, as shares of the whole time in bed. */
+        private fun phaseFractions(vitals: RingConnVitals): FloatArray {
+            val totalMins = vitals.sleepDeepMins + vitals.sleepRemMins +
+                vitals.sleepLightMins + vitals.sleepAwakeMins
+            return FloatArray(PHASES) { index ->
+                val minutes = when (index) {
+                    0 -> vitals.sleepDeepMins
+                    1 -> vitals.sleepRemMins
+                    2 -> vitals.sleepLightMins
+                    else -> vitals.sleepAwakeMins
+                }
+                minutes.toFloat() / totalMins
+            }
+        }
+
+        private const val NO_VALUE = "--"
     }
 }
