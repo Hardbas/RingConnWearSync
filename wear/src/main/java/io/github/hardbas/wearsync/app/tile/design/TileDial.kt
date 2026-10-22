@@ -58,16 +58,19 @@ object TileDial {
         radius: Float = TileGeometry.ARC_RADIUS,
         thickness: Float = TileGeometry.ARC_THICKNESS,
         pearlColor: Int? = null,
+        halo: Boolean = true,
         entrance: Boolean = true
     ): LayoutElementBuilders.Box {
         val sweep = TileGeometry.sweepDegrees(fraction)
         val arcs = buildList {
-            add(
-                arc(
-                    anchorDegrees = TileGeometry.ARC_START,
-                    haloLine(sweep, thickness, accent.last())
+            if (halo) {
+                add(
+                    arc(
+                        anchorDegrees = TileGeometry.ARC_START,
+                        haloLine(sweep, thickness, accent.last())
+                    )
                 )
-            )
+            }
             add(
                 arc(
                     anchorDegrees = TileGeometry.ARC_START,
@@ -171,27 +174,34 @@ object TileDial {
     fun rings(
         outer: Ring,
         inner: Ring,
+        halo: Boolean = true,
         entrance: Boolean = true
     ): LayoutElementBuilders.Box {
-        val outerArcs = listOf(
-            arc(
-                anchorDegrees = TileGeometry.ARC_START,
-                haloLine(
-                    lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
-                    thicknessDp = outer.thickness,
-                    color = outer.accent.last()
+        val outerArcs = buildList {
+            if (halo) {
+                add(
+                    arc(
+                        anchorDegrees = TileGeometry.ARC_START,
+                        haloLine(
+                            lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
+                            thicknessDp = outer.thickness,
+                            color = outer.accent.last()
+                        )
+                    )
                 )
-            ),
-            arc(
-                anchorDegrees = TileGeometry.ARC_START,
-                line(
-                    lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
-                    thicknessDp = outer.thickness,
-                    color = outer.accent.last(),
-                    brush = gradient(outer.accent, outer.fraction)
+            }
+            add(
+                arc(
+                    anchorDegrees = TileGeometry.ARC_START,
+                    line(
+                        lengthDegrees = TileGeometry.sweepDegrees(outer.fraction),
+                        thicknessDp = outer.thickness,
+                        color = outer.accent.last(),
+                        brush = gradient(outer.accent, outer.fraction)
+                    )
                 )
             )
-        )
+        }
         val innerArcs = listOf(
             arc(
                 anchorDegrees = TileGeometry.ARC_START,
