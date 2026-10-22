@@ -8,6 +8,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.records.OxygenSaturationRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
@@ -21,6 +22,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import kotlin.reflect.KClass
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -152,8 +154,9 @@ object RingConnTelemetryReader {
         }
 
         val now = Instant.now()
+        // Two days, not six hours: a night that began before midnight has to be
+        // inside the window, or every nocturnal metric loses its head.
         val queryStart = now.minus(Duration.ofHours(48))
-        val queryStart6h = now.minus(Duration.ofHours(6))
         val todayStart = ZonedDateTime.now(ZoneId.systemDefault())
             .toLocalDate()
             .atStartOfDay(ZoneId.systemDefault())
@@ -166,11 +169,9 @@ object RingConnTelemetryReader {
         val hrDeferred = async {
             if (granted.contains(HealthPermission.getReadPermission(HeartRateRecord::class))) {
                 try {
-                    client.readRecords(
-                        ReadRecordsRequest(
-                            recordType = HeartRateRecord::class,
-                            timeRangeFilter = TimeRangeFilter.between(queryStart6h, now)
-                        )
+                    client.readAllPages(
+                        recordType = HeartRateRecord::class,
+                        timeRange = TimeRangeFilter.between(queryStart, now)
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed querying HeartRateRecord: ${e.message}")
@@ -198,11 +199,9 @@ object RingConnTelemetryReader {
         val spo2Deferred = async {
             if (granted.contains(HealthPermission.getReadPermission(OxygenSaturationRecord::class))) {
                 try {
-                    client.readRecords(
-                        ReadRecordsRequest(
-                            recordType = OxygenSaturationRecord::class,
-                            timeRangeFilter = TimeRangeFilter.between(queryStart6h, now)
-                        )
+                    client.readAllPages(
+                        recordType = OxygenSaturationRecord::class,
+                        timeRange = TimeRangeFilter.between(queryStart, now)
                     )
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed querying OxygenSaturationRecord: ${e.message}")
@@ -300,12 +299,12 @@ object RingConnTelemetryReader {
         var latestHrvTimestamp = 0L
 
         // 1. Heart Rate
-        if (hrResponse != null) {
+        if (!hrResponse.isNullOrEmpty()) {
             // Strictly prioritize RingConn smart ring origin over Samsung Health / Watch PPG
-            val ringConnHr = hrResponse.records.filter {
+            val ringConnHr = hrResponse.filter {
                 it.metadata.dataOrigin.packageName == RINGCONN_PKG
             }
-            val effectiveHrRecords = ringConnHr.ifEmpty { hrResponse.records }
+            val effectiveHrRecords = ringConnHr.ifEmpty { hrResponse }
             if (ringConnHr.isNotEmpty()) {
                 hasRingConnOrigin = true
             }
@@ -326,7 +325,10 @@ object RingConnTelemetryReader {
                     avgBpm = todaySamples.map { it.first.beatsPerMinute.toInt() }.average().roundToInt()
                     minBpm = todaySamples.minOf { it.first.beatsPerMinute.toInt() }
                     maxBpm = todaySamples.maxOf { it.first.beatsPerMinute.toInt() }
-                    val sampleWindowMins = 5 // RingConn PPG samples in Health Connect span ~5 mins each
+                    // A count of samples is not a duration; the spacing belongs to
+                    // the source. Measure it, so a denser or sparser ring cannot
+                    // inflate or collapse the zone minutes.
+                    val sampleWindowMins = HealthSampleCadence.windowMinutes(todaySamples.map { it.first.time })
                     z1 = todaySamples.count { it.first.beatsPerMinute < 100 } * sampleWindowMins
                     z2 = todaySamples.count { it.first.beatsPerMinute in 100..120 } * sampleWindowMins
                     z3 = todaySamples.count { it.first.beatsPerMinute in 121..140 } * sampleWindowMins
@@ -356,11 +358,11 @@ object RingConnTelemetryReader {
         // 2. Oxygen Saturation (SpO2 - Prioritize RingConn origin)
         var lastSpo2 = 0
         var avgSpo2 = 0
-        if (spo2Response != null) {
-            val ringConnSpo2 = spo2Response.records.filter {
+        if (!spo2Response.isNullOrEmpty()) {
+            val ringConnSpo2 = spo2Response.filter {
                 it.metadata.dataOrigin.packageName == RINGCONN_PKG
             }
-            val effectiveSpo2 = ringConnSpo2.ifEmpty { spo2Response.records }
+            val effectiveSpo2 = ringConnSpo2.ifEmpty { spo2Response }
             val latestSpo2Record = effectiveSpo2.maxByOrNull { it.time }
             if (latestSpo2Record != null) {
                 val rawVal = latestSpo2Record.percentage.value
@@ -709,9 +711,9 @@ object RingConnTelemetryReader {
         val finalBedtimeWindow = computedBedtimeWindow.ifBlank { existing.bedtimeWindow }
 
         // 2. Nocturnal SpO2 & Apnea ODI (AHISpo2Data) — only when sleep concluded today
-        val effectiveSpo2Records = if (spo2Response != null) {
-            val ringSpo2 = spo2Response.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
-            ringSpo2.ifEmpty { spo2Response.records }
+        val effectiveSpo2Records = if (!spo2Response.isNullOrEmpty()) {
+            val ringSpo2 = spo2Response.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            ringSpo2.ifEmpty { spo2Response }
         } else emptyList()
 
         val hasTodaySleep = primarySleepSession != null || finalSleep > 0 || (finalDeep + finalRem + finalLight) > 0
@@ -742,17 +744,17 @@ object RingConnTelemetryReader {
             val effectiveHours = maxOf(1.0f, sleepDurationHours)
             val rawOdi = dropCount.toFloat() / effectiveHours
             computedOdi = (rawOdi * 10f).roundToInt() / 10f
-        } else if (hasTodaySleep) {
-            computedMinSleepingSpo2 = if (lastSpo2 > 0) lastSpo2 else finalSpo2
         }
+        // No nocturnal samples means no nocturnal minimum. A daytime reading is
+        // not a substitute: the card shows "--" instead of a plausible lie.
         val finalMinSleepingSpo2 = if (computedMinSleepingSpo2 > 0) computedMinSleepingSpo2 else existing.minSleepingSpo2
         val finalOdi = if (computedOdi > 0f) computedOdi else existing.odiDropsPerHour
 
         // 3. Nocturnal Heart Rate Dip (CalSleepHeartRateData) — only when sleep concluded today
         var computedSleepingHrDipPct = 0.0f
-        val effectiveHrRecords = if (hrResponse != null) {
-            val ringHr = hrResponse.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
-            ringHr.ifEmpty { hrResponse.records }
+        val effectiveHrRecords = if (!hrResponse.isNullOrEmpty()) {
+            val ringHr = hrResponse.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
+            ringHr.ifEmpty { hrResponse }
         } else emptyList()
 
         val allHrSamples = effectiveHrRecords.flatMap { it.samples }
@@ -760,8 +762,14 @@ object RingConnTelemetryReader {
             val sleepHrSamples = allHrSamples.filter {
                 it.time >= primarySleepSession.startTime && it.time <= primarySleepSession.endTime
             }
+            // Compare the evening before bed and the morning after it, not every
+            // sample the two-day window can see: an unbounded "awake" mean would
+            // be yesterday's whole day and flatten the dip.
+            val dipWindowStart = primarySleepSession.startTime.minus(Duration.ofHours(3))
+            val dipWindowEnd = primarySleepSession.endTime.plus(Duration.ofHours(3))
             val awakeHrSamples = allHrSamples.filter {
-                it.time < primarySleepSession.startTime || it.time > primarySleepSession.endTime
+                (it.time >= dipWindowStart && it.time < primarySleepSession.startTime) ||
+                    (it.time > primarySleepSession.endTime && it.time <= dipWindowEnd)
             }
             if (sleepHrSamples.isNotEmpty() && awakeHrSamples.isNotEmpty()) {
                 val sleepMeanHr = sleepHrSamples.map { it.beatsPerMinute.toDouble() }.average()
@@ -920,8 +928,8 @@ object RingConnTelemetryReader {
             sleepRemMins = finalRem,
             sleepLightMins = finalLight,
             sleepAwakeMins = finalAwake,
-            skinTempOffset = existing.skinTempOffset,
-            skinTempBaseline = existing.skinTempBaseline,
+            skinTempOffset = SkinTemperatureGuard.sanitizeOffset(existing.skinTempOffset),
+            skinTempBaseline = SkinTemperatureGuard.sanitizeBaseline(existing.skinTempBaseline),
             sleepInsight = existing.sleepInsight,
             stressInsight = existing.stressInsight,
             activityInsight = existing.activityInsight,
@@ -1181,11 +1189,14 @@ object RingConnTelemetryReader {
             val finalSleepScore = if (effectiveWidgetSleepScore > 0) effectiveWidgetSleepScore else (hcVitals?.sleepScore?.takeIf { it > 0 } ?: cached.sleepScore)
             val finalStressScore = if (widgetVitals.stressScore > 0) widgetVitals.stressScore else (hcVitals?.stressScore?.takeIf { it > 0 } ?: cached.stressScore)
 
-            val mergedTempOffset = if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset
-            var mergedTempBaseline = if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
-            if (mergedTempOffset != 0.0f && mergedTempBaseline == 0.0f) {
-                mergedTempBaseline = 36.5f
-            }
+            // A stale or misparsed reading must not outlive the guard, and the
+            // baseline is never invented: unknown stays unknown.
+            val mergedTempOffset = SkinTemperatureGuard.sanitizeOffset(
+                if (widgetVitals.skinTempOffset != 0.0f) widgetVitals.skinTempOffset else cached.skinTempOffset
+            )
+            val mergedTempBaseline = SkinTemperatureGuard.sanitizeBaseline(
+                if (widgetVitals.skinTempBaseline > 0f) widgetVitals.skinTempBaseline else cached.skinTempBaseline
+            )
 
             val mergedSleepInsight = if (isWidgetSleepStaleFromYesterday) cached.sleepInsight else widgetVitals.sleepInsight.ifBlank { cached.sleepInsight }
             val mergedStressInsight = widgetVitals.stressInsight.ifBlank { cached.stressInsight }
@@ -1404,8 +1415,9 @@ object RingConnTelemetryReader {
             putInt(KEY_SLEEP_REM_MINS, vitals.sleepRemMins)
             putInt(KEY_SLEEP_LIGHT_MINS, vitals.sleepLightMins)
             putInt(KEY_SLEEP_AWAKE_MINS, vitals.sleepAwakeMins)
-            putFloat(KEY_SKIN_TEMP_OFFSET, vitals.skinTempOffset)
-            putFloat(KEY_SKIN_TEMP_BASELINE, vitals.skinTempBaseline)
+            // A bad scrape must not become a stored reading.
+            putFloat(KEY_SKIN_TEMP_OFFSET, SkinTemperatureGuard.sanitizeOffset(vitals.skinTempOffset))
+            putFloat(KEY_SKIN_TEMP_BASELINE, SkinTemperatureGuard.sanitizeBaseline(vitals.skinTempBaseline))
             putString(KEY_SLEEP_INSIGHT, vitals.sleepInsight.ifBlank { prefs.getString(KEY_SLEEP_INSIGHT, "") ?: "" })
             putString(KEY_STRESS_INSIGHT, vitals.stressInsight.ifBlank { prefs.getString(KEY_STRESS_INSIGHT, "") ?: "" })
             putString(KEY_ACTIVITY_INSIGHT, vitals.activityInsight.ifBlank { prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "" })
@@ -1465,8 +1477,8 @@ object RingConnTelemetryReader {
             sleepRemMins = prefs.getInt(KEY_SLEEP_REM_MINS, 0),
             sleepLightMins = prefs.getInt(KEY_SLEEP_LIGHT_MINS, 0),
             sleepAwakeMins = prefs.getInt(KEY_SLEEP_AWAKE_MINS, 0),
-            skinTempOffset = prefs.getFloat(KEY_SKIN_TEMP_OFFSET, 0.0f),
-            skinTempBaseline = prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 0.0f),
+            skinTempOffset = SkinTemperatureGuard.sanitizeOffset(prefs.getFloat(KEY_SKIN_TEMP_OFFSET, 0.0f)),
+            skinTempBaseline = SkinTemperatureGuard.sanitizeBaseline(prefs.getFloat(KEY_SKIN_TEMP_BASELINE, 0.0f)),
             sleepInsight = prefs.getString(KEY_SLEEP_INSIGHT, "") ?: "",
             stressInsight = prefs.getString(KEY_STRESS_INSIGHT, "") ?: "",
             activityInsight = prefs.getString(KEY_ACTIVITY_INSIGHT, "") ?: "",
@@ -1493,4 +1505,25 @@ object RingConnTelemetryReader {
 
     fun readFromPreferences(prefs: SharedPreferences): RingConnVitals = parseFromPreferences(prefs)
     fun readFromPreferences(context: Context): RingConnVitals = parseFromPreferences(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
+}
+
+/**
+ * Every page of a Health Connect read.
+ *
+ * The platform answers with a cursor once its page size is exhausted, so
+ * following the cursor is what makes a two-day window complete instead of
+ * silently truncated — a lost page and a quiet night look identical downstream.
+ */
+private suspend fun <T : Record> HealthConnectClient.readAllPages(
+    recordType: KClass<T>,
+    timeRange: TimeRangeFilter
+): List<T> = PagedRead.collect { pageToken ->
+    val page = readRecords(
+        ReadRecordsRequest(
+            recordType = recordType,
+            timeRangeFilter = timeRange,
+            pageToken = pageToken
+        )
+    )
+    Page(page.records, page.pageToken)
 }

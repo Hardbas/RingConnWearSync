@@ -22,7 +22,6 @@ object RingConnTelemetryParser {
     private val COMPOSITE_ACT_REGEX = Regex("""(?i)^(?:activity|actividad)\s+(\d{1,3})$""")
     private val COMPOSITE_STRESS_REGEX = Regex("""(?i)^(?:stress|estrés|estres)\s+(\d{1,3})$""")
     private val COMPOSITE_BAT_REGEX = Regex("""(?i)^(?:battery|batería|bateria)\s+(?:%)?(\d{1,3})(?:%)?$""")
-    private val SIGNED_TEMP_OFFSET_REGEX = Regex("""(?i)^([+-]?\d{1,2}(?:[.,]\d{1,2})?)\s*°?\s*C?$""")
     private val BASELINE_TEMP_REGEX = Regex("""(?i)\b(3[4-9](?:[.,]\d{1,2})?|40(?:[.,]0)?)\s*°?\s*C?\b""")
     private val REM_REGEX = Regex("""(?i)\brem\b""")
 
@@ -53,8 +52,10 @@ object RingConnTelemetryParser {
         var liveCalorie = baseVitals.liveCalorie
         var targetCalorie = baseVitals.targetCalorie
         var ringBattery = baseVitals.ringBattery
-        var skinTempOffset = baseVitals.skinTempOffset
-        var skinTempBaseline = baseVitals.skinTempBaseline
+        // A value stored before this guard existed may be garbage: start from a
+        // sanitised copy so one bad scrape cannot survive every later parse.
+        var skinTempOffset = SkinTemperatureGuard.sanitizeOffset(baseVitals.skinTempOffset)
+        var skinTempBaseline = SkinTemperatureGuard.sanitizeBaseline(baseVitals.skinTempBaseline)
         var sleepInsight = baseVitals.sleepInsight
         var stressInsight = baseVitals.stressInsight
         var activityInsight = baseVitals.activityInsight
@@ -359,22 +360,13 @@ object RingConnTelemetryParser {
                     cleanTokens.getOrNull(i - 1)
                 )
                 for (cand in candidates) {
-                    if (cand != "--") {
-                        SIGNED_TEMP_OFFSET_REGEX.find(cand)?.let {
-                            it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { offsetVal ->
-                                if (offsetVal in -5.0f..5.0f) skinTempOffset = offsetVal
-                            }
-                        }
-                    }
+                    SkinTemperatureGuard.offsetFrom(cand)?.let { skinTempOffset = it }
                 }
             }
 
-            // Standalone signed temperature offset (e.g. "+0.2°C", "-0.1°C", "+0,2 °C", "-0,1 °C")
-            SIGNED_TEMP_OFFSET_REGEX.find(token)?.let {
-                it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { offsetVal ->
-                    if (offsetVal in -5.0f..5.0f) skinTempOffset = offsetVal
-                }
-            }
+            // Standalone temperature offset (e.g. "+0.2°C", "-0.1°C", "+0,2 °C").
+            // A bare integer is rejected: it is a step count far more often.
+            SkinTemperatureGuard.offsetFrom(token)?.let { skinTempOffset = it }
 
             // Baseline temperature (e.g. "Baseline 36.1°C", "Línea base 36.1°C", "Línea base: 36,4 °C")
             if (lower == "baseline" || lower == "línea base" || lower == "linea base" || lower.contains("base")) {
@@ -386,7 +378,7 @@ object RingConnTelemetryParser {
                 for (cand in candidates) {
                     BASELINE_TEMP_REGEX.find(cand)?.let {
                         it.groupValues[1].replace(',', '.').toFloatOrNull()?.let { baseVal ->
-                            if (baseVal in 34.0f..40.0f) skinTempBaseline = baseVal
+                            if (SkinTemperatureGuard.isPlausibleBaseline(baseVal)) skinTempBaseline = baseVal
                         }
                     }
                 }
@@ -410,7 +402,7 @@ object RingConnTelemetryParser {
         // Full text match for Baseline
         Regex("""(?i)\b(?:baseline|línea\s*base|linea\s*base)\s*:?\s*(3[4-9]\.\d{1,2}|40\.0)\s*°?C?\b""").find(fullText)?.let {
             it.groupValues[1].toFloatOrNull()?.let { baseVal ->
-                if (baseVal in 34.0f..40.0f) skinTempBaseline = baseVal
+                if (SkinTemperatureGuard.isPlausibleBaseline(baseVal)) skinTempBaseline = baseVal
             }
         }
 
@@ -445,9 +437,8 @@ object RingConnTelemetryParser {
         if (avgSpo2 == 0) avgSpo2 = lastSpo2
         if (avgHrv == 0) avgHrv = lastHrv
 
-        if (skinTempOffset != 0.0f && skinTempBaseline == 0.0f) {
-            skinTempBaseline = 36.5f
-        }
+        // No invented baseline: when the widget does not print one, the baseline
+        // stays unknown instead of becoming 36.5 °C out of thin air.
 
         val result = baseVitals.copy(
             lastHeartRate = lastHr,

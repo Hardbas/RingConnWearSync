@@ -48,11 +48,31 @@ class RingConnVitalsMergeTest {
     }
 
     @Test
-    fun parser_honestBaselineDefaultsTo36_5WhenOffsetScraped() {
+    fun parser_leavesBaselineUnknownWhenOnlyOffsetIsScraped() {
+        // No invented baseline: an offset without a printed baseline means the
+        // baseline is unknown, not 36.5 °C.
         val tokens = listOf("Skin Temperature", "+0.3°C")
         val parsed = RingConnTelemetryParser.parseTokens(tokens, RingConnVitals())
         assertEquals(0.3f, parsed.skinTempOffset, 0.01f)
-        assertEquals(36.5f, parsed.skinTempBaseline, 0.01f)
+        assertEquals(0.0f, parsed.skinTempBaseline, 0.01f)
+    }
+
+    @Test
+    fun parser_doesNotTurnABareIntegerIntoATemperatureOffset() {
+        // The widget emits step counts and scores as bare numbers; a `4` there is
+        // not a four degree fever.
+        val tokens = listOf("Steps", "1453", "Sleep", "68", "4")
+        val parsed = RingConnTelemetryParser.parseTokens(tokens, RingConnVitals())
+        assertEquals(0.0f, parsed.skinTempOffset, 0.01f)
+    }
+
+    @Test
+    fun parser_discardsAnImplausibleCachedOffset() {
+        // A value persisted before the guard existed must not survive a parse.
+        val cached = RingConnVitals(skinTempOffset = 4.0f, skinTempBaseline = 35.94f)
+        val parsed = RingConnTelemetryParser.parseTokens(listOf("Sleep", "68"), cached)
+        assertEquals(0.0f, parsed.skinTempOffset, 0.01f)
+        assertEquals(35.94f, parsed.skinTempBaseline, 0.01f)
     }
 
     @Test
@@ -71,11 +91,11 @@ class RingConnVitalsMergeTest {
         assertEquals(0.2f, parsed1.skinTempOffset, 0.01f)
         assertEquals(36.4f, parsed1.skinTempBaseline, 0.01f)
 
-        // Negative offset with comma and cutánea
+        // Negative offset with comma and cutánea; the baseline stays unknown.
         val tokensEs2 = listOf("Temperatura cutánea", "-0,4 °C")
         val parsed2 = RingConnTelemetryParser.parseTokens(tokensEs2, RingConnVitals())
         assertEquals(-0.4f, parsed2.skinTempOffset, 0.01f)
-        assertEquals(36.5f, parsed2.skinTempBaseline, 0.01f)
+        assertEquals(0.0f, parsed2.skinTempBaseline, 0.01f)
     }
 
     @Test
