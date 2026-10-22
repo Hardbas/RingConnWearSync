@@ -103,6 +103,44 @@ object TileAmbient {
             .build()
 
     /**
+     * The shooting star: a streak that crosses the face and starts over, the one
+     * piece of the design's sleep backdrop that is expressible as a single
+     * animator.
+     */
+    fun meteor(
+        resourceId: String,
+        accent: Int,
+        travelDp: Float,
+        opacity: Float,
+        widthDp: Float = 64f,
+        heightDp: Float = 40f,
+        durationMs: Long = TileMotion.METEOR_MS
+    ): LayoutElementBuilders.Image =
+        image(resourceId, accent, widthDp, heightDp, opacity)
+            .setModifiers(
+                ModifiersBuilders.Modifiers.Builder()
+                    .setOpacity(TypeBuilders.FloatProp.Builder(opacity).build())
+                    .setTransformation(
+                        ModifiersBuilders.Transformation.Builder()
+                            .setTranslationX(
+                                DimensionBuilders.DpProp.Builder(-travelDp / 2f)
+                                    .setDynamicValue(
+                                        DynamicBuilders.DynamicFloat.animate(
+                                            -travelDp / 2f,
+                                            travelDp / 2f,
+                                            TileMotion.meteor(durationMs)
+                                        )
+                                    )
+                                    .build()
+                            )
+                            .setTranslationY(dp(-34f))
+                            .build()
+                    )
+                    .build()
+            )
+            .build()
+
+    /**
      * A thin arc that scans the whole dial and starts over: the closest a tile can
      * get to the design's rotating conic gradient.
      */

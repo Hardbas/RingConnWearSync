@@ -168,12 +168,11 @@ class SleepTileService : TileService() {
                     // ring, the tile's second animator. The first is the rim breath.
                     if (!stale) {
                         add(
-                            TileAmbient.drifting(
-                                resourceId = TileResources.GLOW,
-                                accent = TileAccents.sleep.first(),
-                                sizeDp = 130f,
-                                opacity = 0.50f,
-                                travelDp = 70f
+                            TileAmbient.meteor(
+                                resourceId = TileResources.METEOR,
+                                accent = TileAccents.sleepLabel,
+                                travelDp = 130f,
+                                opacity = 0.75f
                             )
                         )
                     }

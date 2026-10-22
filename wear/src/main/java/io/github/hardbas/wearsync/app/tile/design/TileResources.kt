@@ -36,6 +36,9 @@ object TileResources {
     /** The cardiogram strip the pulse tile scrolls behind its dial. */
     const val ECG = "tile_ecg"
 
+    /** The shooting star of the sleep tile. */
+    const val METEOR = "tile_meteor"
+
     private val shared: List<Pair<String, Int>> = listOf(
         GLOW to R.drawable.tile_warm_glow,
         TICKS_R84 to R.drawable.tile_ticks_r84,
@@ -44,7 +47,8 @@ object TileResources {
         TICKS_STRESS to R.drawable.tile_ticks_stress,
         STARS to R.drawable.tile_stars,
         MOON to R.drawable.tile_moon_badge,
-        ECG to R.drawable.tile_ecg
+        ECG to R.drawable.tile_ecg,
+        METEOR to R.drawable.tile_meteor
     )
 
     /** Everything the warm dial needs, on top of whatever a tile adds itself. */

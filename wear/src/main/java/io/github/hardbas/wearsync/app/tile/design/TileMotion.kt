@@ -45,6 +45,9 @@ object TileMotion {
     /** One pass of a scanning arc (vitals, steps). */
     const val SCAN_MS = 4200L
 
+    /** One shooting star across the sleep face, straight from the design's 7s cycle. */
+    const val METEOR_MS = 7000L
+
     /** Slow breath of a radial glow. */
     const val PULSE_MS = 7000L
 
@@ -58,6 +61,10 @@ object TileMotion {
     /** Backdrop travel that goes back and forth, so nothing ever snaps. */
     fun drift(durationMs: Long = DRIFT_MS): AnimationParameterBuilders.AnimationSpec =
         loop(durationMs, EASING)
+
+    /** A streak that crosses the face and starts over. */
+    fun meteor(durationMs: Long = METEOR_MS): AnimationParameterBuilders.AnimationSpec =
+        restart(durationMs)
 
     /** An arc that sweeps and starts over. */
     fun scan(durationMs: Long = SCAN_MS): AnimationParameterBuilders.AnimationSpec =

@@ -118,7 +118,7 @@ class SleepTileContractTest {
     // ---- motion ---------------------------------------------------------
 
     @Test
-    fun `live tile spends its two loops on the rim breath and the drifting body`() {
+    fun `live tile spends its two loops on the rim breath and the shooting star`() {
         val specs = TileTestKit.animators(liveRoot)
         assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
         assertTrue("both animators loop for ever", specs.all(TileTestKit::loopsForever))
@@ -128,9 +128,9 @@ class SleepTileContractTest {
             specs.count { TileTestKit.durationMs(it) == TileMotion.AMBIENT_MS }
         )
         assertEquals(
-            "the violet body drifts slowly",
+            "and the shooting star crosses on its own cycle",
             1,
-            specs.count { TileTestKit.durationMs(it) == TileMotion.DRIFT_MS }
+            specs.count { TileTestKit.durationMs(it) == TileMotion.METEOR_MS }
         )
     }
 
