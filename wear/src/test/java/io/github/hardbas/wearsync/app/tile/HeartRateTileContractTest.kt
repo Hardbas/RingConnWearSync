@@ -125,8 +125,13 @@ class HeartRateTileContractTest {
         assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("PULSE") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
-        val value = TileTestKit.arcLines(root)[2]
+        // No halo in the stale frame, so the value arc sits right after the track.
+        val value = TileTestKit.arcLines(root)[1]
         assertEquals(TileAccents.dim(TileAccents.heartRate).last(), value.color?.argb)
+        assertTrue(
+            "a stale tile is a still frame: no entrance and no halo",
+            TileTestKit.animators(root).isEmpty()
+        )
     }
 
     // ---- fit ------------------------------------------------------------

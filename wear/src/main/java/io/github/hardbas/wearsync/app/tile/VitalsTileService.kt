@@ -101,7 +101,9 @@ class VitalsTileService : TileService() {
                     add(
                         TileDial.rings(
                             outer = Ring(spo2Ramp, spo2Fraction, TileGeometry.RING_RADIUS, TileGeometry.RING_THICKNESS),
-                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS)
+                            inner = Ring(batteryRamp, batteryFraction, TileGeometry.RING_INNER_RADIUS, TileGeometry.RING_THICKNESS),
+                            halo = !stale,
+                            entrance = !stale
                         )
                     )
                 }

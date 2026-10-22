@@ -98,7 +98,17 @@ class HeartRateTileService : TileService() {
                 add(TileDial.track(accent))
                 add(TileShell.overlay(TileResources.TICKS_R84))
                 if (hasHr) {
-                    add(TileDial.value(ramp, fraction, pearlColor = TileAccents.heartRateLabel))
+                    // A live dial settles in and breathes; a stale one is a still
+                    // frame, exactly like the design's `animation: none`.
+                    add(
+                        TileDial.value(
+                            accent = ramp,
+                            fraction = fraction,
+                            pearlColor = TileAccents.heartRateLabel,
+                            halo = !stale,
+                            entrance = !stale
+                        )
+                    )
                 }
             }
 

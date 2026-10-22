@@ -152,7 +152,12 @@ class StressTileContractTest {
         assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
-        assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[1].color?.argb)
+        // No halo in the stale frame, so the spectrum is the first arc line.
+        assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[0].color?.argb)
+        assertTrue(
+            "a stale tile is a still frame: no entrance and no halo",
+            TileTestKit.animators(root).isEmpty()
+        )
     }
 
     // ---- fit ------------------------------------------------------------

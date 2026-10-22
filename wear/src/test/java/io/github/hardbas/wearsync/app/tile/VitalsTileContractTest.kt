@@ -130,8 +130,13 @@ class VitalsTileContractTest {
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("VITALS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
         val lines = TileTestKit.arcLines(root)
-        assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[3].color?.argb)
-        assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[4].color?.argb)
+        // Two tracks then two rings: a stale frame carries no halo line.
+        assertEquals(TileAccents.dim(TileAccents.spo2).last(), lines[2].color?.argb)
+        assertEquals(TileAccents.dim(TileAccents.battery).last(), lines[3].color?.argb)
+        assertTrue(
+            "a stale tile is a still frame: no entrance and no halo",
+            TileTestKit.animators(root).isEmpty()
+        )
     }
 
     // ---- fit ------------------------------------------------------------
