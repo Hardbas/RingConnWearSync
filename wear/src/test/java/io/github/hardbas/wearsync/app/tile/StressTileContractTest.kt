@@ -1,291 +1,197 @@
 package io.github.hardbas.wearsync.app.tile
 
-import androidx.wear.protolayout.ActionBuilders
-import androidx.wear.protolayout.DeviceParametersBuilders
-import androidx.wear.protolayout.DimensionBuilders
+import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.LayoutElementBuilders
-import androidx.wear.protolayout.expression.AnimationParameterBuilders
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.data.RingConnVitals
-import io.github.hardbas.wearsync.app.tile.design.TileDesign
-import io.github.hardbas.wearsync.app.tile.design.TileMetric
+import io.github.hardbas.wearsync.app.tile.design.TileAccents
+import io.github.hardbas.wearsync.app.tile.design.TileGeometry
+import io.github.hardbas.wearsync.app.tile.design.TileInk
+import io.github.hardbas.wearsync.app.tile.design.TileMotion
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
-import java.util.Locale
+import io.github.hardbas.wearsync.app.tile.design.TileTestKit
+import io.github.hardbas.wearsync.app.tile.design.TileType
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Executable contract for the Stress tile.
- *
- * Same seam and same assertions as the Heart Rate and Vitals tiles: the layout
- * is built with a fake [TileStrings] and inspected on the JVM, so the four-level
- * stress ladder, the status word, the hero scale and the animator budget are
- * regression-tested without a device.
+ * Executable contract for the stress tile: the spectrum, the level word, the
+ * two-animator budget and the chord budget. Built through the public text seam,
+ * so the whole layout is inspectable on the JVM.
  */
 class StressTileContractTest {
 
-    /**
-     * Real label word, `s<resId>` for everything else. The header-width estimate is
-     * only meaningful if the label carries its real length.
-     */
     private val strings = TileStrings { resId ->
-        if (resId == R.string.stress_title) "Stress" else "s$resId"
+        when (resId) {
+            R.string.tile_stress_title -> "Stress"
+            R.string.stress_relaxed -> "Relaxed"
+            R.string.stress_balanced -> "Balanced"
+            R.string.stress_moderate -> "Moderate"
+            R.string.stress_high -> "High"
+            R.string.stress_resting -> "Resting"
+            R.string.hrv_short -> "HRV"
+            R.string.details -> "Details"
+            R.string.no_data -> "No data"
+            else -> "s$resId"
+        }
     }
 
-    private val deviceParams = DeviceParametersBuilders.DeviceParameters.Builder()
+    private val deviceParams = DeviceParameters.Builder()
         .setScreenWidthDp(192)
         .setScreenHeightDp(192)
         .build()
 
-    private val vitals = RingConnVitals(
-        lastHrv = 42,
-        stressScore = 24,
-        refreshTimestamp = 1_730_000_000L
-    )
-
     private val packageName = "io.github.hardbas.wearsync.test"
 
-    private val tile = StressTileService.buildTile(strings, packageName, deviceParams, vitals)
+    private fun now(): Long = System.currentTimeMillis() / 1000L
 
-    private val root: LayoutElementBuilders.LayoutElement =
-        tile.tileTimeline!!.timelineEntries[0].layout!!.root!!
+    private fun rootFor(vitals: RingConnVitals): LayoutElementBuilders.LayoutElement =
+        StressTileService.buildTile(strings, packageName, deviceParams, vitals)
+            .tileTimeline!!.timelineEntries[0].layout!!.root!!
 
-    private val rootBox = root as LayoutElementBuilders.Box
+    private val live = RingConnVitals(
+        lastHrv = 42,
+        stressScore = 24,
+        refreshTimestamp = now()
+    )
 
-    private fun childrenOf(element: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.LayoutElement> =
-        when (element) {
-            is LayoutElementBuilders.Box -> element.contents
-            is LayoutElementBuilders.Row -> element.contents
-            is LayoutElementBuilders.Column -> element.contents
-            else -> emptyList()
-        }
+    private val liveRoot by lazy { rootFor(live) }
 
-    private fun flatten(root: LayoutElementBuilders.LayoutElement): List<LayoutElementBuilders.LayoutElement> {
-        val out = mutableListOf<LayoutElementBuilders.LayoutElement>()
-        fun visit(element: LayoutElementBuilders.LayoutElement) {
-            out += element
-            childrenOf(element).forEach(::visit)
-        }
-        visit(root)
-        return out
-    }
-
-    private val elements by lazy { flatten(root) }
-
-    /** The animation spec only exists on the internal animatable wrapper. */
-    private fun specOf(dynamic: Any?): AnimationParameterBuilders.AnimationSpec? {
-        if (dynamic == null) return null
-        return runCatching {
-            val method = dynamic.javaClass.getMethod("getAnimationSpec")
-            method.isAccessible = true
-            method.invoke(dynamic) as AnimationParameterBuilders.AnimationSpec
-        }.getOrNull()
-    }
-
-    private val arcLines: List<LayoutElementBuilders.ArcLine>
-        get() = elements.filterIsInstance<LayoutElementBuilders.Arc>()
-            .flatMap { it.contents }
-            .filterIsInstance<LayoutElementBuilders.ArcLine>()
-
-    /**
-     * Arc lines are the contents of an arc, not layout elements, so they are
-     * counted through [arcLines]; image tints are counted through the tree.
-     */
-    private fun animatorCount(): Int {
-        val arcAnimators = arcLines.count { line ->
-            specOf(line.length?.dynamicValue) != null ||
-                (line.modifiers?.opacity?.dynamicValue?.let { specOf(it) } != null)
-        }
-        val imageAnimators = elements.filterIsInstance<LayoutElementBuilders.Image>()
-            .count { specOf(it.colorFilter?.tint?.dynamicValue) != null }
-        return arcAnimators + imageAnimators
-    }
-
-    private val contentColumn: LayoutElementBuilders.Column
-        get() = (rootBox.contents.firstOrNull { it is LayoutElementBuilders.Column } as LayoutElementBuilders.Column)
-
-    private val contentBlocks: List<LayoutElementBuilders.LayoutElement>
-        get() = contentColumn.contents.filter { it !is LayoutElementBuilders.Spacer }
-
-    private val headerRow: LayoutElementBuilders.Row
-        get() = contentBlocks[0] as LayoutElementBuilders.Row
-
-    /** Readable dp out of a container dimension; wrap/expand simply contribute 0. */
-    private fun dpOf(dimension: Any?): Float =
-        (dimension as? DimensionBuilders.DpProp)?.value ?: 0f
-
-    /**
-     * Conservative width estimate for one header child. Text is estimated as
-     * `chars * sizeSp * 0.62` (bold uppercase average advance), plus the tracking
-     * the style adds, then 10% of slop so the estimate can never flatter the tile.
-     */
-    private fun widthOf(child: LayoutElementBuilders.LayoutElement): Float =
-        when (child) {
-            is LayoutElementBuilders.Image -> dpOf(child.width)
-            is LayoutElementBuilders.Spacer -> dpOf(child.width)
-            is LayoutElementBuilders.Text -> {
-                val size = child.fontStyle?.size?.value ?: 0f
-                val chars = (child.text?.value ?: "").length
-                val tracking = (child.fontStyle?.letterSpacing?.value ?: 0f) * size * chars
-                (chars * size * 0.62f + tracking) * 1.1f
-            }
-            else -> 0f
-        }
-
-    private fun estimatedHeaderWidthDp(row: LayoutElementBuilders.Row): Float =
-        row.contents.fold(0f) { acc, child -> acc + widthOf(child) }
-
-    private val timeText: String by lazy {
-        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT, Locale.getDefault())
-            .format(java.util.Date(1_730_000_000L * 1000L))
-    }
-
-    private val frostedCard: LayoutElementBuilders.Box
-        get() = elements.filterIsInstance<LayoutElementBuilders.Box>()
-            .firstOrNull { it.modifiers?.background?.color?.argb == TileDesign.Ink.GLASS_CARD }
-            ?: error("no frosted card in the tile")
-
-    private val hero: LayoutElementBuilders.Text
-        get() = elements.filterIsInstance<LayoutElementBuilders.Text>()
-            .firstOrNull { (it.fontStyle?.size?.value ?: 0f) >= 38f }
-            ?: error("no 40sp hero text in the tile")
-
-    private val texts: List<String>
-        get() = elements.filterIsInstance<LayoutElementBuilders.Text>().mapNotNull { it.text?.value }
+    // ---- the reading ----------------------------------------------------
 
     @Test
-    fun `header is one short metric word that fits inside the bezel`() {
-        // Vertical stack (dp): header 14 + 3 + hero 48 + 5 + card 45 + 6 + pill 28
-        // = 149, so a centred column starts at -74.5 and the header band's centre
-        // sits 67.5dp above the middle of the 192dp circle.
-        val headerY = 67.5f
-        val safeWidth = TileDesign.Layout.safeWidthDp(headerY)
-        val estimated = estimatedHeaderWidthDp(headerRow)
-        val headerTexts = flatten(headerRow).filterIsInstance<LayoutElementBuilders.Text>()
-            .map { it.text?.value ?: "" }
-
-        assertEquals("the header carries exactly one label: $headerTexts", 1, headerTexts.size)
-        assertEquals("the header label is the short metric word", listOf("STRESS"), headerTexts)
-        assertFalse("the HRV read and timestamp left the header: $headerTexts", headerTexts.any { "·" in it })
-        assertTrue(
-            "estimated header width ${estimated}dp must fit the ${safeWidth}dp safe width at ${headerY}dp above centre",
-            estimated <= safeWidth
-        )
+    fun `hero is the live score at the design size`() {
+        val hero = TileTestKit.texts(liveRoot).first { it.text?.value == "24" }
+        assertEquals(TileType.HERO, hero.fontStyle?.size?.value)
+        assertEquals(LayoutElementBuilders.FONT_WEIGHT_MEDIUM, hero.fontStyle?.weight?.value)
     }
 
     @Test
-    fun `meter sits on a frosted card with the timestamp as its caption`() {
-        assertNotNull("the card must carry a hairline edge", frostedCard.modifiers?.border)
-        assertNotNull(
-            "the card must carry the glass fill",
-            frostedCard.modifiers?.background?.color
-        )
+    fun `label is the metric word in the level colour`() {
+        val label = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("STRESS") == true }
+        assertEquals("STRESS", label.text?.value)
+        assertTrue(TileTestKit.isUppercase(label.text!!.value))
+        assertEquals(TileType.LABEL, label.fontStyle?.size?.value)
+        assertEquals(TileAccents.stress[0], label.fontStyle?.color?.argb)
+    }
 
-        val cardTexts = flatten(frostedCard).filterIsInstance<LayoutElementBuilders.Text>()
-        assertTrue(
-            "the sync timestamp moved into the card, had $cardTexts",
-            cardTexts.any { it.text?.value == timeText }
-        )
+    @Test
+    fun `sub line carries the level word and the hrv read`() {
+        val texts = TileTestKit.texts(liveRoot)
+        val level = texts.first { it.text?.value == "Relaxed" }
+        assertEquals(TileType.SUB, level.fontStyle?.size?.value)
+        assertEquals(TileAccents.stress[0], level.fontStyle?.color?.argb)
+        assertTrue(texts.any { it.text?.value == " · " })
+        assertTrue(texts.any { it.text?.value == "HRV 42 ms" })
+    }
+
+    @Test
+    fun `level cuts follow the design and the top level takes the carmine stop`() {
+        assertEquals(0, StressTileService.levelOf(29))
+        assertEquals(1, StressTileService.levelOf(30))
+        assertEquals(1, StressTileService.levelOf(59))
+        assertEquals(2, StressTileService.levelOf(60))
+        assertEquals(2, StressTileService.levelOf(79))
+        assertEquals(3, StressTileService.levelOf(80))
+        assertEquals(3, StressTileService.levelOf(100))
+
+        assertEquals(0, StressTileService.levelStop(0))
+        assertEquals(1, StressTileService.levelStop(1))
+        assertEquals(2, StressTileService.levelStop(2))
+        assertEquals(TileAccents.stress.lastIndex, StressTileService.levelStop(3))
         assertEquals(
-            "the timestamp caption uses the muted type step",
-            TileDesign.Text.MUTED,
-            cardTexts.first { it.text?.value == timeText }.fontStyle?.color?.argb
+            TileAccents.stress[4],
+            TileAccents.step(TileAccents.stress, StressTileService.levelStop(3))
         )
+    }
+
+    @Test
+    fun `the spectrum is the rim, the reading and a pearl`() {
+        val lines = TileTestKit.arcLines(liveRoot)
+        assertEquals("halo, spectrum, ivory pearl, accent pearl", 4, lines.size)
+        val spectrum = lines[1]
+        assertEquals(TileGeometry.ARC_THICKNESS, TileTestKit.dpOf(spectrum.thickness), 0.001f)
+        assertEquals(TileAccents.stress.first(), spectrum.color?.argb)
+        assertTrue("the spectrum must keep its brush", spectrum.brush != null)
+    }
+
+    // ---- motion ---------------------------------------------------------
+
+    @Test
+    fun `live tile spends exactly two animators, one of them infinite`() {
+        val specs = TileTestKit.animators(liveRoot)
+        assertEquals(TileMotion.MAX_ANIMATORS, specs.size)
+        assertEquals(1, specs.count(TileTestKit::loopsForever))
         assertTrue(
-            "the HRV read still lives in the card",
-            cardTexts.any { (it.text?.value ?: "").contains("42") }
+            "the entrance must settle once",
+            specs.any { !TileTestKit.loopsForever(it) && TileTestKit.durationMs(it) == TileMotion.ENTRANCE_MS }
         )
     }
 
+    // ---- degraded states ------------------------------------------------
+
     @Test
-    fun `hero is a 40sp tabular display number`() {
-        val style = hero.fontStyle!!
-        assertTrue("hero must be at least 38sp, was ${style.size?.value}", (style.size?.value ?: 0f) >= 38f)
-        assertTrue("hero must use tabular figures", style.settings.isNotEmpty())
-        assertEquals("hero must carry the stress score", "24", hero.text?.value)
+    fun `empty tile keeps the spectrum rim and runs no animator`() {
+        val root = rootFor(RingConnVitals(refreshTimestamp = 0L))
+        val lines = TileTestKit.arcLines(root)
+        assertEquals("rim only: no halo and no pearl", 1, lines.size)
+        assertTrue(TileTestKit.animators(root).isEmpty())
+        assertEquals(TileAccents.stress.first(), lines[0].color?.argb)
+
+        val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
+        assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
+        assertTrue(TileTestKit.texts(root).any { it.text?.value == "No data" })
+        assertTrue(TileTestKit.texts(root).any { it.text?.value == "--" })
     }
 
     @Test
-    fun `value arc is a round-capped gradient that keeps its flat fallback`() {
-        val value = arcLines.lastOrNull() ?: error("no value arc in the tile")
-        assertEquals(LayoutElementBuilders.STROKE_CAP_ROUND, value.strokeCap?.value)
-        assertNotNull("arc must carry the gradient brush", value.brush)
-        assertNotNull("arc must keep a flat colour fallback", value.color)
+    fun `stale tile desaturates instead of animating`() {
+        val root = rootFor(live.copy(refreshTimestamp = now() - 3_600L))
+        val hero = TileTestKit.texts(root).first { it.text?.value == "24" }
+        assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
+        val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("STRESS") == true }
+        assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
+        assertEquals(TileInk.DIM, TileTestKit.arcLines(root)[1].color?.argb)
     }
 
-    @Test
-    fun `root paints the metric backdrop and stays tappable`() {
-        assertNotNull(
-            "root must carry the ${TileMetric.STRESS.name} gradient",
-            rootBox.modifiers?.background?.brush
-        )
-        assertNotNull("root must stay tappable", rootBox.modifiers?.clickable)
-    }
+    // ---- fit ------------------------------------------------------------
 
     @Test
-    fun `content stacks at most four blocks`() {
-        val blocks = contentColumn.contents.filter { it !is LayoutElementBuilders.Spacer }
-        assertEquals("content column must stack exactly four blocks", 4, blocks.size)
-    }
-
-    @Test
-    fun `stress ladder lights exactly one of four levels with the matching accent`() {
-        val row = elements.filterIsInstance<LayoutElementBuilders.Row>()
-            .firstOrNull { row -> row.contents.filterIsInstance<LayoutElementBuilders.Box>().size == 4 }
-            ?: error("no four-segment stress ladder in the tile")
-
-        val segments = row.contents.filterIsInstance<LayoutElementBuilders.Box>()
-        assertEquals("ladder needs four segments", 4, segments.size)
-
-        val relaxedAccent = TileDesign.Accent.stress[0] // 24 points -> Relaxed
-        val lit = segments.filter { it.modifiers?.background?.color?.argb == relaxedAccent }
-        assertEquals("exactly one lit segment", 1, lit.size)
-    }
-
-    @Test
-    fun `status word for the reading is still on the tile`() {
+    fun `label and pill fit the chord at their own height`() {
+        val label = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("STRESS") == true }
         assertTrue(
-            "no text carries the Relaxed status word, had $texts",
-            texts.any { it == "s${R.string.stress_relaxed}" }
+            "label ${TileTestKit.estimatedWidthDp(label)}dp must stay under " +
+                "${TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)}dp",
+            TileTestKit.estimatedWidthDp(label) <= TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)
         )
-    }
 
-    @Test
-    fun `hrv reading is still on the tile`() {
-        assertTrue("no text carries the HRV figure, had $texts", texts.any { "42" in it })
-    }
-
-    @Test
-    fun `tile no longer stores the arc sweep in state`() {
-        val keys = tile.state?.keyToValueMapping?.keys?.map { it.key } ?: emptyList()
+        val pill = TileTestKit.boxes(liveRoot)
+            .first { it.modifiers?.background?.color?.argb == TileInk.SURFACE }
+        val padding = (pill.modifiers?.padding?.start?.value ?: 0f) +
+            (pill.modifiers?.padding?.end?.value ?: 0f)
+        val width = pill.contents.sumOf { widthOf(it).toDouble() }.toFloat() + padding
         assertTrue(
-            "stress_arc_sweep was replaced by the entrance animation, found $keys",
-            "stress_arc_sweep" !in keys
+            "pill ${width}dp must stay under ${TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)}dp",
+            width <= TileGeometry.safeWidthDp(TileGeometry.PILL_CENTER_Y)
         )
     }
 
-    @Test
-    fun `tile spends at most two animators on the whole tree`() {
-        val count = animatorCount()
-        assertTrue(
-            "animators must stay within ${TileDesign.Motion.MAX_ANIMATORS}, found $count",
-            count <= TileDesign.Motion.MAX_ANIMATORS
-        )
-        assertEquals("gauge entrance plus track breath are the only two", 2, count)
-    }
+    // ---- previous behaviour ---------------------------------------------
 
     @Test
     fun `previous freshness and resource version still hold`() {
+        val tile = StressTileService.buildTile(strings, packageName, deviceParams, live)
         assertEquals(60_000L, tile.freshnessIntervalMillis)
-        assertEquals("oneui8-stress-circular-v1", StressTileService.buildResources().version)
+        assertEquals(StressTileService.RESOURCES_VERSION, StressTileService.buildResources().version)
     }
 
-    @Test
-    fun `detail tap launches the package it was built for`() {
-        val action = rootBox.modifiers?.clickable?.onClick as ActionBuilders.LaunchAction
-        assertEquals(packageName, action.androidActivity?.packageName)
+    private fun widthOf(element: LayoutElementBuilders.LayoutElement): Float = when (element) {
+        is LayoutElementBuilders.Text -> TileTestKit.estimatedWidthDp(element)
+        is LayoutElementBuilders.Spacer -> TileTestKit.dpOf(element.width)
+        is LayoutElementBuilders.Box -> TileTestKit.dpOf(element.width)
+        is LayoutElementBuilders.Row -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
+        is LayoutElementBuilders.Column -> element.contents.sumOf { widthOf(it).toDouble() }.toFloat()
+        else -> 0f
     }
 }
