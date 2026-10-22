@@ -34,6 +34,22 @@ S9 — **Ticks horológicos sin coste de elementos.** Las marcas del dial (40 en
 
 S10 — **Motor real.** Todo se construye con `protolayout 1.3.0`: `ArcLine` + `SweepGradient` (`setColor` como fallback explícito), `Image` (drawables) y `Modifiers` (opacidad, `Transformation.rotation`, `Background`). Sin `AnimatedVectorDrawable`, Lottie, Canvas ni dibujo propio. Anchos siempre estáticos.
 
+
+S12 — **Cajón dentro del tile (el `micro-drawer` del render).** La píldora deja de abrir la app: dispara un `ActionBuilders.LoadAction` con `Clickable.setId("pill")`, y el botón «Cerrar» del cajón usa el id `close`. El servicio lee `TileRequest.getCurrentState().getLastClickableId()` (medido en el SM-L500: el tap vuelve al servicio con el id y el tile se re-renderiza) y decide abierto/cerrado; cualquier carga sin id conserva el estado del tile, que vive en memoria por tipo de tile y se pierde con el proceso.
+
+El cajón ocupa la esfera entera: `Box` de 192dp con fondo `#0E0E0D` al 97 % (el render usa `backdrop-filter`, que no existe en ProtoLayout, así que el fondo es opaco). Contenido, de arriba abajo: kicker 10.5sp versalitas con el acento de la métrica; título 12sp/500 `#F5F2EB` en una línea; fila de barras; meta 10sp `#B8B4AA`; y una fila al pie con dos píldoras: **Cerrar** (id `close`) y **Abrir** (lanza la activity de detalle, para no perder el acceso que hoy tiene la píldora).
+
+Las barras son datos reales de `RingConnHistoryStore.getHistory(context)`: siete barras de 7dp de ancho, 5dp de separación, radio 3.5, alto proporcional al máximo de su propia serie (mínimo 1 para no dividir por cero), color del acento al 45 % salvo la última (hoy) al 100 %. Sin serie no hay barras: se muestran sólo kicker, título y meta. Nunca se inventan valores.
+
+Series y copy por tile:
+- Pulso: kicker «Tendencia 7 días», título «Reposo {rhr de hoy} · Pico {maxHeartRate} bpm», barras = `rhr` de los siete días, meta «HRV media {avgHrv} ms · Zona {zone}».
+- Vitales: kicker «Estado del anillo», título «SpO₂ {lastSpo2}% · Batería {ringBattery}%», barras = `spo2`, meta «Autonomía ≈ {ringBattery / 16} días».
+- Estrés: kicker «Balance autónomo», título «Índice {stressScore} · {nivel}», barras = `stressScore`, meta «Cortes 30 · 60 · 80».
+- Pasos: kicker «Cadencia diaria», título «{steps} pasos · {liveCalorie} kcal», barras = `steps`, meta «{activeMinutes} min activos · {distanceKm} km».
+- Sueño: kicker «Fases del sueño», título «Total {duración} · {desvío}°», cuatro barras de 18dp con los colores de fase y alto proporcional a su fracción, meta «Score {sleepScore}».
+
+S13 — **Ajustes fieles al render, sin cajón.** La píldora toma la geometría y el material del render: 26dp de alto, radio 13, fondo blanco al 9 % (`rgba(245,242,235,0.09)`), borde 0.75dp al 16 %, texto 11sp monoespaciado con tracking −0.02em, ancho fijo 104dp centrado. El subtítulo de Estrés dice «Normal · HRV 41» (con la palabra HRV, no «ms»), y los separadores de la píldora son el carácter «·» al 32 %, no un hairline.
+
 ## Tasks
 
 - T1 — Fundación: `TileInk`/`TileAccents`/`TileType`/`TileGeometry`/`TileMotion`/`TileDial`/`TileShell`/`TileResources`, siete drawables (`tile_warm_glow`, `tile_ticks_r84/r78/r74/stress`, `tile_stars`, `tile_moon_badge`), `TileTestKit` y `TileEditorialContractTest`. Commit `965af31`.
@@ -82,3 +98,7 @@ L13 — «las animaciones de los tiles estan horribles... parecen imagenes 2D an
 L14 — Sonda de medición en el SM-L500 (tres builds descartables, control dentro del mismo tile). Resultado: **animan** rotación de `Image`, escala de `Image` y `anchorAngle` del `Arc`; **no anima** ninguna dinámica dentro de un `Brush` (offsets de `ColorStop`, `endAngle` del `SweepGradient`): 0,00 de diferencia en 28/28 pares de frames con el control latiendo 25/28 en el mismo árbol. Corolario: el techo de «2 animadores por tile» que gobernaba S4 desde la primera sesión **era una inferencia falsa** — se vieron cuatro nodos animando a la vez. El barrido de luz sale de rotar una `Image`, no del degradado. Decisión del usuario: estela en los cinco tiles.
 
 L15 — Instalación en el reloj: los APK release se firman con el keystore debug y se actualizan con `adb install -r`, pero **no** se puede volver atrás (`INSTALL_FAILED_VERSION_DOWNGRADE`, y `-d` no lo salta porque el release no es debuggable): el `versionCode` siempre sube. El reloj apaga pantalla a los 15 s y eso tira el adb inalámbrico; medir exige despertar, navegar y verificar la captura antes de comparar.
+
+L16 — «y el diseno denmtro de los tiles? los veo igual que antes». Auditoría del render contra lo implementado: glow, ticks, etiqueta, héroe, subtítulo, píldora y estrellas ya están portados desde la tanda «warm»; lo único del interior que falta es el `micro-drawer`, más tres deltas chicos (píldora de vidrio de 26dp en vez de chip opaco de 28dp, «Normal · HRV 41» en Estrés, separadores «·»). El punto `beat` de la etiqueta está en `display:none` en el render y no se implementa.
+
+L17 — Medición del cajón en el SM-L500: sonda con la esfera entera clickable, `Clickable.setId("toggle")` y `ActionBuilders.LoadAction`. Un tap con `adb input tap` devolvió el id al servicio y el tile se re-renderizó («TAP PROBE 1 OK / SI toggle»). El mecanismo existe; el cajón es construible. Datos: `RingConnHistoryStore.getHistory()` entrega siete días reales, así que las barras no se inventan.

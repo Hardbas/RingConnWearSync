@@ -71,6 +71,13 @@
     <string name="breathe">Respirar</string>
     <string name="details">Detalles</string>
 
+    <!-- Cajón dentro del tile (S12): la píldora de la esfera lo abre, la suya abre la app. -->
+    <string name="tile_drawer_trend_7d">Tendencia 7 días</string>
+    <string name="tile_drawer_pulse_title">Reposo %1$s · Pico %2$s bpm</string>
+    <string name="tile_drawer_pulse_meta">HRV media %1$s ms · Zona %2$s</string>
+    <string name="tile_drawer_close">Cerrar</string>
+    <string name="tile_drawer_open">Abrir</string>
+
     <!-- Temperature Strings (Spanish) -->
     <string name="skin_temp">Temperatura Cutánea</string>
     <string name="temp_in_range">En rango</string>

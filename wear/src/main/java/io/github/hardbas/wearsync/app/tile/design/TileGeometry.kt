@@ -86,6 +86,23 @@ object TileGeometry {
     const val HERO_Y = 0f
     const val SUB_Y = 30f
 
+    /**
+     * The in-tile drawer (S12): a full-face panel with a centred column.
+     *
+     * `DRAWER_PADDING` is the inset the panel keeps from the rim on all four
+     * sides, so its content sits inside the circle instead of hugging the bezel.
+     */
+    const val DRAWER_PADDING = 20f
+
+    /** Drawer bars: 7dp wide, 5dp apart, radius 3.5, tallest a 34dp track. */
+    const val DRAWER_BAR_WIDTH = 7f
+    const val DRAWER_BAR_GAP = 5f
+    const val DRAWER_BAR_RADIUS = 3.5f
+    const val DRAWER_BAR_TRACK = 34f
+
+    /** A bar never disappears when its value is zero: it keeps a sliver. */
+    const val DRAWER_BAR_MIN_HEIGHT = 2f
+
     /** Box size an arc of [radius] and [thickness] needs to land on that radius. */
     fun containerDp(radius: Float, thickness: Float): Float = 2f * (radius + thickness / 2f)
 

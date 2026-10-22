@@ -13,11 +13,15 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.DailyHistoryEntry
+import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.tile.design.AndroidTileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileAccents
 import io.github.hardbas.wearsync.app.tile.design.TileAmbient
 import io.github.hardbas.wearsync.app.tile.design.TileDial
+import io.github.hardbas.wearsync.app.tile.design.TileDrawer
+import io.github.hardbas.wearsync.app.tile.design.TileDrawerState
 import io.github.hardbas.wearsync.app.tile.design.TileGeometry
 import io.github.hardbas.wearsync.app.tile.design.TileInk
 import io.github.hardbas.wearsync.app.tile.design.TileMotion
@@ -37,8 +41,14 @@ import java.util.Locale
 class HeartRateTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
+        // A LoadAction tap returns here with its clickable id; the builder turns
+        // that id into open/closed before it renders either the face or the drawer.
         return Futures.immediateFuture(
-            buildTile(this, requestParams.deviceConfiguration)
+            buildTile(
+                this,
+                requestParams.deviceConfiguration,
+                lastClickableId = requestParams.currentState.lastClickableId
+            )
         )
     }
 
@@ -52,7 +62,14 @@ class HeartRateTileService : TileService() {
 
     companion object {
         const val RESOURCES_VERSION = "warm-editorial-hr-v1"
+
+        /** Key of this tile in [TileDrawerState]. */
+        const val TILE_ID = "pulse"
+
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity"
+
+        /** The drawer's bar series is the last seven days, never more. */
+        private const val DRAWER_DAYS = 7
 
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
@@ -60,15 +77,39 @@ class HeartRateTileService : TileService() {
         fun buildTile(
             context: Context,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context)
-        ): TileBuilders.Tile = buildTile(AndroidTileStrings(context), context.packageName, deviceParams, vitals)
+            vitals: RingConnVitals = RingConnComplicationProvider.getLatestVitals(context),
+            lastClickableId: String? = null,
+            history: List<DailyHistoryEntry> = RingConnHistoryStore.getHistory(context)
+        ): TileBuilders.Tile = buildTile(
+            AndroidTileStrings(context),
+            context.packageName,
+            deviceParams,
+            vitals,
+            lastClickableId,
+            history
+        )
 
+        /**
+         * @param lastClickableId the id the system carried back from a
+         *   `LoadAction` tap, or `null` on a plain refresh. Anything but the two
+         *   drawer ids leaves the tile in the state it is already in.
+         * @param history the seven-day cache the drawer bars come from. Passed in
+         *   so the contract tests can build entries directly; production reads it
+         *   from [RingConnHistoryStore].
+         */
         fun buildTile(
             strings: TileStrings,
             packageName: String,
             deviceParams: DeviceParameters,
-            vitals: RingConnVitals
+            vitals: RingConnVitals,
+            lastClickableId: String? = null,
+            history: List<DailyHistoryEntry> = emptyList()
         ): TileBuilders.Tile {
+            TileDrawerState.apply(TILE_ID, lastClickableId)
+            if (TileDrawerState.isOpen(TILE_ID)) {
+                return drawerTile(strings, packageName, vitals, history)
+            }
+
             val hasHr = vitals.lastHeartRate > 0
             val stale = vitals.isStale
             val bpm = vitals.lastHeartRate
@@ -160,11 +201,56 @@ class HeartRateTileService : TileService() {
 
             val pill = TileShell.pill(
                 content = TileShell.pillText(strings.text(R.string.details), TileInk.PRIMARY),
-                clickable = clickable
+                clickable = TileDrawer.tapToOpen()
             )
 
+            return tile(TileShell.root(clickable, layers, stack, pill))
+        }
+
+        /**
+         * The open drawer: the whole face becomes the S12 panel, built from the
+         * tile's own reading and the real seven-day history.
+         *
+         * The title uses the newest [DailyHistoryEntry.rhr] (there is no resting
+         * rate on [RingConnVitals]) and [RingConnVitals.maxHeartRate]; a missing
+         * value renders as `--` instead of an invented zero.
+         */
+        private fun drawerTile(
+            strings: TileStrings,
+            packageName: String,
+            vitals: RingConnVitals,
+            history: List<DailyHistoryEntry>
+        ): TileBuilders.Tile {
+            val days = history.sortedBy { it.epochDay }.takeLast(DRAWER_DAYS)
+            val resting = days.lastOrNull()?.rhr ?: 0
+            val peak = vitals.maxHeartRate
+            val avgHrv = if (vitals.avgHrv > 0) vitals.avgHrv else vitals.lastHrv
+            val zone = if (vitals.lastHeartRate > 0) zoneOf(vitals.lastHeartRate) else NO_VALUE
+
+            val root = TileDrawer.drawer(
+                accent = TileAccents.heartRateLabel,
+                kicker = strings.text(R.string.tile_drawer_trend_7d).uppercase(Locale.getDefault()),
+                title = format(
+                    strings,
+                    R.string.tile_drawer_pulse_title,
+                    numberOrDash(resting),
+                    numberOrDash(peak)
+                ),
+                meta = format(strings, R.string.tile_drawer_pulse_meta, numberOrDash(avgHrv), zone),
+                bars = days.map { it.rhr.toFloat() },
+                barColor = TileAccents.heartRate.last(),
+                closeLabel = strings.text(R.string.tile_drawer_close),
+                openLabel = strings.text(R.string.tile_drawer_open),
+                packageName = packageName,
+                detailActivity = DETAIL_ACTIVITY
+            )
+
+            return tile(root)
+        }
+
+        private fun tile(root: LayoutElementBuilders.LayoutElement): TileBuilders.Tile {
             val entry = TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(TileShell.root(clickable, layers, stack, pill)).build())
+                .setLayout(LayoutElementBuilders.Layout.Builder().setRoot(root).build())
                 .build()
 
             return TileBuilders.Tile.Builder()
@@ -173,6 +259,14 @@ class HeartRateTileService : TileService() {
                 .setFreshnessIntervalMillis(30_000L)
                 .build()
         }
+
+        /** Drawer copy carries format arguments, so the template is filled here. */
+        private fun format(strings: TileStrings, resId: Int, vararg args: String): String =
+            String.format(Locale.getDefault(), strings.text(resId), *args)
+
+        private fun numberOrDash(value: Int): String = if (value > 0) "$value" else NO_VALUE
+
+        private const val NO_VALUE = "--"
 
         /** Z1 rest -> Z5 peak, on the design's bpm cuts. */
         fun zoneOf(bpm: Int): String = when {

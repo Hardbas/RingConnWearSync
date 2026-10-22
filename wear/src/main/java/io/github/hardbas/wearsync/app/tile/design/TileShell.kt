@@ -146,10 +146,17 @@ object TileShell {
         return row.build()
     }
 
-    /** The one tappable surface at the bottom, pinned by a static translation. */
+    /**
+     * The one tappable surface at the bottom, pinned by a static translation.
+     *
+     * `centerY` carries that translation: the face pins its pill below the dial,
+     * while the drawer lays its two pills out in a row and passes `null` so the
+     * material is reused without the pinning.
+     */
     fun pill(
         content: LayoutElementBuilders.LayoutElement,
-        clickable: ModifiersBuilders.Clickable? = null
+        clickable: ModifiersBuilders.Clickable? = null,
+        centerY: Float? = TileGeometry.PILL_CENTER_Y
     ): LayoutElementBuilders.Box {
         val modifiers = ModifiersBuilders.Modifiers.Builder()
             .setBackground(
@@ -174,11 +181,13 @@ object TileShell {
                     .setEnd(dp(TileGeometry.PILL_PADDING))
                     .build()
             )
-            .setTransformation(
+        if (centerY != null) {
+            modifiers.setTransformation(
                 ModifiersBuilders.Transformation.Builder()
-                    .setTranslationY(dp(TileGeometry.PILL_CENTER_Y))
+                    .setTranslationY(dp(centerY))
                     .build()
             )
+        }
         clickable?.let(modifiers::setClickable)
 
         return LayoutElementBuilders.Box.Builder()
@@ -239,6 +248,9 @@ object TileShell {
         val builder = LayoutElementBuilders.Text.Builder()
             .setText(value)
             .setMaxLines(1)
+            // A one-line run that does not fit is ellipsized instead of clipped:
+            // the drawer's title is data, so it must show where it was cut.
+            .setOverflow(LayoutElementBuilders.TEXT_OVERFLOW_ELLIPSIZE_END)
             .setFontStyle(style)
         if (opacity != null) {
             builder.setModifiers(

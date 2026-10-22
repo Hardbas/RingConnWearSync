@@ -71,6 +71,13 @@
     <string name="breathe">Breathe</string>
     <string name="details">Details</string>
 
+    <!-- In-tile drawer (S12): the face pill opens it, its own pill opens the app. -->
+    <string name="tile_drawer_trend_7d">7-day trend</string>
+    <string name="tile_drawer_pulse_title">Resting %1$s · Peak %2$s bpm</string>
+    <string name="tile_drawer_pulse_meta">Avg HRV %1$s ms · Zone %2$s</string>
+    <string name="tile_drawer_close">Close</string>
+    <string name="tile_drawer_open">Open</string>
+
     <!-- Temperature Strings (English Default) -->
     <string name="skin_temp">Skin Temperature</string>
     <string name="temp_in_range">In Range</string>
