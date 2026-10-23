@@ -91,10 +91,21 @@ class VitalsTileContractTest {
     // ---- the reading ----------------------------------------------------
 
     @Test
-    fun `hero is the live pulse at the ring hero size`() {
-        val hero = TileTestKit.texts(liveRoot).first { it.text?.value == "72" }
+    fun `hero is the live SpO2 percentage at the ring hero size`() {
+        val hero = TileTestKit.texts(liveRoot).first { it.text?.value == "97%" }
         assertEquals(TileType.HERO_RING, hero.fontStyle?.size?.value)
         assertEquals(LayoutElementBuilders.FONT_WEIGHT_MEDIUM, hero.fontStyle?.weight?.value)
+    }
+
+    @Test
+    fun `hero text fits inside inner ring diameter`() {
+        val hero = TileTestKit.texts(liveRoot).first { it.text?.value == "97%" }
+        val estimatedWidth = TileTestKit.estimatedWidthDp(hero)
+        val innerRingDiameter = 2f * (TileGeometry.RING_INNER_RADIUS - TileGeometry.RING_THICKNESS / 2f)
+        assertTrue(
+            "hero width $estimatedWidth dp must fit comfortably within inner ring diameter $innerRingDiameter dp",
+            estimatedWidth < innerRingDiameter
+        )
     }
 
     @Test
@@ -107,8 +118,8 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `without history the sub is still the lowercase unit`() {
-        val sub = TileTestKit.texts(liveRoot).first { it.text?.value == "bpm" }
+    fun `without history the sub displays live heart rate in heart rate accent`() {
+        val sub = TileTestKit.texts(liveRoot).first { it.text?.value == "HR 72 bpm" }
         assertEquals(TileType.SUB, sub.fontStyle?.size?.value)
         assertEquals(TileAccents.heartRateLabel, sub.fontStyle?.color?.argb)
     }
@@ -210,12 +221,16 @@ class VitalsTileContractTest {
             "the recovery score falls back too",
             TileTestKit.texts(root).any { it.text?.value == "Energy --" }
         )
+        assertTrue(
+            "the subtitle falls back to oxygen percentage unit",
+            TileTestKit.texts(root).any { it.text?.value == "SpO₂ %" }
+        )
     }
 
     @Test
     fun `stale tile desaturates instead of animating`() {
         val root = rootFor(live.copy(refreshTimestamp = now() - 3_600L))
-        val hero = TileTestKit.texts(root).first { it.text?.value == "72" }
+        val hero = TileTestKit.texts(root).first { it.text?.value == "97%" }
         assertEquals(TileInk.STALE_HERO_ALPHA, hero.modifiers?.opacity?.value ?: 0f, 0.001f)
         val label = TileTestKit.texts(root).first { it.text?.value?.startsWith("VITALS") == true }
         assertEquals(TileInk.DIM, label.fontStyle?.color?.argb)
@@ -310,13 +325,17 @@ class VitalsTileContractTest {
     }
 
     @Test
-    fun `the sub carries the week average saturation and nothing else`() {
-        // 96, 97, 95, 98, 97, 96, 97 averages 96.57, which prints as 97 %.
-        // One reading, one number: the dot pair read as "which is which", so the
-        // second reading moved to the pill with a word in front of it.
+    fun `the sub carries live heart rate and week average saturation`() {
         val texts = TileTestKit.texts(rootFor(live, sevenDays())).mapNotNull { it.text?.value }
-        assertTrue("the average saturation is on the face", texts.any { it == "SpO₂ 97%" })
-        assertTrue("no second reading shares the sub", texts.none { it.contains("84%") })
+        assertTrue("the live HR and average saturation are in the subtitle", texts.any { it == "HR 72 · 97%" })
+        assertTrue("the ring charge is not on the face", texts.none { it.contains("84%") })
+    }
+
+    @Test
+    fun `with history but without heart rate the sub carries 7d avg`() {
+        val vitalsWithoutHr = live.copy(lastHeartRate = 0)
+        val texts = TileTestKit.texts(rootFor(vitalsWithoutHr, sevenDays())).mapNotNull { it.text?.value }
+        assertTrue("average saturation with 7d label is shown", texts.any { it == "7d avg 97%" })
     }
 
     @Test
@@ -364,7 +383,7 @@ class VitalsTileContractTest {
             "the stack keeps the column of a face with no trend",
             TileTestKit.flatten(root).any { it is LayoutElementBuilders.Column }
         )
-        assertTrue(TileTestKit.texts(root).any { it.text?.value == "bpm" })
+        assertTrue(TileTestKit.texts(root).any { it.text?.value == "HR 72 bpm" })
     }
 
     // ---- previous behaviour ---------------------------------------------

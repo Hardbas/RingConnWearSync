@@ -33,7 +33,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * Vitals tile: two concentric rings, the pulse in the middle, the ring state in
+ * Vitals tile: two concentric rings, the SpO₂ hero in the middle, the ring state in
  * the pill.
  *
  * The file only supplies meaning. Every colour, size, radius and animation comes
@@ -162,23 +162,21 @@ class VitalsTileService : TileService() {
             val spo2Series = spo2Series(history)
             val hasTrend = spo2Series.isNotEmpty()
 
-            // With a trend row the sub carries the average saturation of the week
-            // and the ring charge, and the pill goes back to being the one action
-            // of the face. Without a row the face keeps the subtitle it had.
+            // With a trend row the sub carries live HR alongside the 7-day SpO2 average.
+            // Without a row the face shows live HR in bpm (or oxygen unit when HR is missing).
             val sub = if (hasTrend) {
-                // Two tone dots instead of two words: at the sub line's height
-                // the rings only leave about 110dp, and "SpO2 ..% · Battery ..%"
-                // ran into both of them. The dot is the same key the rings use.
-                // One reading, one number: the dot pair read as "which is which".
                 val average = spo2Series.average().roundToInt()
+                val subText = if (hasHr) "HR ${vitals.lastHeartRate} · $average%" else "7d avg $average%"
                 TileShell.text(
-                    value = String.format(Locale.getDefault(), strings.text(R.string.tile_spo2_only), "$average%"),
+                    value = subText,
                     style = TileType.sub()
                 )
             } else {
+                val subText = if (hasHr) "HR ${vitals.lastHeartRate} bpm" else "SpO₂ %"
+                val subColor = if (hasHr && !stale) TileAccents.heartRateLabel else if (!stale) TileAccents.spo2Label else TileInk.DIM
                 TileShell.text(
-                    value = strings.text(R.string.bpm_unit).lowercase(Locale.getDefault()),
-                    style = TileType.sub(TileAccents.heartRateLabel)
+                    value = subText,
+                    style = TileType.sub(subColor)
                 )
             }
 
@@ -188,7 +186,7 @@ class VitalsTileService : TileService() {
                     style = TileType.label(labelColor)
                 ),
                 hero = TileShell.text(
-                    value = if (hasHr) "${vitals.lastHeartRate}" else "--",
+                    value = if (hasSpo2) "${vitals.lastSpo2}%" else "--",
                     style = TileType.hero(TileType.HERO_RING),
                     opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
                 ),

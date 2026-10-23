@@ -287,7 +287,9 @@ fun SleepDetailContent(
                         contentAlignment = Alignment.Center
                     ) {
                         StarrySkyCanvas(
-                            modifier = Modifier.size(134.dp)
+                            modifier = Modifier
+                                .size(134.dp)
+                                .clip(CircleShape)
                         )
                         BiometricHeroAura(
                             color = StageDeep,
@@ -2038,8 +2040,10 @@ private fun NocturnalTempDeviationGauge(
 }
 
 /**
- * Celestial Twinkling Stars Canvas for Sleep Detail Screen.
- * Renders shimmering celestial stars with varying phase and sinusoidal luminosity.
+ * Celestial Twinkling Stars & Organic Meteor Shower Canvas for Sleep Detail Screen.
+ * Renders shimmering celestial stars with varying phase and sinusoidal luminosity,
+ * paired with a realistic staggered meteor shower (shooting stars) with luminous
+ * multi-stop tails, incandescent nuclei, and peak diffraction flares.
  * Gated strictly on Lifecycle.State.RESUMED for 0.0% idle / AOD battery consumption.
  */
 @Composable
@@ -2061,6 +2065,16 @@ private fun StarrySkyCanvas(
         label = "shimmerPhase"
     )
 
+    val meteorPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "meteorPhase"
+    )
+
     val starNodes = remember {
         listOf(
             StarNode(0.18f, 0.22f, 1.8f, 0.0f, true),
@@ -2076,7 +2090,52 @@ private fun StarrySkyCanvas(
             StarNode(0.92f, 0.62f, 1.1f, 0.1f, false),
             StarNode(0.32f, 0.88f, 1.2f, 0.9f, true),
             StarNode(0.68f, 0.86f, 1.3f, 0.45f, false),
-            StarNode(0.50f, 0.92f, 1.4f, 0.2f, true)
+            StarNode(0.50f, 0.92f, 1.4f, 0.2f, true),
+            StarNode(0.28f, 0.34f, 1.0f, 0.55f, false),
+            StarNode(0.72f, 0.32f, 1.1f, 0.05f, true),
+            StarNode(0.15f, 0.60f, 0.9f, 0.80f, false),
+            StarNode(0.85f, 0.58f, 1.0f, 0.30f, true)
+        )
+    }
+
+    val meteorNodes = remember {
+        listOf(
+            // Meteor 1: Upper-left to center-right dome, angle ~32°
+            MeteorNode(
+                startXNorm = 0.06f,
+                startYNorm = 0.10f,
+                endXNorm = 0.62f,
+                endYNorm = 0.45f,
+                phaseOffset = 0.05f,
+                dutyCycle = 0.28f,
+                tailLengthDp = 26f,
+                headRadiusDp = 1.35f,
+                isCyanAccent = false
+            ),
+            // Meteor 2: High celestial dome to eastern horizon, angle ~33°
+            MeteorNode(
+                startXNorm = 0.36f,
+                startYNorm = 0.04f,
+                endXNorm = 0.90f,
+                endYNorm = 0.39f,
+                phaseOffset = 0.42f,
+                dutyCycle = 0.28f,
+                tailLengthDp = 22f,
+                headRadiusDp = 1.25f,
+                isCyanAccent = true
+            ),
+            // Meteor 3: Mid-west to lower-east sky, angle ~32°
+            MeteorNode(
+                startXNorm = 0.12f,
+                startYNorm = 0.32f,
+                endXNorm = 0.72f,
+                endYNorm = 0.70f,
+                phaseOffset = 0.76f,
+                dutyCycle = 0.28f,
+                tailLengthDp = 24f,
+                headRadiusDp = 1.30f,
+                isCyanAccent = false
+            )
         )
     }
 
@@ -2088,6 +2147,7 @@ private fun StarrySkyCanvas(
         val w = size.width
         val h = size.height
 
+        // 1. Celestial Starfield (twinkling background)
         for (star in starNodes) {
             val cx = star.xNorm * w
             val cy = star.yNorm * h
@@ -2131,6 +2191,103 @@ private fun StarrySkyCanvas(
                 )
             }
         }
+
+        // 2. Realistic Shooting Meteor Shower (strictly gated on isResumed for 0% AOD/ambient battery)
+        if (isResumed) {
+            for (meteor in meteorNodes) {
+                val t = ((meteorPhase + meteor.phaseOffset) % 1.0f)
+                if (t < meteor.dutyCycle) {
+                    val p = (t / meteor.dutyCycle).coerceIn(0f, 1f)
+                    // Acceleration curve: fast cosmic streak with graceful decay
+                    val easeP = p * p * (3f - 2f * p)
+
+                    val headX = (meteor.startXNorm + (meteor.endXNorm - meteor.startXNorm) * easeP) * w
+                    val headY = (meteor.startYNorm + (meteor.endYNorm - meteor.startYNorm) * easeP) * h
+
+                    // Bell curve luminosity envelope
+                    val intensity = when {
+                        p < 0.20f -> p / 0.20f
+                        p > 0.70f -> (1.0f - p) / 0.30f
+                        else -> 1.0f
+                    }.coerceIn(0f, 1f)
+
+                    // Trajectory unit vector
+                    val dxNorm = meteor.endXNorm - meteor.startXNorm
+                    val dyNorm = meteor.endYNorm - meteor.startYNorm
+                    val distNorm = kotlin.math.sqrt(dxNorm * dxNorm + dyNorm * dyNorm).coerceAtLeast(0.001f)
+                    val uX = dxNorm / distNorm
+                    val uY = dyNorm / distNorm
+
+                    val tailLenPx = meteor.tailLengthDp.dp.toPx() * (0.35f + 0.65f * intensity)
+                    val tailStartX = headX - uX * tailLenPx
+                    val tailStartY = headY - uY * tailLenPx
+
+                    val tailGlowColor = if (meteor.isCyanAccent) Color(0xFF00E5FF) else Color(0xFF5E72E4)
+                    val tailMidColor = if (meteor.isCyanAccent) Color(0xFFA5C9FF) else Color(0xFFFFEAA7)
+
+                    // Outer atmospheric luminous sheath
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                tailGlowColor.copy(alpha = 0.20f * intensity),
+                                tailMidColor.copy(alpha = 0.50f * intensity)
+                            ),
+                            start = Offset(tailStartX, tailStartY),
+                            end = Offset(headX, headY)
+                        ),
+                        start = Offset(tailStartX, tailStartY),
+                        end = Offset(headX, headY),
+                        strokeWidth = 3.0.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+
+                    // Inner brilliant nucleus streak
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                tailMidColor.copy(alpha = 0.45f * intensity),
+                                Color.White.copy(alpha = 0.95f * intensity)
+                            ),
+                            start = Offset(tailStartX, tailStartY),
+                            end = Offset(headX, headY)
+                        ),
+                        start = Offset(tailStartX, tailStartY),
+                        end = Offset(headX, headY),
+                        strokeWidth = 1.3.dp.toPx(),
+                        cap = StrokeCap.Round
+                    )
+
+                    // Glowing incandescent meteor head
+                    val headRadius = meteor.headRadiusDp.dp.toPx() * (0.85f + 0.35f * intensity)
+                    drawCircle(
+                        color = Color.White.copy(alpha = intensity),
+                        radius = headRadius,
+                        center = Offset(headX, headY)
+                    )
+
+                    // Diffraction cross flare at peak brilliance
+                    if (intensity > 0.65f) {
+                        val flareLen = 3.5.dp.toPx() * intensity
+                        val flareAlpha = ((intensity - 0.65f) / 0.35f) * 0.80f
+                        val flareColor = if (meteor.isCyanAccent) Color(0xFFD6F6FF) else Color(0xFFFFF7DC)
+                        drawLine(
+                            color = flareColor.copy(alpha = flareAlpha),
+                            start = Offset(headX - flareLen, headY),
+                            end = Offset(headX + flareLen, headY),
+                            strokeWidth = 0.8.dp.toPx()
+                        )
+                        drawLine(
+                            color = flareColor.copy(alpha = flareAlpha),
+                            start = Offset(headX, headY - flareLen),
+                            end = Offset(headX, headY + flareLen),
+                            strokeWidth = 0.8.dp.toPx()
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -2140,6 +2297,18 @@ private data class StarNode(
     val radiusDp: Float,
     val phaseOffset: Float,
     val isGold: Boolean
+)
+
+private data class MeteorNode(
+    val startXNorm: Float,
+    val startYNorm: Float,
+    val endXNorm: Float,
+    val endYNorm: Float,
+    val phaseOffset: Float,
+    val dutyCycle: Float = 0.28f,
+    val tailLengthDp: Float = 24f,
+    val headRadiusDp: Float = 1.30f,
+    val isCyanAccent: Boolean = false
 )
 
 @Preview(
