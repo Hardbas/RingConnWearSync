@@ -3,6 +3,7 @@ package io.github.hardbas.wearsync.bridge
 import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.service.RingConnTelemetryParser
 import io.github.hardbas.wearsync.bridge.service.RingConnTelemetryReader
+import io.github.hardbas.wearsync.bridge.service.RingConnWidgetHostReader
 import io.github.hardbas.wearsync.bridge.service.WearDataSyncService
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -110,7 +111,8 @@ class RingConnVitalsMergeTest {
         assertNotEquals(sigBase, makeSignature(base.copy(isConnected = false)))
         assertNotEquals(sigBase, makeSignature(base.copy(targetSteps = 12000)))
         assertNotEquals(sigBase, makeSignature(base.copy(targetCalorie = 600)))
-        assertNotEquals(sigBase, makeSignature(base.copy(refreshTimestamp = 2000L)))
+        assertEquals(sigBase, makeSignature(base.copy(refreshTimestamp = 2000L)))
+        assertEquals(sigBase, makeSignature(base.copy(basalCalories = 1800)))
         assertNotEquals(sigBase, makeSignature(base.copy(sleepInsight = "Great sleep")))
         assertNotEquals(sigBase, makeSignature(base.copy(stressInsight = "Calm")))
         assertNotEquals(sigBase, makeSignature(base.copy(odiDropsPerHour = 2.1f)))
@@ -283,6 +285,38 @@ class RingConnVitalsMergeTest {
         assertEquals(0, parsedZeros.liveSteps)
         assertEquals(0, parsedZeros.liveCalorie)
         assertEquals(0, parsedZeros.activityScore)
+    }
+
+    @Test
+    fun computeSignature_ignoresRefreshTimestampAndBasalCalories() {
+        val vitalsA = RingConnVitals(
+            lastHeartRate = 72,
+            lastSpo2 = 98,
+            ringBattery = 80,
+            refreshTimestamp = 1000L,
+            basalCalories = 1200
+        )
+        val vitalsB = vitalsA.copy(
+            refreshTimestamp = 2000L,
+            basalCalories = 1205
+        )
+        assertEquals(WearDataSyncService.computeSignature(vitalsA), WearDataSyncService.computeSignature(vitalsB))
+
+        val vitalsChanged = vitalsA.copy(lastHeartRate = 73)
+        assertNotEquals(WearDataSyncService.computeSignature(vitalsA), WearDataSyncService.computeSignature(vitalsChanged))
+    }
+
+    @Test
+    fun widgetHostReader_validityGateAllowsBiometricOnlyPayloads() {
+        assertFalse(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals()))
+
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(lastSpo2 = 98)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(avgSpo2 = 97)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(lastHrv = 45)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(avgHrv = 42)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(stressScore = 35)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(skinTempOffset = 0.2f)))
+        assertTrue(RingConnWidgetHostReader.hasValidTelemetry(RingConnVitals(skinTempBaseline = 36.4f)))
     }
 }
 

@@ -55,7 +55,7 @@ class HeartRateTileService : TileService() {
         const val RESOURCES_VERSION = "warm-editorial-hr-v1"
 
         /** Face refresh period. */
-        private const val DEFAULT_FRESHNESS_MS = 30_000L
+        private const val DEFAULT_FRESHNESS_MS = 900_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity"
 

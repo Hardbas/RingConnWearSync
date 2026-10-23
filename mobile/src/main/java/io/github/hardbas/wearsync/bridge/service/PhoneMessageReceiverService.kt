@@ -8,6 +8,7 @@ import com.google.android.gms.wearable.WearableListenerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -85,6 +86,12 @@ class PhoneMessageReceiverService : WearableListenerService() {
                 sendSyncStatusToWatch("ERROR")
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+        Log.d(TAG, "PhoneMessageReceiverService destroyed, scope cancelled")
     }
 
     companion object {

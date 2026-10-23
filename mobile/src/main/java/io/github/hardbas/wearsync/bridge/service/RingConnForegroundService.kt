@@ -20,6 +20,7 @@ import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.receiver.WatchdogReceiver
 import java.time.LocalDate
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
 
 class RingConnForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -29,63 +30,12 @@ class RingConnForegroundService : Service() {
     private val userPresentReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_USER_PRESENT) {
-                val cal = java.util.Calendar.getInstance()
-                val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
-                val todayEpochDay = LocalDate.now().toEpochDay()
-                val prefs = getSharedPreferences(RingConnTelemetryReader.PREFS_NAME, Context.MODE_PRIVATE)
-                val lastMorningPeekEpochDay = prefs.getLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, -1L)
-                val currentVitals = RingConnTelemetryReader.readBestAvailableVitals(this@RingConnForegroundService)
-
-                // 1. Once-Per-Day Morning Smart Unlock Peek
-                if (RingConnAccessibilityService.isRunning()) {
-                    if (todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore == 0 || currentVitals.skinTempBaseline == 0f)) {
-                        prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
-                        Log.i(TAG, "Morning Smart Unlock Peek triggered on epoch day $todayEpochDay (hour=$hour)")
-                        scope.launch {
-                            try {
-                                val scraped = RingConnAccessibilityService.instance?.wakeAndScrapeRingConnApp()
-                                val finalVitals = scraped ?: RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@RingConnForegroundService)
-                                WearDataSyncService(this@RingConnForegroundService).syncVitalsToWatch(finalVitals, force = true)
-                                Log.i(TAG, "Morning Smart Unlock Peek completed: HR=${finalVitals.lastHeartRate}, Sleep=${finalVitals.sleepScore}, Bat=${finalVitals.ringBattery}%")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error in morning smart peek", e)
-                            }
-                        }
-                        return
-                    }
-                } else if (hour in 5..12 && todayEpochDay != lastMorningPeekEpochDay && (currentVitals.sleepScore == 0 || currentVitals.skinTempBaseline == 0f)) {
-                    // Fallback when AccessibilityService is not yet enabled by user
-                    prefs.edit().putLong(RingConnTelemetryReader.KEY_LAST_MORNING_PEEK_EPOCH_DAY, todayEpochDay).apply()
-                    Log.i(TAG, "Morning user-present detected without Accessibility: waking RingConn fallback")
-                    scope.launch {
-                        try {
-                            val launchIntent = packageManager.getLaunchIntentForPackage("com.gdjztech.ringconn")
-                            if (launchIntent != null) {
-                                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-                                startActivity(launchIntent)
-                                delay(4000L)
-                                val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-                                    addCategory(Intent.CATEGORY_HOME)
-                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                }
-                                startActivity(homeIntent)
-                                triggerSync(force = true)
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error in morning auto-sync fallback", e)
-                        }
-                    }
-                    return
-                }
-
-                // 2. Opportunistic Unlocked Sync (Throttled to max 1 per 60s)
+                val ctx = context ?: this@RingConnForegroundService
                 val nowMs = System.currentTimeMillis()
                 if (nowMs - lastUserPresentSyncMs > 60_000L) {
                     lastUserPresentSyncMs = nowMs
-                    Log.i(TAG, "User present (unlock) detected: triggering opportunistic sync")
-                    scope.launch {
-                        triggerSync(force = false)
-                    }
+                    Log.i(TAG, "User present (unlock) detected: triggering silent background sync")
+                    syncTelemetryNow(ctx)
                 }
             }
         }
@@ -179,6 +129,10 @@ class RingConnForegroundService : Service() {
     }
 
     private suspend fun triggerSync(force: Boolean = false) {
+        if (!syncMutex.tryLock()) {
+            Log.d(TAG, "Sync already in progress, skipping overlapping trigger")
+            return
+        }
         val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
         val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RingConnWearSync:SyncWakeLock")
         wakeLock?.acquire(15_000L)
@@ -211,6 +165,7 @@ class RingConnForegroundService : Service() {
                     wakeLock.release()
                 }
             } catch (_: Exception) {}
+            syncMutex.unlock()
         }
     }
 
@@ -261,6 +216,44 @@ class RingConnForegroundService : Service() {
         const val ACTION_SYNC_NOW = "io.github.hardbas.wearsync.bridge.SYNC_NOW"
         const val ACTION_WATCHDOG_TICK = "io.github.hardbas.wearsync.bridge.WATCHDOG_TICK"
         private const val WATCHDOG_REQUEST_CODE = 9001
+        private val syncMutex = Mutex()
+
+        fun syncTelemetryNow(context: Context, force: Boolean = false) {
+            val appCtx = context.applicationContext
+            CoroutineScope(Dispatchers.IO).launch {
+                if (!syncMutex.tryLock()) {
+                    Log.d(TAG, "Sync already in progress, skipping overlapping trigger")
+                    return@launch
+                }
+                val powerManager = appCtx.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                val wakeLock = powerManager?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RingConnWearSync:SyncWakeLock")
+                wakeLock?.acquire(15_000L)
+                try {
+                    try {
+                        val bgIntent = Intent("es.antonborri.home_widget.action.BACKGROUND").apply {
+                            setPackage("com.gdjztech.ringconn")
+                        }
+                        appCtx.sendBroadcast(bgIntent)
+                    } catch (e: Exception) {
+                        Log.d(TAG, "HomeWidget background broadcast error: ${e.message}")
+                    }
+
+                    val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(appCtx)
+                    val success = WearDataSyncService(appCtx).syncVitalsToWatch(vitals, force = force)
+                    Log.d(TAG, "syncTelemetryNow completed: success=$success")
+                    scheduleWatchdog(appCtx)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in syncTelemetryNow", e)
+                } finally {
+                    try {
+                        if (wakeLock?.isHeld == true) {
+                            wakeLock.release()
+                        }
+                    } catch (_: Exception) {}
+                    syncMutex.unlock()
+                }
+            }
+        }
 
         fun start(context: Context, action: String? = null) {
             val intent = Intent(context, RingConnForegroundService::class.java).apply {

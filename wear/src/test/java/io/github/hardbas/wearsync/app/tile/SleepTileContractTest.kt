@@ -366,7 +366,7 @@ class SleepTileContractTest {
     @Test
     fun `previous freshness and resource version still hold`() {
         val tile = SleepTileService.buildTile(strings, packageName, deviceParams, live)
-        assertEquals(60_000L, tile.freshnessIntervalMillis)
+        assertEquals(900_000L, tile.freshnessIntervalMillis)
         assertEquals(SleepTileService.RESOURCES_VERSION, SleepTileService.buildResources().version)
         assertTrue(
             "the old sunset scene drawables are gone from the resources",

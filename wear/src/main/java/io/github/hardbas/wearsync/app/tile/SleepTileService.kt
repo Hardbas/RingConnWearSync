@@ -58,7 +58,9 @@ class SleepTileService : TileService() {
     override fun onTileEnterEvent(tileEnterEvent: EventBuilders.TileEnterEvent) {
         super.onTileEnterEvent(tileEnterEvent)
         val vitals = RingConnComplicationProvider.getLatestVitals(this)
-        if (vitals.sleepScore == 0) {
+        val now = System.currentTimeMillis()
+        if (vitals.sleepScore == 0 && (now - lastSyncRequestMs > SYNC_COOLDOWN_MS)) {
+            lastSyncRequestMs = now
             // No sleep data after midnight rollover — request phone to wake RingConn and sync
             requestPhoneSync()
         }
@@ -87,7 +89,9 @@ class SleepTileService : TileService() {
         const val RESOURCES_VERSION = "warm-editorial-sleep-v1"
 
         /** Face refresh period. */
-        private const val DEFAULT_FRESHNESS_MS = 60_000L
+        @Volatile private var lastSyncRequestMs: Long = 0L
+        private const val SYNC_COOLDOWN_MS = 5 * 60_000L // 5 minutes
+        private const val DEFAULT_FRESHNESS_MS = 900_000L
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.SleepDetailActivity"
 

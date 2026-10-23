@@ -352,6 +352,23 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             )
         }
 
+        @Volatile private var lastBroadcastSignature: String? = null
+
+        fun computeContentSignature(vitals: RingConnVitals): String {
+            return "${vitals.lastHeartRate}_${vitals.avgHeartRate}_${vitals.lastSpo2}_${vitals.avgSpo2}_${vitals.lastHrv}_${vitals.avgHrv}_" +
+                "${vitals.sleepScore}_${vitals.activityScore}_${vitals.activeMinutes}_${vitals.stressScore}_${vitals.liveSteps}_" +
+                "${vitals.targetSteps}_${vitals.liveCalorie}_${vitals.targetCalorie}_${vitals.ringBattery}_${vitals.isCharging}_${vitals.isConnected}_" +
+                "${vitals.minHeartRate}_${vitals.maxHeartRate}_${vitals.zone1Mins}_${vitals.zone2Mins}_${vitals.zone3Mins}_${vitals.zone4Mins}_${vitals.zone5Mins}_" +
+                "${vitals.sleepDeepMins}_${vitals.sleepRemMins}_${vitals.sleepLightMins}_${vitals.sleepAwakeMins}_" +
+                "${vitals.skinTempOffset}_${vitals.skinTempBaseline}_" +
+                "${vitals.sleepInsight}_${vitals.stressInsight}_${vitals.activityInsight}_${vitals.vitalsInsight}_" +
+                "${vitals.odiDropsPerHour}_${vitals.minSleepingSpo2}_${vitals.sleepingHrDipPct}_" +
+                "${vitals.napMinutes}_${vitals.bedtimeWindow}_${vitals.standHours}_" +
+                "${vitals.hrPhaseDeep}_${vitals.hrPhaseRem}_${vitals.hrPhaseLight}_${vitals.sleepEfficiencyPct}_" +
+                "${vitals.stressDawn}_${vitals.stressMorning}_${vitals.stressAfternoon}_${vitals.stressNight}_" +
+                "${vitals.distanceKm}_${vitals.respiratoryRate}"
+        }
+
         fun getVitals(context: Context): RingConnVitals = getLatestVitals(context)
 
         fun parseVitalsFromDataMap(dataMap: com.google.android.gms.wearable.DataMap): RingConnVitals =
@@ -361,6 +378,10 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
             io.github.hardbas.wearsync.app.service.WearDataListenerService.parseVitalsFromJson(json)
 
         fun saveAndBroadcastVitals(context: Context, vitals: RingConnVitals) {
+            val contentSignature = computeContentSignature(vitals)
+            val isDuplicate = (lastBroadcastSignature != null && lastBroadcastSignature == contentSignature)
+            lastBroadcastSignature = contentSignature
+
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val todayEpochDay = java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toEpochDay()
             ensureDailyRollover(prefs, todayEpochDay)
@@ -423,6 +444,11 @@ class RingConnComplicationProvider : SuspendingComplicationDataSourceService() {
                 putFloat("distance_km", vitals.distanceKm)
                 putFloat("respiratory_rate", vitals.respiratoryRate)
                 apply()
+            }
+
+            if (isDuplicate) {
+                Log.d("RingConnComplication", "Skipping redundant complication and tile broadcast updates (content signature unchanged)")
+                return
             }
 
             try {

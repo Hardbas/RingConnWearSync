@@ -367,7 +367,7 @@ class StressTileContractTest {
     @Test
     fun `previous freshness and resource version still hold`() {
         val tile = StressTileService.buildTile(strings, packageName, deviceParams, live)
-        assertEquals(60_000L, tile.freshnessIntervalMillis)
+        assertEquals(900_000L, tile.freshnessIntervalMillis)
         assertEquals(StressTileService.RESOURCES_VERSION, StressTileService.buildResources().version)
     }
 }

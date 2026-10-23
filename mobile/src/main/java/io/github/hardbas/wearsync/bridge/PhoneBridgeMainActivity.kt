@@ -654,7 +654,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 return@launch
             }
             try {
-                requestPermissionLauncher.launch(RingConnTelemetryReader.CORE_HEALTH_PERMISSIONS)
+                requestPermissionLauncher.launch(RingConnTelemetryReader.REQUESTED_HEALTH_PERMISSIONS)
             } catch (e: Exception) {
                 Log.e(TAG, "Error launching permission request", e)
                 try {

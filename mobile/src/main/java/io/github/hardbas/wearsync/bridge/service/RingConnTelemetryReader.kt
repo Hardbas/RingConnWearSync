@@ -98,6 +98,8 @@ object RingConnTelemetryReader {
     const val KEY_PREV_DAY_STEPS = "keyPrevDaySteps"
     const val KEY_PREV_DAY_CALORIE = "keyPrevDayCalorie"
 
+    const val PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
     val CORE_HEALTH_PERMISSIONS = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(StepsRecord::class),
@@ -107,6 +109,8 @@ object RingConnTelemetryReader {
         HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class)
     )
+
+    val REQUESTED_HEALTH_PERMISSIONS: Set<String> = CORE_HEALTH_PERMISSIONS + PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
 
     fun isHealthConnectAvailable(context: Context): Boolean {
         return try {
@@ -124,6 +128,18 @@ object RingConnTelemetryReader {
             granted.containsAll(CORE_HEALTH_PERMISSIONS)
         } catch (e: Exception) {
             Log.e(TAG, "Error checking Health Connect permissions", e)
+            false
+        }
+    }
+
+    suspend fun hasBackgroundReadPermission(context: Context): Boolean {
+        return try {
+            if (!isHealthConnectAvailable(context)) return false
+            val client = HealthConnectClient.getOrCreate(context)
+            val granted = client.permissionController.getGrantedPermissions()
+            granted.contains(PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking Health Connect background read permission", e)
             false
         }
     }
@@ -1081,7 +1097,18 @@ object RingConnTelemetryReader {
         val widgetVitals = widgetDeferred.await()
         val hcVitals = hcDeferred.await()
 
-        if (widgetVitals != null && (widgetVitals.lastHeartRate > 0 || widgetVitals.sleepScore > 0 || widgetVitals.liveSteps > 0)) {
+        if (widgetVitals != null && (
+                widgetVitals.lastHeartRate > 0 ||
+                widgetVitals.sleepScore > 0 ||
+                widgetVitals.liveSteps > 0 ||
+                widgetVitals.activityScore > 0 ||
+                widgetVitals.ringBattery > 0 ||
+                widgetVitals.lastSpo2 > 0 ||
+                widgetVitals.lastHrv > 0 ||
+                widgetVitals.stressScore > 0 ||
+                widgetVitals.skinTempBaseline > 0f ||
+                widgetVitals.skinTempOffset != 0f
+            )) {
             val cached = parseFromPreferences(prefs)
             val nowLocal = ZonedDateTime.now(ZoneId.systemDefault())
             val curHour = nowLocal.hour

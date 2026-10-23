@@ -60,6 +60,7 @@ class RingConnAccessibilityService : AccessibilityService() {
             // Debounce rapid window changes
             val now = System.currentTimeMillis()
             if (now - lastScrapeTimestamp < 400L) return
+            lastScrapeTimestamp = now
 
             scrapeJob?.cancel()
             scrapeJob = serviceScope.launch {
@@ -100,17 +101,19 @@ class RingConnAccessibilityService : AccessibilityService() {
                 root.recycle()
             }
 
-            // 2. Traverse interactive windows (only if RingConn)
-            try {
-                for (w in windows) {
-                    val winRoot = w.root ?: continue
-                    if (winRoot.packageName?.toString() == "com.gdjztech.ringconn") {
-                        traverseNode(winRoot, collectedTokens)
+            // 2. Fall back to interactive windows only if rootInActiveWindow was empty or not RingConn
+            if (collectedTokens.isEmpty()) {
+                try {
+                    for (w in windows) {
+                        val winRoot = w.root ?: continue
+                        if (winRoot.packageName?.toString() == "com.gdjztech.ringconn") {
+                            traverseNode(winRoot, collectedTokens)
+                        }
+                        winRoot.recycle()
                     }
-                    winRoot.recycle()
+                } catch (e: Exception) {
+                    // Ignore window enumeration errors
                 }
-            } catch (e: Exception) {
-                // Ignore window enumeration errors
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error traversing accessibility tree", e)

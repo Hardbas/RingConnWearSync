@@ -372,7 +372,7 @@ class VitalsTileContractTest {
     @Test
     fun `previous freshness and resource version still hold`() {
         val tile = VitalsTileService.buildTile(strings, packageName, deviceParams, live)
-        assertEquals(30_000L, tile.freshnessIntervalMillis)
+        assertEquals(900_000L, tile.freshnessIntervalMillis)
         assertEquals(VitalsTileService.RESOURCES_VERSION, VitalsTileService.buildResources().version)
     }
 }

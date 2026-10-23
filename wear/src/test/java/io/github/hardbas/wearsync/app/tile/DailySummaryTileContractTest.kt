@@ -393,7 +393,7 @@ class DailySummaryTileContractTest {
     @Test
     fun `previous freshness and resource version still hold`() {
         val tile = DailySummaryTileService.buildTile(strings, packageName, deviceParams, live)
-        assertEquals(60_000L, tile.freshnessIntervalMillis)
+        assertEquals(900_000L, tile.freshnessIntervalMillis)
         assertEquals(DailySummaryTileService.RESOURCES_VERSION, DailySummaryTileService.buildResources().version)
     }
 }

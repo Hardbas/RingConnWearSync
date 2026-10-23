@@ -1,9 +1,11 @@
 package io.github.hardbas.wearsync.app
 
+import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -219,5 +221,30 @@ class RingConnVitalsTest {
         assertEquals(0, rolled.basalCalories)
         assertEquals("", rolled.sleepInsight)
         assertEquals("", rolled.activityInsight)
+    }
+
+    @Test
+    fun computeContentSignature_ignoresRefreshTimestampAndBasalCalories() {
+        val vitalsA = RingConnVitals(
+            lastHeartRate = 72,
+            lastSpo2 = 98,
+            ringBattery = 80,
+            refreshTimestamp = 1000L,
+            basalCalories = 1200
+        )
+        val vitalsB = vitalsA.copy(
+            refreshTimestamp = 2000L,
+            basalCalories = 1205
+        )
+        assertEquals(
+            RingConnComplicationProvider.computeContentSignature(vitalsA),
+            RingConnComplicationProvider.computeContentSignature(vitalsB)
+        )
+
+        val vitalsChanged = vitalsA.copy(lastHeartRate = 73)
+        assertNotEquals(
+            RingConnComplicationProvider.computeContentSignature(vitalsA),
+            RingConnComplicationProvider.computeContentSignature(vitalsChanged)
+        )
     }
 }
