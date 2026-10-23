@@ -16,6 +16,8 @@ import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileTestKit
 import io.github.hardbas.wearsync.app.tile.design.TileType
+import java.time.ZoneId
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -46,18 +48,22 @@ class HeartRateTileContractTest {
 
     private val packageName = "io.github.hardbas.wearsync.test"
 
+    private val testZone: ZoneId = ZoneOffset.UTC
+
     private fun now(): Long = System.currentTimeMillis() / 1000L
 
     private fun rootFor(
         vitals: RingConnVitals,
-        history: List<DailyHistoryEntry> = emptyList()
+        history: List<DailyHistoryEntry> = emptyList(),
+        zoneId: ZoneId = testZone
     ): LayoutElementBuilders.LayoutElement =
         HeartRateTileService.buildTile(
             strings,
             packageName,
             deviceParams,
             vitals,
-            history
+            history,
+            zoneId
         ).tileTimeline!!.timelineEntries[0].layout!!.root!!
 
     /** Seven real-looking days, oldest first; the newest resting rate is 56. */
@@ -228,7 +234,7 @@ class HeartRateTileContractTest {
     fun `no brush carries a dynamic value`() {
         val roots = listOf(
             live, RingConnVitals(refreshTimestamp = 0L), live.copy(refreshTimestamp = now() - 3_600L)
-        ).map(::rootFor)
+        ).map { rootFor(it) }
         roots.forEach { root ->
             assertTrue(
                 "a brush is snapshotted when the tile is built; a dynamic value there never animates",
@@ -299,13 +305,36 @@ class HeartRateTileContractTest {
     }
 
     @Test
-    fun `the sub line carries the average variability`() {
+    fun `the sub line carries the average variability and measurement time`() {
         // avgHrv is the average of the ring's reads; without one the last read is
-        // the only average there is.
-        assertTrue(TileTestKit.texts(rootFor(live)).any { it.text?.value == "HRV 34 ms" })
+        // the only average there is. With a valid timestamp, HH:mm is appended.
+        val expectedTime = HeartRateTileService.formatMeasurementTime(live.refreshTimestamp, testZone)
+        assertTrue(TileTestKit.texts(rootFor(live)).any { it.text?.value == "HRV 34 · $expectedTime" })
         assertTrue(
-            TileTestKit.texts(rootFor(live.copy(avgHrv = 48))).any { it.text?.value == "HRV 48 ms" }
+            TileTestKit.texts(rootFor(live.copy(avgHrv = 48))).any { it.text?.value == "HRV 48 · $expectedTime" }
         )
+    }
+
+    @Test
+    fun `sub falls back to ms without timestamp and time alone without hrv`() {
+        val noTime = live.copy(refreshTimestamp = 0L)
+        assertTrue(TileTestKit.texts(rootFor(noTime)).any { it.text?.value == "HRV 34 ms" })
+
+        val hrOnly = live.copy(lastHrv = 0, avgHrv = 0)
+        val expectedTime = HeartRateTileService.formatMeasurementTime(live.refreshTimestamp, testZone)
+        assertTrue(TileTestKit.texts(rootFor(hrOnly)).any { it.text?.value == expectedTime })
+
+        val empty = RingConnVitals(refreshTimestamp = 0L)
+        assertTrue(TileTestKit.texts(rootFor(empty)).any { it.text?.value == "No data" })
+    }
+
+    @Test
+    fun `formatMeasurementTime handles valid, zero, negative and zone offsets`() {
+        val fixed = 1_700_000_000L // 2023-11-14T22:13:20Z -> "22:13"
+        assertEquals("22:13", HeartRateTileService.formatMeasurementTime(fixed, ZoneOffset.UTC))
+        assertEquals("00:13", HeartRateTileService.formatMeasurementTime(fixed, ZoneOffset.ofHours(2)))
+        assertEquals(null, HeartRateTileService.formatMeasurementTime(0L, ZoneOffset.UTC))
+        assertEquals(null, HeartRateTileService.formatMeasurementTime(-100L, ZoneOffset.UTC))
     }
 
     @Test
@@ -416,12 +445,26 @@ class HeartRateTileContractTest {
     // ---- fit ------------------------------------------------------------
 
     @Test
-    fun `label and pill fit the chord at their own height`() {
+    fun `label, sub and pill fit the chord at their own height`() {
         val label = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("PULSE") == true }
         assertTrue(
             "label ${TileTestKit.estimatedWidthDp(label)}dp must stay under " +
                 "${TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)}dp",
             TileTestKit.estimatedWidthDp(label) <= TileGeometry.safeWidthDp(TileGeometry.LABEL_Y)
+        )
+
+        val sub = TileTestKit.texts(liveRoot).first { it.text?.value?.startsWith("HRV 34") == true }
+        assertTrue(
+            "sub ${TileTestKit.estimatedWidthDp(sub)}dp must stay under safe width at SUB_Y " +
+                "${TileGeometry.safeWidthDp(TileGeometry.SUB_Y)}dp",
+            TileTestKit.estimatedWidthDp(sub) <= TileGeometry.safeWidthDp(TileGeometry.SUB_Y)
+        )
+
+        val subWithTrend = TileTestKit.texts(rootFor(live, sevenDays())).first { it.text?.value?.startsWith("HRV 34") == true }
+        assertTrue(
+            "sub with trend ${TileTestKit.estimatedWidthDp(subWithTrend)}dp must stay under safe width at TREND_SUB_Y " +
+                "${TileGeometry.safeWidthDp(TileGeometry.TREND_SUB_Y)}dp",
+            TileTestKit.estimatedWidthDp(subWithTrend) <= TileGeometry.safeWidthDp(TileGeometry.TREND_SUB_Y)
         )
 
         val pill = TileTestKit.boxes(liveRoot)

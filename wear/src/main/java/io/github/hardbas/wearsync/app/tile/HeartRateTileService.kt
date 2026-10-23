@@ -28,6 +28,9 @@ import io.github.hardbas.wearsync.app.tile.design.TileShell
 import io.github.hardbas.wearsync.app.tile.design.TileSparkline
 import io.github.hardbas.wearsync.app.tile.design.TileStrings
 import io.github.hardbas.wearsync.app.tile.design.TileType
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -59,6 +62,8 @@ class HeartRateTileService : TileService() {
 
         private const val DETAIL_ACTIVITY = "io.github.hardbas.wearsync.app.ui.HeartRateDetailActivity"
 
+        private val TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+
         fun buildResources(): ResourceBuilders.Resources =
             TileResources.addTo(ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)).build()
 
@@ -79,13 +84,16 @@ class HeartRateTileService : TileService() {
          * @param history the seven-day cache the trend row comes from. Passed in
          *   so the contract tests can build entries directly; production reads it
          *   from [RingConnHistoryStore].
+         * @param zoneId the timezone used to format the measurement timestamp.
+         *   Injectable for deterministic JVM testing.
          */
         fun buildTile(
             strings: TileStrings,
             packageName: String,
             deviceParams: DeviceParameters,
             vitals: RingConnVitals,
-            history: List<DailyHistoryEntry> = emptyList()
+            history: List<DailyHistoryEntry> = emptyList(),
+            zoneId: ZoneId = ZoneId.systemDefault()
         ): TileBuilders.Tile {
             val hasHr = vitals.lastHeartRate > 0
             val stale = vitals.isStale
@@ -105,14 +113,18 @@ class HeartRateTileService : TileService() {
             // shows an arc instead of a dot.
             val fraction = if (hasHr) ((bpm - 42f) / 145f).coerceIn(0.05f, 0.96f) else 0f
 
-            // The sub carries the average variability of the reading, not one
-            // beat's: the trend row underneath already shows the shape of the
-            // week, so the line under it is the reference level.
+            // The sub carries the average variability of the reading and its measurement
+            // time (when present). If no variability is recorded, it displays the timestamp
+            // alone.
+            val timeStr = formatMeasurementTime(vitals.refreshTimestamp, zoneId)
+            val hasTime = timeStr != null
             val hrvValue = if (vitals.avgHrv > 0) vitals.avgHrv else vitals.lastHrv
-            val hrv = if (hrvValue > 0) {
-                "${strings.text(R.string.hrv_short)} $hrvValue ms"
-            } else {
-                strings.text(R.string.no_data)
+            val subText = when {
+                !hasHr -> strings.text(R.string.no_data)
+                hrvValue > 0 && hasTime -> "${strings.text(R.string.hrv_short)} $hrvValue · $timeStr"
+                hrvValue > 0 -> "${strings.text(R.string.hrv_short)} $hrvValue ms"
+                hasTime -> timeStr
+                else -> strings.text(R.string.no_data)
             }
 
             // The trend row: resting rate, oldest first, last seven days. No
@@ -193,7 +205,7 @@ class HeartRateTileService : TileService() {
                     style = TileType.hero(),
                     opacity = if (stale) TileInk.STALE_HERO_ALPHA else null
                 ),
-                sub = TileShell.text(hrv, TileType.sub()),
+                sub = TileShell.text(subText, TileType.sub()),
                 trend = sparkline
             )
 
@@ -203,6 +215,24 @@ class HeartRateTileService : TileService() {
             )
 
             return tile(TileShell.root(clickable, layers, stack, pill))
+        }
+
+        /**
+         * Formats measurement epoch seconds into local HH:mm.
+         * Returns null when epochSeconds is non-positive or formatting fails.
+         */
+        fun formatMeasurementTime(
+            epochSeconds: Long,
+            zoneId: ZoneId = ZoneId.systemDefault()
+        ): String? {
+            if (epochSeconds <= 0L) return null
+            return try {
+                Instant.ofEpochSecond(epochSeconds)
+                    .atZone(zoneId)
+                    .format(TIME_FORMATTER)
+            } catch (_: Exception) {
+                null
+            }
         }
 
         /**
