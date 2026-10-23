@@ -54,6 +54,17 @@ it is not a release.
 6. Publish the GitHub Release manually, attaching the two APKs. Until the signing
    decision below is made, that step is human on purpose.
 
+## Rehearsing the gate without tagging
+
+The gate is also dispatchable: **Actions → Release Gate → Run workflow** and type
+ the tag you intend to publish (for example `v1.9.26`). It runs the same guard,
+the same tests and the same `assembleRelease`, so a rehearsal failure tells you a
+real tag would fail too.
+
+The guard's own regression tests live in `scripts/test-check-version-tag.sh` and
+run in both workflows, so a change that weakens the guard breaks CI instead of
+silently shipping.
+
 ## Known caveat: release APKs are signed with the debug key
 
 Both modules currently sign `release` builds with the Android **debug**

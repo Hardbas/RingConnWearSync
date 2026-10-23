@@ -28,7 +28,7 @@ if [[ ! -f "$properties" ]]; then
     exit 2
 fi
 
-version_name="$(sed -n 's/^versionName[[:space:]]*=[[:space:]]*//p' "$properties" | tr -d '[:space:]')"
+version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*//p' "$properties" | tr -d '[:space:]')"
 
 if [[ -z "$version_name" ]]; then
     echo "error: versionName is missing from $properties" >&2
