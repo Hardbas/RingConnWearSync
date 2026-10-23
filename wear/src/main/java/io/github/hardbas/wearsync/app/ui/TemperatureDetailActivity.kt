@@ -16,6 +16,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -168,10 +170,21 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenTemperatureBackdrop(
+                listState = listState,
+                skinTempOffset = offset,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -305,6 +318,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -448,6 +462,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -497,6 +512,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -555,6 +571,7 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -599,8 +616,168 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                 )
             }
         }
+        }
     }
 }
+
+private data class ThermalParticle(
+    val xNorm: Float,
+    val yNorm: Float,
+    val radiusDp: Float,
+    val speed: Float,
+    val phaseOffset: Float,
+    val isWarm: Boolean
+)
+
+/**
+ * Full-Screen Thermodynamic Aurora & Micro-Particles Backdrop.
+ * Placed behind ScalingLazyColumn across Modifier.fillMaxSize(), featuring
+ * a breathing thermal equilibrium aurora (cool cyan vs clinical mint vs warm amber),
+ * floating thermodynamic micro-particles, and subtle concentric thermal contours
+ * with scroll parallax. Gated strictly on Lifecycle.State.RESUMED for 0.0% ambient drain.
+ */
+@Composable
+private fun FullScreenTemperatureBackdrop(
+    listState: ScalingLazyListState,
+    skinTempOffset: Float,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val (primaryColor, secondaryColor) = remember(skinTempOffset) {
+        when {
+            skinTempOffset > 0.2f -> Pair(Color(0xFFFF7043), Color(0xFFFFB703))
+            skinTempOffset < -0.2f -> Pair(Color(0xFF38BDF8), Color(0xFF00E5FF))
+            else -> Pair(Color(0xFF00E676), Color(0xFF34D399))
+        }
+    }
+
+    val transition = rememberInfiniteTransition(label = "tempField")
+
+    val driftPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "tempDriftPhase"
+    )
+
+    val contourPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "contourPhase"
+    )
+
+    val particles = remember {
+        listOf(
+            ThermalParticle(0.14f, 0.85f, 1.3f, 0.7f, 0.1f, true),
+            ThermalParticle(0.82f, 0.90f, 1.7f, 0.9f, 0.35f, false),
+            ThermalParticle(0.25f, 0.72f, 1.2f, 0.6f, 0.6f, true),
+            ThermalParticle(0.76f, 0.68f, 1.5f, 0.85f, 0.85f, false),
+            ThermalParticle(0.48f, 0.95f, 2.0f, 1.1f, 0.2f, true),
+            ThermalParticle(0.12f, 0.48f, 1.4f, 0.65f, 0.45f, false),
+            ThermalParticle(0.88f, 0.42f, 1.6f, 0.75f, 0.7f, true),
+            ThermalParticle(0.34f, 0.32f, 1.1f, 0.55f, 0.15f, false),
+            ThermalParticle(0.66f, 0.28f, 1.8f, 0.8f, 0.9f, true),
+            ThermalParticle(0.22f, 0.58f, 1.3f, 0.7f, 0.5f, false),
+            ThermalParticle(0.80f, 0.52f, 1.2f, 0.65f, 0.3f, true),
+            ThermalParticle(0.42f, 0.62f, 1.7f, 0.95f, 0.75f, false),
+            ThermalParticle(0.58f, 0.78f, 1.4f, 0.7f, 0.4f, true),
+            ThermalParticle(0.08f, 0.78f, 1.5f, 0.85f, 0.05f, false),
+            ThermalParticle(0.92f, 0.82f, 1.2f, 0.6f, 0.65f, true),
+            ThermalParticle(0.50f, 0.22f, 1.9f, 1.0f, 0.25f, false)
+        )
+    }
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val parallaxY = -(scrollParallax % h)
+        val heroCenter = Offset(w / 2f, (h * 0.38f + parallaxY * 0.2f).coerceIn(h * 0.2f, h * 0.7f))
+
+        // 1. Concentric Thermal Equilibrium Contours
+        if (isResumed) {
+            for (i in 0 until 3) {
+                val contourP = (contourPhase + i * 0.33f) % 1.0f
+                val contourRadius = 45.dp.toPx() + contourP * (w * 0.58f)
+                val contourAlpha = (1f - contourP).let { it * it } * 0.20f
+
+                drawCircle(
+                    color = primaryColor.copy(alpha = contourAlpha),
+                    radius = contourRadius,
+                    center = heroCenter,
+                    style = Stroke(width = 1.1.dp.toPx())
+                )
+            }
+        }
+
+        // 2. Breathing Thermodynamic Aurora Field
+        val breathAlpha = if (isResumed) {
+            0.11f + 0.07f * kotlin.math.sin(contourPhase * 2.0 * Math.PI).toFloat()
+        } else {
+            0.13f
+        }
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    primaryColor.copy(alpha = breathAlpha * 1.1f),
+                    secondaryColor.copy(alpha = breathAlpha * 0.5f),
+                    Color.Transparent
+                ),
+                center = heroCenter,
+                radius = w * 0.70f
+            ),
+            radius = w * 0.70f,
+            center = heroCenter
+        )
+
+        // 3. Floating Thermodynamic Micro-Particles
+        for (p in particles) {
+            val drift = if (isResumed) driftPhase else 0.5f
+            val rawCy = p.yNorm * h - drift * h * p.speed + parallaxY * 0.35f
+            val cy = ((rawCy % h) + h) % h
+            val swayX = kotlin.math.sin((drift + p.phaseOffset) * 2.0 * Math.PI).toFloat() * 7.dp.toPx()
+            val cx = (p.xNorm * w + swayX).coerceIn(4.dp.toPx(), w - 4.dp.toPx())
+
+            val alpha = if (isResumed) {
+                val cycle = ((drift + p.phaseOffset) % 1.0f)
+                val sinVal = kotlin.math.sin(cycle * 2.0 * Math.PI).toFloat()
+                0.22f + 0.35f * (sinVal + 1f)
+            } else {
+                0.30f
+            }
+
+            val pColor = if (p.isWarm) primaryColor else secondaryColor
+            val rPx = p.radiusDp.dp.toPx()
+
+            drawCircle(
+                color = pColor.copy(alpha = alpha),
+                radius = rPx,
+                center = Offset(cx, cy)
+            )
+
+            if (rPx >= 1.5.dp.toPx() && alpha > 0.45f) {
+                drawCircle(
+                    color = Color.White.copy(alpha = (alpha - 0.45f) * 0.5f),
+                    radius = rPx * 0.4f,
+                    center = Offset(cx - rPx * 0.2f, cy - rPx * 0.2f)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
@@ -649,6 +826,7 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {

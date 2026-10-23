@@ -17,6 +17,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.lifecycle.Lifecycle
@@ -158,10 +159,22 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenDailySummaryBackdrop(
+                listState = listState,
+                activityScore = activityScore,
+                steps = liveSteps,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -287,6 +300,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -383,6 +397,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -464,6 +479,7 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -598,8 +614,212 @@ fun DailySummaryDetailContent(vitals: RingConnVitals) {
                 )
             }
         }
+        }
     }
 }
+
+private data class KineticSpark(
+    val radiusNorm: Float,
+    val speed: Float,
+    val angleOffsetDeg: Float,
+    val sparkRadiusDp: Float,
+    val isLime: Boolean
+)
+
+/**
+ * Full-Screen Kinetic Solar Sparks & Velocity Field Backdrop.
+ * Placed behind ScalingLazyColumn across Modifier.fillMaxSize(), featuring
+ * kinetic lime/emerald and warm amber energy sparks drifting along curved orbital
+ * tracks across the full screen, subtle radial velocity ticks near the bezel,
+ * and a breathing activity aura behind glassmorphic metric cards with scroll
+ * parallax. Gated strictly on Lifecycle.State.RESUMED for 0.0% ambient drain.
+ */
+@Composable
+private fun FullScreenDailySummaryBackdrop(
+    listState: ScalingLazyListState,
+    activityScore: Int,
+    steps: Int,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val transition = rememberInfiniteTransition(label = "dailyActivityField")
+
+    val orbitPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sparkOrbitPhase"
+    )
+
+    val velocityPulse by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "velocityPulse"
+    )
+
+    val auraBreath by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "auraBreath"
+    )
+
+    val sparks = remember {
+        listOf(
+            KineticSpark(0.32f, 1.2f, 15f, 1.4f, true),
+            KineticSpark(0.45f, 0.9f, 65f, 1.8f, false),
+            KineticSpark(0.55f, 1.4f, 120f, 1.2f, true),
+            KineticSpark(0.68f, 0.75f, 190f, 2.0f, false),
+            KineticSpark(0.80f, 1.1f, 245f, 1.5f, true),
+            KineticSpark(0.38f, 0.85f, 310f, 1.3f, false),
+            KineticSpark(0.60f, 1.3f, 40f, 1.6f, true),
+            KineticSpark(0.72f, 0.95f, 95f, 1.7f, false),
+            KineticSpark(0.85f, 0.7f, 160f, 1.2f, true),
+            KineticSpark(0.28f, 1.5f, 210f, 1.5f, false),
+            KineticSpark(0.50f, 1.0f, 280f, 1.8f, true),
+            KineticSpark(0.65f, 0.8f, 340f, 1.4f, false),
+            KineticSpark(0.76f, 1.15f, 80f, 1.6f, true),
+            KineticSpark(0.88f, 0.65f, 145f, 1.9f, false),
+            KineticSpark(0.42f, 1.25f, 230f, 1.3f, true),
+            KineticSpark(0.58f, 0.9f, 300f, 1.5f, false)
+        )
+    }
+
+    val limeColor = remember { Color(0xFFA0F116) }
+    val amberColor = remember { Color(0xFFFFB703) }
+    val emeraldColor = remember { Color(0xFF00E676) }
+    val cyanColor = remember { Color(0xFF47CDFF) }
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val parallaxY = -(scrollParallax % h)
+        val heroCenter = Offset(w / 2f, (h * 0.38f + parallaxY * 0.2f).coerceIn(h * 0.2f, h * 0.7f))
+
+        // 1. Breathing Activity Aura behind cards
+        val breathAlpha = if (isResumed) {
+            0.12f + 0.08f * kotlin.math.sin(auraBreath * 2.0 * Math.PI).toFloat()
+        } else {
+            0.14f
+        }
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    limeColor.copy(alpha = breathAlpha * 1.1f),
+                    cyanColor.copy(alpha = breathAlpha * 0.5f),
+                    Color.Transparent
+                ),
+                center = heroCenter,
+                radius = w * 0.70f
+            ),
+            radius = w * 0.70f,
+            center = heroCenter
+        )
+
+        // 2. Subtle Radial Velocity Ticks near Bezel
+        val bezelR = (w / 2f) * 0.95f
+        val center = Offset(w / 2f, h / 2f)
+        val numTicks = 60
+        val sweepTick = if (isResumed) (velocityPulse * numTicks).toInt() else 15
+
+        for (t in 0 until numTicks) {
+            val angleDeg = t * (360f / numTicks)
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val cosA = kotlin.math.cos(rad).toFloat()
+            val sinA = kotlin.math.sin(rad).toFloat()
+
+            val distFromSweep = kotlin.math.abs(t - sweepTick).let { kotlin.math.min(it, numTicks - it) }
+            val isSweepNear = distFromSweep <= 4
+            val tickAlpha = if (isSweepNear) {
+                0.35f * (1f - distFromSweep / 5f)
+            } else {
+                0.07f
+            }
+            val tickLen = if (isSweepNear) 4.5.dp.toPx() else 2.5.dp.toPx()
+            val tickColor = if (isSweepNear) limeColor else Color.White
+
+            val startP = Offset(center.x + (bezelR - tickLen) * cosA, center.y + (bezelR - tickLen) * sinA)
+            val endP = Offset(center.x + bezelR * cosA, center.y + bezelR * sinA)
+
+            drawLine(
+                color = tickColor.copy(alpha = tickAlpha),
+                start = startP,
+                end = endP,
+                strokeWidth = 1.dp.toPx()
+            )
+        }
+
+        // 3. Kinetic Solar Sparks drifting along curved orbital tracks
+        val maxOrbitR = (w / 2f) * 0.88f
+        for (spark in sparks) {
+            val curAngle = if (isResumed) {
+                (spark.angleOffsetDeg + orbitPhase * spark.speed) % 360f
+            } else {
+                spark.angleOffsetDeg
+            }
+            val rad = Math.toRadians(curAngle.toDouble())
+            val r = spark.radiusNorm * maxOrbitR
+            val sx = heroCenter.x + r * kotlin.math.cos(rad).toFloat()
+            val sy = heroCenter.y + r * 0.85f * kotlin.math.sin(rad).toFloat()
+
+            val sparkColor = if (spark.isLime) limeColor else amberColor
+            val rPx = spark.sparkRadiusDp.dp.toPx()
+            val alpha = if (isResumed) {
+                0.30f + 0.35f * kotlin.math.sin(Math.toRadians(curAngle.toDouble() * 2.0)).toFloat().let { kotlin.math.abs(it) }
+            } else {
+                0.40f
+            }
+
+            drawCircle(
+                color = sparkColor.copy(alpha = alpha),
+                radius = rPx,
+                center = Offset(sx, sy)
+            )
+
+            val tailAngle = rad - Math.toRadians(12.0 * spark.speed)
+            val tx = heroCenter.x + r * kotlin.math.cos(tailAngle).toFloat()
+            val ty = heroCenter.y + r * 0.85f * kotlin.math.sin(tailAngle).toFloat()
+
+            drawLine(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        sparkColor.copy(alpha = alpha * 0.6f)
+                    ),
+                    start = Offset(tx, ty),
+                    end = Offset(sx, sy)
+                ),
+                start = Offset(tx, ty),
+                end = Offset(sx, sy),
+                strokeWidth = (rPx * 0.9f),
+                cap = StrokeCap.Round
+            )
+
+            drawCircle(
+                color = Color.White.copy(alpha = (alpha * 0.9f).coerceIn(0f, 1f)),
+                radius = rPx * 0.45f,
+                center = Offset(sx, sy)
+            )
+        }
+    }
+}
+
 
 /**
  * Biometric reactive breathing radial aura placed behind the hero gauge.
@@ -849,6 +1069,7 @@ private fun StandHoursCard(
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
@@ -1050,6 +1271,7 @@ private fun TotalMetabolismAndDistanceCard(vitals: RingConnVitals) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {

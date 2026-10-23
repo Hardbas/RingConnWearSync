@@ -52,6 +52,8 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.currentStateAsState
+import androidx.compose.animation.core.LinearEasing
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.app.R
@@ -67,8 +69,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 // Specific One UI Watch 8 Heart Rate & HRV Palette
 val HrBpmWarm = Color(0xFFFBCEB6)
-val CardBg = Color(0xFF1B1E22)
-val CardBgSubtle = Color(0xFF22262C)
+val CardBg = Color(0xFF16191E).copy(alpha = 0.75f)
+val CardBgSubtle = Color(0xFF1E232B).copy(alpha = 0.70f)
 val TrackDark = Color(0x22FFFFFF)
 
 // 5 Standard One UI Heart Rate Zones
@@ -279,10 +281,23 @@ fun HeartRateDetailContent(
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenHeartRateBackdrop(
+                listState = listState,
+                bpm = currentHr,
+                isMeasuring = isMeasuring,
+                hrStatusColor = hrStatusColor,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -448,6 +463,7 @@ fun HeartRateDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -548,6 +564,7 @@ fun HeartRateDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                 Column {
@@ -699,6 +716,7 @@ fun HeartRateDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -852,6 +870,7 @@ fun HeartRateDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     val totalZoneMins = vitals.zone1Mins + vitals.zone2Mins + vitals.zone3Mins + vitals.zone4Mins + vitals.zone5Mins
@@ -1119,6 +1138,209 @@ fun HeartRateDetailContent(
                     accentColor = HrMinMaxPink,
                     selector = { it.rhr.toFloat() },
                     currentFallback = (if (vitals.minHeartRate > 0) vitals.minHeartRate else if (vitals.avgHeartRate > 0) vitals.avgHeartRate else vitals.lastHeartRate).toFloat()
+                )
+            }
+        }
+        }
+    }
+}
+
+private data class EmberParticle(
+    val xNorm: Float,
+    val yNorm: Float,
+    val radiusDp: Float,
+    val speed: Float,
+    val phaseOffset: Float,
+    val isCrimson: Boolean
+)
+
+/**
+ * Full-Screen Cardiovascular Pulse Field & Crimson Embers Backdrop.
+ * Placed behind ScalingLazyColumn across Modifier.fillMaxSize(), featuring
+ * expanding concentric arterial sonar pulse rings synced to BPM, a flowing
+ * harmonic ECG/pulse wave ribbon in the background, and rising micro-embers
+ * with scroll parallax. Gated on Lifecycle.State.RESUMED (0.0% ambient drain).
+ */
+@Composable
+private fun FullScreenHeartRateBackdrop(
+    listState: ScalingLazyListState,
+    bpm: Int,
+    isMeasuring: Boolean,
+    hrStatusColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val effectiveBpm = (bpm.takeIf { it > 0 } ?: 72).coerceIn(45, 180)
+    val periodMs = (60_000 / effectiveBpm)
+
+    val transition = rememberInfiniteTransition(label = "hrPulseField")
+
+    val pulsePhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = periodMs, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sonarPulsePhase"
+    )
+
+    val emberPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "emberDriftPhase"
+    )
+
+    val wavePhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = (periodMs * 2).coerceIn(1400, 3200), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ecgWavePhase"
+    )
+
+    val emberParticles = remember {
+        listOf(
+            EmberParticle(0.15f, 0.85f, 1.4f, 0.7f, 0.1f, true),
+            EmberParticle(0.82f, 0.90f, 1.8f, 0.9f, 0.35f, false),
+            EmberParticle(0.28f, 0.70f, 1.2f, 0.6f, 0.6f, true),
+            EmberParticle(0.74f, 0.65f, 1.6f, 0.85f, 0.85f, false),
+            EmberParticle(0.48f, 0.95f, 2.0f, 1.1f, 0.2f, true),
+            EmberParticle(0.10f, 0.45f, 1.3f, 0.65f, 0.45f, false),
+            EmberParticle(0.90f, 0.40f, 1.5f, 0.75f, 0.7f, true),
+            EmberParticle(0.35f, 0.30f, 1.1f, 0.55f, 0.15f, false),
+            EmberParticle(0.65f, 0.25f, 1.7f, 0.8f, 0.9f, true),
+            EmberParticle(0.22f, 0.55f, 1.4f, 0.7f, 0.5f, false),
+            EmberParticle(0.80f, 0.50f, 1.2f, 0.65f, 0.3f, true),
+            EmberParticle(0.42f, 0.60f, 1.6f, 0.95f, 0.75f, false),
+            EmberParticle(0.58f, 0.75f, 1.3f, 0.7f, 0.4f, true),
+            EmberParticle(0.08f, 0.80f, 1.5f, 0.85f, 0.05f, false),
+            EmberParticle(0.92f, 0.82f, 1.2f, 0.6f, 0.65f, true),
+            EmberParticle(0.50f, 0.20f, 1.8f, 1.0f, 0.25f, false),
+            EmberParticle(0.30f, 0.15f, 1.0f, 0.5f, 0.8f, true),
+            EmberParticle(0.70f, 0.12f, 1.3f, 0.75f, 0.55f, false)
+        )
+    }
+
+    val crimsonColor = remember { Color(0xFFFF2D55) }
+    val terracottaColor = remember { Color(0xFFFB8500) }
+    val emberGlowColor = remember { Color(0xFFFBCEB6) }
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val parallaxY = -(scrollParallax % h)
+        val heroCenter = Offset(w / 2f, (h * 0.38f + parallaxY * 0.2f).coerceIn(h * 0.2f, h * 0.7f))
+
+        // 1. Full-Screen Concentric Arterial Sonar Pulse Rings
+        val activeColor = if (bpm > 0) hrStatusColor else crimsonColor
+        if (isResumed) {
+            for (i in 0 until 3) {
+                val ringP = (pulsePhase + i * 0.33f) % 1.0f
+                val ringRadius = 55.dp.toPx() + ringP * (w * 0.55f)
+                val ringAlpha = (1f - ringP).let { it * it } * 0.24f
+
+                drawCircle(
+                    color = activeColor.copy(alpha = ringAlpha),
+                    radius = ringRadius,
+                    center = heroCenter,
+                    style = Stroke(width = 1.4.dp.toPx())
+                )
+            }
+        }
+
+        // 2. Glowing Harmonic ECG / Pulse Wave Ribbon across background
+        val waveY = (h * 0.52f + parallaxY * 0.3f)
+        val path = androidx.compose.ui.graphics.Path()
+        val numPoints = 80
+        val stepX = w / numPoints.toFloat()
+
+        for (pt in 0..numPoints) {
+            val x = pt * stepX
+            val normX = x / w
+            val waveT = if (isResumed) ((normX - wavePhase + 1f) % 1f) else normX
+
+            val ecgOffset = when {
+                waveT in 0.15f..0.22f -> {
+                    val p = (waveT - 0.15f) / 0.07f
+                    -kotlin.math.sin(p * Math.PI).toFloat() * 7.dp.toPx()
+                }
+                waveT in 0.27f..0.33f -> {
+                    val qrs = (waveT - 0.27f) / 0.06f
+                    when {
+                        qrs < 0.25f -> 5.dp.toPx() * (qrs / 0.25f)
+                        qrs < 0.65f -> -26.dp.toPx() * (1f - kotlin.math.abs((qrs - 0.45f) / 0.20f))
+                        else -> 8.dp.toPx() * (1f - (qrs - 0.65f) / 0.35f)
+                    }
+                }
+                waveT in 0.38f..0.50f -> {
+                    val t = (waveT - 0.38f) / 0.12f
+                    -kotlin.math.sin(t * Math.PI).toFloat() * 11.dp.toPx()
+                }
+                else -> {
+                    kotlin.math.sin(normX * 6.0 * Math.PI).toFloat() * 1.5.dp.toPx()
+                }
+            }
+
+            val y = waveY + ecgOffset
+            if (pt == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+
+        drawPath(
+            path = path,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    activeColor.copy(alpha = 0.12f),
+                    emberGlowColor.copy(alpha = 0.30f),
+                    activeColor.copy(alpha = 0.22f),
+                    Color.Transparent
+                )
+            ),
+            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // 3. Rising Crimson/Terracotta Micro-Embers with scroll parallax
+        for (ember in emberParticles) {
+            val driftPhase = if (isResumed) emberPhase else 0.5f
+            val rawCy = ember.yNorm * h - driftPhase * h * ember.speed + parallaxY * 0.35f
+            val cy = ((rawCy % h) + h) % h
+            val swayX = kotlin.math.sin((driftPhase + ember.phaseOffset) * 2.0 * Math.PI).toFloat() * 8.dp.toPx()
+            val cx = (ember.xNorm * w + swayX).coerceIn(4.dp.toPx(), w - 4.dp.toPx())
+
+            val alpha = if (isResumed) {
+                val cycle = ((driftPhase + ember.phaseOffset) % 1.0f)
+                val sinVal = kotlin.math.sin(cycle * 2.0 * Math.PI).toFloat()
+                0.22f + 0.35f * (sinVal + 1f)
+            } else {
+                0.30f
+            }
+
+            val baseColor = if (ember.isCrimson) crimsonColor else terracottaColor
+            val rPx = ember.radiusDp.dp.toPx()
+
+            drawCircle(
+                color = baseColor.copy(alpha = alpha),
+                radius = rPx,
+                center = Offset(cx, cy)
+            )
+
+            if (rPx >= 1.5.dp.toPx() && alpha > 0.45f) {
+                drawCircle(
+                    color = emberGlowColor.copy(alpha = (alpha - 0.45f) * 0.4f),
+                    radius = rPx * 2.2f,
+                    center = Offset(cx, cy)
                 )
             }
         }

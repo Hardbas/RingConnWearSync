@@ -18,6 +18,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.StrokeCap
@@ -160,10 +162,21 @@ fun StressDetailContent(vitals: RingConnVitals) {
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenStressBackdrop(
+                listState = listState,
+                stressScore = score,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -310,6 +323,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -370,8 +384,184 @@ fun StressDetailContent(vitals: RingConnVitals) {
                 )
             }
         }
+        }
     }
 }
+
+/**
+ * Full-Screen Autonomic Resonance & Coherent Wavefield Backdrop.
+ * Placed behind ScalingLazyColumn across Modifier.fillMaxSize(), featuring
+ * flowing multi-layered harmonic sine/aurora ribbons and breathing concentric
+ * coherence halos across the entire viewport. Color palette and wave speed
+ * adapt dynamically to stress level (calm emerald/teal vs balanced cyan vs
+ * elevated amber/violet) with scroll parallax. Gated on Lifecycle.State.RESUMED.
+ */
+@Composable
+private fun FullScreenStressBackdrop(
+    listState: ScalingLazyListState,
+    stressScore: Int,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    // Dynamic wave duration and color palette based on stress level
+    val (wavePeriodMs, primaryColor, secondaryColor) = remember(stressScore) {
+        when {
+            stressScore <= 30 -> Triple(5200, Color(0xFF00E676), Color(0xFF00B4D8)) // Calm Emerald / Teal slow waves
+            stressScore <= 60 -> Triple(3800, Color(0xFF00E5FF), Color(0xFF47CDFF)) // Balanced Cyan waves
+            stressScore <= 80 -> Triple(2800, Color(0xFFFFD600), Color(0xFFFF9E00)) // Moderate Amber waves
+            else -> Triple(2000, Color(0xFFFF3D00), Color(0xFFD8B4FE))              // Elevated Coral / Violet fast waves
+        }
+    }
+
+    val transition = rememberInfiniteTransition(label = "stressWavefield")
+
+    val wavePhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = wavePeriodMs, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "wavePhase"
+    )
+
+    val haloPhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = (wavePeriodMs * 1.3f).toInt(), easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "haloPhase"
+    )
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val parallaxY = -(scrollParallax % h)
+        val center = Offset(w / 2f, (h * 0.38f + parallaxY * 0.2f).coerceIn(h * 0.2f, h * 0.7f))
+
+        // 1. Breathing Concentric Coherence Halos across entire viewport
+        if (isResumed) {
+            for (i in 0 until 3) {
+                val haloP = (haloPhase + i * 0.33f) % 1.0f
+                val haloRadius = 45.dp.toPx() + haloP * (w * 0.60f)
+                val haloAlpha = (1f - haloP).let { it * it } * 0.20f
+
+                drawCircle(
+                    color = primaryColor.copy(alpha = haloAlpha),
+                    radius = haloRadius,
+                    center = center,
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
+            }
+        }
+
+        // 2. Breathing Autonomic Aurora Field
+        val breathAlpha = if (isResumed) {
+            0.12f + 0.08f * kotlin.math.sin(haloPhase * 2.0 * Math.PI).toFloat()
+        } else {
+            0.14f
+        }
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    primaryColor.copy(alpha = breathAlpha * 1.1f),
+                    secondaryColor.copy(alpha = breathAlpha * 0.6f),
+                    Color.Transparent
+                ),
+                center = center,
+                radius = w * 0.70f
+            ),
+            radius = w * 0.70f,
+            center = center
+        )
+
+        // 3. Multi-Layered Flowing Harmonic Sine / Aurora Ribbons
+        val numPts = 75
+        val stepX = w / numPts.toFloat()
+
+        // Ribbon 1: Upper harmonic resonance
+        val path1 = androidx.compose.ui.graphics.Path()
+        val baseY1 = h * 0.35f + parallaxY * 0.25f
+        for (i in 0..numPts) {
+            val x = i * stepX
+            val normX = x / w
+            val phase = if (isResumed) (wavePhase * 2.0 * Math.PI) else 0.0
+            val y = baseY1 + (kotlin.math.sin(normX * 2.5 * Math.PI + phase) * 16.dp.toPx()).toFloat() +
+                    (kotlin.math.cos(normX * 4.0 * Math.PI + phase * 0.5) * 6.dp.toPx()).toFloat()
+            if (i == 0) path1.moveTo(x, y) else path1.lineTo(x, y)
+        }
+        drawPath(
+            path = path1,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    primaryColor.copy(alpha = 0.25f),
+                    secondaryColor.copy(alpha = 0.35f),
+                    primaryColor.copy(alpha = 0.20f),
+                    Color.Transparent
+                )
+            ),
+            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Ribbon 2: Center/Lower deep harmonic resonance
+        val path2 = androidx.compose.ui.graphics.Path()
+        val baseY2 = h * 0.62f + parallaxY * 0.35f
+        for (i in 0..numPts) {
+            val x = i * stepX
+            val normX = x / w
+            val phase = if (isResumed) (-wavePhase * 1.8 * Math.PI) else 0.0
+            val y = baseY2 + (kotlin.math.sin(normX * 3.0 * Math.PI + phase) * 20.dp.toPx()).toFloat() +
+                    (kotlin.math.sin(normX * 5.5 * Math.PI - phase * 0.7) * 7.dp.toPx()).toFloat()
+            if (i == 0) path2.moveTo(x, y) else path2.lineTo(x, y)
+        }
+        drawPath(
+            path = path2,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    secondaryColor.copy(alpha = 0.22f),
+                    primaryColor.copy(alpha = 0.30f),
+                    secondaryColor.copy(alpha = 0.18f),
+                    Color.Transparent
+                )
+            ),
+            style = Stroke(width = 1.4.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Ribbon 3: Deep foundational wave near southern dome
+        val path3 = androidx.compose.ui.graphics.Path()
+        val baseY3 = h * 0.82f + parallaxY * 0.45f
+        for (i in 0..numPts) {
+            val x = i * stepX
+            val normX = x / w
+            val phase = if (isResumed) (wavePhase * 2.4 * Math.PI) else 0.0
+            val y = baseY3 + (kotlin.math.cos(normX * 2.0 * Math.PI + phase) * 12.dp.toPx()).toFloat()
+            if (i == 0) path3.moveTo(x, y) else path3.lineTo(x, y)
+        }
+        drawPath(
+            path = path3,
+            brush = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    primaryColor.copy(alpha = 0.15f),
+                    secondaryColor.copy(alpha = 0.22f),
+                    Color.Transparent
+                )
+            ),
+            style = Stroke(width = 1.2.dp.toPx(), cap = StrokeCap.Round)
+        )
+    }
+}
+
 
 @Composable
 private fun StressTimelineCard(score: Int) {
@@ -405,6 +595,7 @@ private fun StressTimelineCard(score: Int) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
@@ -761,6 +952,7 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int, stressInsight: String = "
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
@@ -1254,6 +1446,7 @@ private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column(
@@ -1666,6 +1859,7 @@ private fun CircadianStressBlocksCard(vitals: RingConnVitals) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {

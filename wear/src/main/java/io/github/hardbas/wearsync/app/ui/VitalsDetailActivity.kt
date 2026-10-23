@@ -229,10 +229,22 @@ fun VitalsDetailContent(
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenVitalsBackdrop(
+                listState = listState,
+                spo2 = vitals.lastSpo2,
+                readinessScore = RingConnHistoryStore.computeReadinessScore(vitals),
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -446,6 +458,7 @@ fun VitalsDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -546,6 +559,7 @@ fun VitalsDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -726,6 +740,7 @@ fun VitalsDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -754,6 +769,7 @@ fun VitalsDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -812,6 +828,229 @@ fun VitalsDetailContent(
                     currentFallback = vitals.lastHrv.toFloat()
                 )
             }
+        }
+        }
+    }
+}
+
+private data class OxygenBubble(
+    val xNorm: Float,
+    val yNorm: Float,
+    val radiusDp: Float,
+    val speed: Float,
+    val phaseOffset: Float,
+    val isAqua: Boolean
+)
+
+/**
+ * Full-Screen Bioluminescent Oxygen & Readiness Field Backdrop.
+ * Placed behind ScalingLazyColumn across Modifier.fillMaxSize(), featuring
+ * rising cyan/aqua oxygen micro-bubbles, counter-rotating orbital energy rings
+ * with glowing nodes near the bezel, and a breathing cyan-emerald aurora
+ * across the full screen with scroll parallax. Gated on Lifecycle.State.RESUMED.
+ */
+@Composable
+private fun FullScreenVitalsBackdrop(
+    listState: ScalingLazyListState,
+    spo2: Int,
+    readinessScore: Int,
+    modifier: Modifier = Modifier
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val isResumed = lifecycleState == Lifecycle.State.RESUMED
+
+    val transition = rememberInfiniteTransition(label = "vitalsField")
+
+    val bubblePhase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "bubblePhase"
+    )
+
+    val orbitAngle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "orbitAngle"
+    )
+
+    val auroraBreath by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 4200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "auroraBreath"
+    )
+
+    val bubbles = remember {
+        listOf(
+            OxygenBubble(0.12f, 0.88f, 1.4f, 0.75f, 0.1f, true),
+            OxygenBubble(0.85f, 0.92f, 1.8f, 0.95f, 0.35f, false),
+            OxygenBubble(0.24f, 0.75f, 1.2f, 0.65f, 0.6f, true),
+            OxygenBubble(0.78f, 0.70f, 1.6f, 0.85f, 0.85f, false),
+            OxygenBubble(0.46f, 0.95f, 2.2f, 1.15f, 0.2f, true),
+            OxygenBubble(0.18f, 0.50f, 1.3f, 0.7f, 0.45f, false),
+            OxygenBubble(0.90f, 0.45f, 1.5f, 0.8f, 0.7f, true),
+            OxygenBubble(0.32f, 0.35f, 1.1f, 0.6f, 0.15f, false),
+            OxygenBubble(0.68f, 0.30f, 1.7f, 0.85f, 0.9f, true),
+            OxygenBubble(0.20f, 0.60f, 1.4f, 0.75f, 0.5f, false),
+            OxygenBubble(0.82f, 0.55f, 1.2f, 0.65f, 0.3f, true),
+            OxygenBubble(0.40f, 0.65f, 1.9f, 1.0f, 0.75f, false),
+            OxygenBubble(0.60f, 0.80f, 1.3f, 0.7f, 0.4f, true),
+            OxygenBubble(0.08f, 0.82f, 1.5f, 0.85f, 0.05f, false),
+            OxygenBubble(0.92f, 0.85f, 1.2f, 0.65f, 0.65f, true),
+            OxygenBubble(0.52f, 0.22f, 2.0f, 1.1f, 0.25f, false),
+            OxygenBubble(0.28f, 0.18f, 1.0f, 0.55f, 0.8f, true),
+            OxygenBubble(0.72f, 0.15f, 1.4f, 0.75f, 0.55f, false),
+            OxygenBubble(0.05f, 0.40f, 1.1f, 0.6f, 0.38f, true),
+            OxygenBubble(0.95f, 0.38f, 1.3f, 0.7f, 0.88f, false)
+        )
+    }
+
+    val cyanColor = remember { Color(0xFF00E5FF) }
+    val aquaColor = remember { Color(0xFF38BDF8) }
+    val emeraldColor = remember { Color(0xFF00E676) }
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val parallaxY = -(scrollParallax % h)
+        val center = Offset(w / 2f, h / 2f)
+
+        // 1. Breathing Cyan-Emerald Bioluminescent Aurora
+        val breathAlpha = if (isResumed) {
+            0.10f + 0.07f * kotlin.math.sin(auroraBreath * 2.0 * Math.PI).toFloat()
+        } else {
+            0.12f
+        }
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    cyanColor.copy(alpha = breathAlpha * 1.2f),
+                    emeraldColor.copy(alpha = breathAlpha * 0.7f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.48f, h * 0.32f + parallaxY * 0.25f),
+                radius = w * 0.68f
+            ),
+            radius = w * 0.68f,
+            center = Offset(w * 0.48f, h * 0.32f + parallaxY * 0.25f)
+        )
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    emeraldColor.copy(alpha = breathAlpha * 0.8f),
+                    Color(0xFF0F3E38).copy(alpha = 0.05f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.65f, h * 0.72f + parallaxY * 0.25f),
+                radius = w * 0.55f
+            ),
+            radius = w * 0.55f,
+            center = Offset(w * 0.65f, h * 0.72f + parallaxY * 0.25f)
+        )
+
+        // 2. Counter-Rotating Orbital Energy Rings near Bezel
+        val outerRadius = (w / 2f) * 0.94f
+        val innerRadius = (w / 2f) * 0.88f
+
+        drawCircle(
+            color = cyanColor.copy(alpha = 0.12f),
+            radius = outerRadius,
+            center = center,
+            style = Stroke(width = 0.8.dp.toPx())
+        )
+
+        drawCircle(
+            color = emeraldColor.copy(alpha = 0.10f),
+            radius = innerRadius,
+            center = center,
+            style = Stroke(width = 0.8.dp.toPx())
+        )
+
+        val curOrbit = if (isResumed) orbitAngle else 45f
+
+        for (i in 0 until 3) {
+            val angleDeg = -curOrbit + i * 120f
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val nx = center.x + outerRadius * kotlin.math.cos(rad).toFloat()
+            val ny = center.y + outerRadius * kotlin.math.sin(rad).toFloat()
+
+            drawCircle(
+                color = cyanColor.copy(alpha = 0.20f),
+                radius = 3.5.dp.toPx(),
+                center = Offset(nx, ny)
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.85f),
+                radius = 1.3.dp.toPx(),
+                center = Offset(nx, ny)
+            )
+        }
+
+        for (i in 0 until 3) {
+            val angleDeg = (curOrbit * 0.75f) + i * 120f + 60f
+            val rad = Math.toRadians(angleDeg.toDouble())
+            val nx = center.x + innerRadius * kotlin.math.cos(rad).toFloat()
+            val ny = center.y + innerRadius * kotlin.math.sin(rad).toFloat()
+
+            drawCircle(
+                color = emeraldColor.copy(alpha = 0.18f),
+                radius = 3.2.dp.toPx(),
+                center = Offset(nx, ny)
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.80f),
+                radius = 1.2.dp.toPx(),
+                center = Offset(nx, ny)
+            )
+        }
+
+        // 3. Rising Cyan/Aqua Oxygen Micro-Bubbles with scroll parallax
+        for (bubble in bubbles) {
+            val driftPhase = if (isResumed) bubblePhase else 0.5f
+            val rawCy = bubble.yNorm * h - driftPhase * h * bubble.speed + parallaxY * 0.35f
+            val cy = ((rawCy % h) + h) % h
+            val swayX = kotlin.math.sin((driftPhase + bubble.phaseOffset) * 2.0 * Math.PI).toFloat() * 7.dp.toPx()
+            val cx = (bubble.xNorm * w + swayX).coerceIn(4.dp.toPx(), w - 4.dp.toPx())
+
+            val alpha = if (isResumed) {
+                val cycle = ((driftPhase + bubble.phaseOffset) % 1.0f)
+                val sinVal = kotlin.math.sin(cycle * 2.0 * Math.PI).toFloat()
+                0.25f + 0.35f * (sinVal + 1f)
+            } else {
+                0.35f
+            }
+
+            val baseColor = if (bubble.isAqua) aquaColor else cyanColor
+            val rPx = bubble.radiusDp.dp.toPx()
+
+            drawCircle(
+                color = baseColor.copy(alpha = alpha),
+                radius = rPx,
+                center = Offset(cx, cy),
+                style = Stroke(width = 0.9.dp.toPx())
+            )
+
+            drawCircle(
+                color = Color.White.copy(alpha = (alpha * 0.9f).coerceIn(0f, 1f)),
+                radius = rPx * 0.35f,
+                center = Offset(cx - rPx * 0.3f, cy - rPx * 0.3f)
+            )
         }
     }
 }

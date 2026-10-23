@@ -219,10 +219,20 @@ fun SleepDetailContent(
         vignette = { Vignette(vignettePosition = VignettePosition.TopAndBottom) },
         positionIndicator = { PositionIndicator(scalingLazyListState = listState) }
     ) {
-        ScalingLazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(OneUiBlack)
+        ) {
+            FullScreenCelestialBackdrop(
+                listState = listState,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            ScalingLazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
                 .onRotaryScrollEvent {
                     coroutineScope.launch {
                         listState.scrollBy(it.verticalScrollPixels * 0.8f)
@@ -286,11 +296,6 @@ fun SleepDetailContent(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        StarrySkyCanvas(
-                            modifier = Modifier
-                                .size(134.dp)
-                                .clip(CircleShape)
-                        )
                         BiometricHeroAura(
                             color = StageDeep,
                             modifier = Modifier.size(134.dp)
@@ -385,6 +390,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -622,6 +628,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -801,6 +808,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -981,6 +989,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -1152,6 +1161,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -1231,6 +1241,7 @@ fun SleepDetailContent(
                         .fillMaxWidth()
                         .clip(ShapeCard)
                         .background(CardBg)
+                        .border(SpecularBorderCard, ShapeCard)
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Column {
@@ -1317,6 +1328,7 @@ fun SleepDetailContent(
                     )
                 }
             }
+        }
         }
     }
 }
@@ -1777,6 +1789,7 @@ private fun NocturnalTemperatureCard(vitals: RingConnVitals) {
             .fillMaxWidth()
             .clip(ShapeCard)
             .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column {
@@ -2040,14 +2053,17 @@ private fun NocturnalTempDeviationGauge(
 }
 
 /**
- * Celestial Twinkling Stars & Organic Meteor Shower Canvas for Sleep Detail Screen.
- * Renders shimmering celestial stars with varying phase and sinusoidal luminosity,
- * paired with a realistic staggered meteor shower (shooting stars) with luminous
- * multi-stop tails, incandescent nuclei, and peak diffraction flares.
- * Gated strictly on Lifecycle.State.RESUMED for 0.0% idle / AOD battery consumption.
+ * Full-Screen Celestial Night Sky, Nebula & Meteor Shower Backdrop.
+ * Expands across the entire watch screen (Modifier.fillMaxSize()) behind the
+ * ScalingLazyColumn, featuring 32 multi-spectral twinkling stars (with 4-point
+ * diffraction flares), deep indigo/cyan/violet atmospheric nebula glow, subtle
+ * scroll parallax derived from listState, and 4 staggered diagonal shooting
+ * meteors with dual-layer glowing gradient tails.
+ * Strictly gated on Lifecycle.State.RESUMED for 0.0% ambient/AOD battery consumption.
  */
 @Composable
-private fun StarrySkyCanvas(
+private fun FullScreenCelestialBackdrop(
+    listState: ScalingLazyListState,
     modifier: Modifier = Modifier
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -2077,64 +2093,90 @@ private fun StarrySkyCanvas(
 
     val starNodes = remember {
         listOf(
-            StarNode(0.18f, 0.22f, 1.8f, 0.0f, true),
-            StarNode(0.82f, 0.20f, 1.6f, 0.25f, false),
-            StarNode(0.12f, 0.45f, 1.3f, 0.5f, false),
-            StarNode(0.88f, 0.42f, 1.7f, 0.75f, true),
-            StarNode(0.24f, 0.78f, 1.4f, 0.35f, true),
-            StarNode(0.76f, 0.80f, 1.5f, 0.65f, false),
-            StarNode(0.35f, 0.12f, 1.1f, 0.15f, false),
-            StarNode(0.65f, 0.14f, 1.2f, 0.85f, true),
-            StarNode(0.50f, 0.08f, 1.5f, 0.4f, true),
-            StarNode(0.08f, 0.65f, 1.0f, 0.6f, false),
-            StarNode(0.92f, 0.62f, 1.1f, 0.1f, false),
-            StarNode(0.32f, 0.88f, 1.2f, 0.9f, true),
-            StarNode(0.68f, 0.86f, 1.3f, 0.45f, false),
-            StarNode(0.50f, 0.92f, 1.4f, 0.2f, true),
-            StarNode(0.28f, 0.34f, 1.0f, 0.55f, false),
-            StarNode(0.72f, 0.32f, 1.1f, 0.05f, true),
-            StarNode(0.15f, 0.60f, 0.9f, 0.80f, false),
-            StarNode(0.85f, 0.58f, 1.0f, 0.30f, true)
+            StarNode(0.18f, 0.12f, 1.8f, 0.0f, true),
+            StarNode(0.82f, 0.15f, 1.6f, 0.25f, false),
+            StarNode(0.12f, 0.28f, 1.3f, 0.5f, false),
+            StarNode(0.88f, 0.25f, 1.7f, 0.75f, true),
+            StarNode(0.24f, 0.42f, 1.4f, 0.35f, true),
+            StarNode(0.76f, 0.45f, 1.5f, 0.65f, false),
+            StarNode(0.35f, 0.08f, 1.1f, 0.15f, false),
+            StarNode(0.65f, 0.09f, 1.2f, 0.85f, true),
+            StarNode(0.50f, 0.05f, 1.5f, 0.4f, true),
+            StarNode(0.08f, 0.52f, 1.0f, 0.6f, false),
+            StarNode(0.92f, 0.50f, 1.1f, 0.1f, false),
+            StarNode(0.32f, 0.68f, 1.2f, 0.9f, true),
+            StarNode(0.68f, 0.66f, 1.3f, 0.45f, false),
+            StarNode(0.50f, 0.75f, 1.4f, 0.2f, true),
+            StarNode(0.28f, 0.22f, 1.0f, 0.55f, false),
+            StarNode(0.72f, 0.21f, 1.1f, 0.05f, true),
+            StarNode(0.15f, 0.62f, 0.9f, 0.80f, false),
+            StarNode(0.85f, 0.60f, 1.0f, 0.30f, true),
+            StarNode(0.06f, 0.38f, 1.2f, 0.18f, true),
+            StarNode(0.94f, 0.36f, 1.3f, 0.68f, false),
+            StarNode(0.42f, 0.18f, 1.6f, 0.42f, false),
+            StarNode(0.58f, 0.19f, 1.4f, 0.92f, true),
+            StarNode(0.20f, 0.82f, 1.5f, 0.12f, false),
+            StarNode(0.80f, 0.84f, 1.6f, 0.62f, true),
+            StarNode(0.45f, 0.88f, 1.2f, 0.32f, false),
+            StarNode(0.14f, 0.92f, 1.0f, 0.82f, false),
+            StarNode(0.86f, 0.94f, 1.1f, 0.22f, true),
+            StarNode(0.62f, 0.92f, 1.3f, 0.52f, false),
+            StarNode(0.38f, 0.95f, 1.0f, 0.72f, true),
+            StarNode(0.04f, 0.72f, 0.9f, 0.38f, false),
+            StarNode(0.96f, 0.70f, 1.1f, 0.88f, false),
+            StarNode(0.50f, 0.38f, 1.2f, 0.48f, true)
         )
     }
 
     val meteorNodes = remember {
         listOf(
-            // Meteor 1: Upper-left to center-right dome, angle ~32°
+            // Meteor 1: Upper-left to center-right dome
             MeteorNode(
-                startXNorm = 0.06f,
-                startYNorm = 0.10f,
-                endXNorm = 0.62f,
-                endYNorm = 0.45f,
+                startXNorm = 0.02f,
+                startYNorm = 0.08f,
+                endXNorm = 0.68f,
+                endYNorm = 0.48f,
                 phaseOffset = 0.05f,
-                dutyCycle = 0.28f,
-                tailLengthDp = 26f,
-                headRadiusDp = 1.35f,
+                dutyCycle = 0.26f,
+                tailLengthDp = 34f,
+                headRadiusDp = 1.45f,
                 isCyanAccent = false
             ),
-            // Meteor 2: High celestial dome to eastern horizon, angle ~33°
+            // Meteor 2: High celestial dome to eastern horizon
             MeteorNode(
-                startXNorm = 0.36f,
-                startYNorm = 0.04f,
-                endXNorm = 0.90f,
-                endYNorm = 0.39f,
-                phaseOffset = 0.42f,
-                dutyCycle = 0.28f,
-                tailLengthDp = 22f,
-                headRadiusDp = 1.25f,
+                startXNorm = 0.32f,
+                startYNorm = 0.02f,
+                endXNorm = 0.96f,
+                endYNorm = 0.42f,
+                phaseOffset = 0.38f,
+                dutyCycle = 0.26f,
+                tailLengthDp = 30f,
+                headRadiusDp = 1.35f,
                 isCyanAccent = true
             ),
-            // Meteor 3: Mid-west to lower-east sky, angle ~32°
+            // Meteor 3: Mid-west to lower-east sky
             MeteorNode(
-                startXNorm = 0.12f,
-                startYNorm = 0.32f,
-                endXNorm = 0.72f,
-                endYNorm = 0.70f,
-                phaseOffset = 0.76f,
-                dutyCycle = 0.28f,
-                tailLengthDp = 24f,
-                headRadiusDp = 1.30f,
+                startXNorm = 0.08f,
+                startYNorm = 0.36f,
+                endXNorm = 0.78f,
+                endYNorm = 0.78f,
+                phaseOffset = 0.65f,
+                dutyCycle = 0.26f,
+                tailLengthDp = 32f,
+                headRadiusDp = 1.40f,
                 isCyanAccent = false
+            ),
+            // Meteor 4: Lower-west through southern sky
+            MeteorNode(
+                startXNorm = 0.18f,
+                startYNorm = 0.55f,
+                endXNorm = 0.88f,
+                endYNorm = 0.96f,
+                phaseOffset = 0.88f,
+                dutyCycle = 0.26f,
+                tailLengthDp = 28f,
+                headRadiusDp = 1.30f,
+                isCyanAccent = true
             )
         )
     }
@@ -2142,15 +2184,62 @@ private fun StarrySkyCanvas(
     val goldColor = remember { Color(0xFFFFEAA7) }
     val cyanColor = remember { Color(0xFFA5C9FF) }
     val whiteColor = remember { Color(0xFFFFFFFF) }
+    val periwinkleColor = remember { Color(0xFFA5AEDE) }
+
+    val scrollParallax = (listState.centerItemIndex * 40f + listState.centerItemScrollOffset * 0.25f)
 
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
+        val parallaxY = -(scrollParallax % h)
 
-        // 1. Celestial Starfield (twinkling background)
+        // 1. Deep Celestial Atmospheric Nebula Glow
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF22144D).copy(alpha = 0.30f),
+                    Color(0xFF140D30).copy(alpha = 0.14f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.32f, (h * 0.25f + parallaxY * 0.3f)),
+                radius = w * 0.65f
+            ),
+            radius = w * 0.65f,
+            center = Offset(w * 0.32f, (h * 0.25f + parallaxY * 0.3f))
+        )
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF00E5FF).copy(alpha = 0.09f),
+                    Color(0xFF0F3254).copy(alpha = 0.04f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.74f, (h * 0.58f + parallaxY * 0.25f)),
+                radius = w * 0.55f
+            ),
+            radius = w * 0.55f,
+            center = Offset(w * 0.74f, (h * 0.58f + parallaxY * 0.25f))
+        )
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color(0xFF38154D).copy(alpha = 0.22f),
+                    Color.Transparent
+                ),
+                center = Offset(w * 0.50f, (h * 0.85f + parallaxY * 0.2f)),
+                radius = w * 0.50f
+            ),
+            radius = w * 0.50f,
+            center = Offset(w * 0.50f, (h * 0.85f + parallaxY * 0.2f))
+        )
+
+        // 2. Celestial Starfield (twinkling background)
         for (star in starNodes) {
             val cx = star.xNorm * w
-            val cy = star.yNorm * h
+            val rawCy = star.yNorm * h + parallaxY * 0.4f
+            val cy = ((rawCy % h) + h) % h
 
             val alpha = if (isResumed) {
                 val cycle = ((shimmerPhase + star.phaseOffset) % 1.0f)
@@ -2163,6 +2252,7 @@ private fun StarrySkyCanvas(
             val baseColor = when {
                 star.isGold -> goldColor
                 star.radiusDp > 1.4f -> cyanColor
+                star.phaseOffset > 0.6f -> periwinkleColor
                 else -> whiteColor
             }
 
@@ -2175,8 +2265,8 @@ private fun StarrySkyCanvas(
             )
 
             if (star.radiusDp >= 1.5f && alpha > 0.55f) {
-                val rayLen = rPx * 2.4f
-                val rayAlpha = (alpha - 0.55f) * 0.8f
+                val rayLen = rPx * 2.5f
+                val rayAlpha = (alpha - 0.55f) * 0.85f
                 drawLine(
                     color = baseColor.copy(alpha = rayAlpha),
                     start = Offset(cx - rayLen, cy),
@@ -2192,26 +2282,23 @@ private fun StarrySkyCanvas(
             }
         }
 
-        // 2. Realistic Shooting Meteor Shower (strictly gated on isResumed for 0% AOD/ambient battery)
+        // 3. Realistic Shooting Meteor Shower
         if (isResumed) {
             for (meteor in meteorNodes) {
                 val t = ((meteorPhase + meteor.phaseOffset) % 1.0f)
                 if (t < meteor.dutyCycle) {
                     val p = (t / meteor.dutyCycle).coerceIn(0f, 1f)
-                    // Acceleration curve: fast cosmic streak with graceful decay
                     val easeP = p * p * (3f - 2f * p)
 
                     val headX = (meteor.startXNorm + (meteor.endXNorm - meteor.startXNorm) * easeP) * w
                     val headY = (meteor.startYNorm + (meteor.endYNorm - meteor.startYNorm) * easeP) * h
 
-                    // Bell curve luminosity envelope
                     val intensity = when {
                         p < 0.20f -> p / 0.20f
                         p > 0.70f -> (1.0f - p) / 0.30f
                         else -> 1.0f
                     }.coerceIn(0f, 1f)
 
-                    // Trajectory unit vector
                     val dxNorm = meteor.endXNorm - meteor.startXNorm
                     val dyNorm = meteor.endYNorm - meteor.startYNorm
                     val distNorm = kotlin.math.sqrt(dxNorm * dxNorm + dyNorm * dyNorm).coerceAtLeast(0.001f)
@@ -2225,12 +2312,11 @@ private fun StarrySkyCanvas(
                     val tailGlowColor = if (meteor.isCyanAccent) Color(0xFF00E5FF) else Color(0xFF5E72E4)
                     val tailMidColor = if (meteor.isCyanAccent) Color(0xFFA5C9FF) else Color(0xFFFFEAA7)
 
-                    // Outer atmospheric luminous sheath
                     drawLine(
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                tailGlowColor.copy(alpha = 0.20f * intensity),
+                                tailGlowColor.copy(alpha = 0.22f * intensity),
                                 tailMidColor.copy(alpha = 0.50f * intensity)
                             ),
                             start = Offset(tailStartX, tailStartY),
@@ -2238,11 +2324,10 @@ private fun StarrySkyCanvas(
                         ),
                         start = Offset(tailStartX, tailStartY),
                         end = Offset(headX, headY),
-                        strokeWidth = 3.0.dp.toPx(),
+                        strokeWidth = 3.2.dp.toPx(),
                         cap = StrokeCap.Round
                     )
 
-                    // Inner brilliant nucleus streak
                     drawLine(
                         brush = Brush.linearGradient(
                             colors = listOf(
@@ -2255,11 +2340,10 @@ private fun StarrySkyCanvas(
                         ),
                         start = Offset(tailStartX, tailStartY),
                         end = Offset(headX, headY),
-                        strokeWidth = 1.3.dp.toPx(),
+                        strokeWidth = 1.4.dp.toPx(),
                         cap = StrokeCap.Round
                     )
 
-                    // Glowing incandescent meteor head
                     val headRadius = meteor.headRadiusDp.dp.toPx() * (0.85f + 0.35f * intensity)
                     drawCircle(
                         color = Color.White.copy(alpha = intensity),
@@ -2267,22 +2351,21 @@ private fun StarrySkyCanvas(
                         center = Offset(headX, headY)
                     )
 
-                    // Diffraction cross flare at peak brilliance
                     if (intensity > 0.65f) {
-                        val flareLen = 3.5.dp.toPx() * intensity
-                        val flareAlpha = ((intensity - 0.65f) / 0.35f) * 0.80f
+                        val flareLen = 4.0.dp.toPx() * intensity
+                        val flareAlpha = ((intensity - 0.65f) / 0.35f) * 0.85f
                         val flareColor = if (meteor.isCyanAccent) Color(0xFFD6F6FF) else Color(0xFFFFF7DC)
                         drawLine(
                             color = flareColor.copy(alpha = flareAlpha),
                             start = Offset(headX - flareLen, headY),
                             end = Offset(headX + flareLen, headY),
-                            strokeWidth = 0.8.dp.toPx()
+                            strokeWidth = 0.9.dp.toPx()
                         )
                         drawLine(
                             color = flareColor.copy(alpha = flareAlpha),
                             start = Offset(headX, headY - flareLen),
                             end = Offset(headX, headY + flareLen),
-                            strokeWidth = 0.8.dp.toPx()
+                            strokeWidth = 0.9.dp.toPx()
                         )
                     }
                 }
