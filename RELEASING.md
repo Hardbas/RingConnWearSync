@@ -74,24 +74,54 @@ keystore:
 signingConfig = signingConfigs.getByName("debug")
 ```
 
-This has two consequences worth knowing before automating publication:
+This is a legitimate choice for an open-source, sideloaded app. It has nothing to
+do with hiding source code: the keystore is a file on the maintainer's machine,
+never in the repository, and it identifies the app to Android rather than
+authenticating to any server. Open-source projects are signed with real keys as a
+rule; F-Droid, for instance, signs its own builds with its own key.
 
-- A debug keystore is generated per machine. An APK built on CI carries a
-  different key than one built on the maintainer's laptop, so a user who
-  installed the laptop build cannot update in place over the CI build: Android
-  rejects the signature and the user has to uninstall first.
-- Debug keys are not a secret. For a sideloaded app distributed through GitHub
-  Releases, that means anyone can produce an APK signed well enough to be
-  accepted as an update for the same `applicationId`.
+What debug signing actually costs, precisely:
+
+- **Update continuity.** Android identifies an app by `applicationId` plus the
+  signing certificate, not by the alias used to sign it. Every machine generates
+  its own debug keypair, so an APK built on CI carries a different certificate
+  than one built on the maintainer's laptop. Installing the second over the
+  first fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, and the user must
+  uninstall — losing Health Connect grants and any widget or complication setup.
+- **No verifiable fingerprint.** Without a stable certificate there is nothing to
+  publish that lets a user confirm an APK came from this project. A stable key
+  allows exactly that: publish the certificate's SHA-256 in the README and any
+  user can run `apksigner verify --print-certs` against the downloaded APK.
+- **A switch forces an uninstall.** Changing the signing key at any point makes
+  every existing install non-updatable. It is cheapest now, while the audience is
+  small.
+
+What it does **not** cost: nobody can forge an update for this app. A debug
+keystore generated elsewhere produces a different keypair, and Android compares
+certificates, so a third-party APK signed with *their* debug key is rejected as
+an update. The real exposure is local: `~/.android/debug.keystore` is an
+unencrypted file with the well-known password `android`, so anyone with access to
+the maintainer's machine or backups can sign as them.
 
 That is why the gate workflow assembles and uploads release *candidates* as
 workflow artifacts, and never publishes a GitHub Release itself.
 
-The fix, when it is worth doing: generate one stable release keystore, keep it
-out of the repository, and expose it to CI as four secrets
-(`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). The build
-then prefers that keystore when it is present and falls back to debug when it is
-not, and publication can be automated safely.
+### If the project stays on the debug key
+
+That is a defensible end state. Two things keep it honest:
+
+1. **Back up `~/.android/debug.keystore`.** It is the identity of every release
+   published so far. Losing it means every existing user must uninstall. It is not
+   in the repository and it is not in any cloud account by default.
+2. **Publish its fingerprint** in the README next to the download links, so users
+   can verify what they install.
+
+### If publication is ever automated
+
+Generate one stable release keystore, keep it out of the repository, and expose it
+to CI as four secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`,
+`KEY_PASSWORD`). The build then prefers that keystore when it is present and falls
+back to debug when it is not.
 
 ## Version history note
 
