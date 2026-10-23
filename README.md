@@ -197,6 +197,7 @@ were removed: a fabricated clinical figure is indistinguishable from a measureme
 
 We welcome community contributions, bug reports, and design feedback!
 - **Contributing Guidelines**: Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for clean-room interoperability standards and PR submission processes.
+- **Releasing**: [RELEASING.md](RELEASING.md) documents the version source of truth and the release gate that every tag must pass.
 - **Security & Privacy**: Read [SECURITY.md](SECURITY.md) to learn about our local-first privacy architecture or to report vulnerabilities.
 - **Code of Conduct**: We adhere to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
 

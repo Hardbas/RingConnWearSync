@@ -87,6 +87,10 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 ---
 
+## 📦 Cutting a Release
+
+Releases follow the rules in [RELEASING.md](RELEASING.md): one tag per defensible version, `version.properties` is the single source of truth, and `scripts/check-version-tag.sh` must pass. The Release Gate workflow refuses a tag whose version does not match the one the build stamps into the APKs.
+
 ## 🚀 Submitting a Pull Request
 
 1. Fork the repository and create a descriptive branch from `master` (e.g., `feat/ambient-mode-contrast`).

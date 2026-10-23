@@ -1,0 +1,55 @@
+name: Release Gate
+
+# Every release tag has to prove it can exist: the tag must name the version in
+# version.properties, the unit tests must pass, and both release APKs must
+# assemble. This workflow publishes nothing on its own — see RELEASING.md for the
+# signing decision that still has to be made before automation may publish.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-gate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    name: Release Gate (${{ github.ref_name }})
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Verify tag matches version.properties
+        if: startsWith(github.ref, 'refs/tags/')
+        run: bash scripts/check-version-tag.sh
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x gradlew
+
+      - name: Run Unit Tests
+        run: ./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest --no-daemon
+
+      - name: Assemble Release APKs
+        run: ./gradlew :mobile:assembleRelease :wear:assembleRelease --no-daemon
+
+      - name: Upload Release Candidates
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-apks-${{ github.ref_name }}
+          path: |
+            mobile/build/outputs/apk/release/*.apk
+            wear/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
