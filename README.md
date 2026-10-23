@@ -142,6 +142,30 @@ adb -s <WATCH_IP:PORT> install -r wear/build/outputs/apk/release/wear-release.ap
 - **Temporary ADB Requirement**: ADB (Android Debug Bridge) is used strictly for initial sideloading. Once the APKs are installed and permissions granted, **ADB debugging can be disabled immediately** on both the phone and the watch.
 - **Zero Cloud Leaks**: Operates 100% locally on-device. No telemetry, credentials, or personal biometrics are transmitted to external servers.
 
+### Verifying your download
+
+Every release APK is signed with the same certificate. You can confirm that the
+file you downloaded is the one published here, and not a rebuild by someone else,
+by checking the signing certificate:
+
+```
+apksigner verify --print-certs RingConnWearSync-Phone-v*.apk
+apksigner verify --print-certs RingConnWearSync-Watch-v*.apk
+```
+
+Both must report this SHA-256 digest:
+
+```
+1ccf5348ff46a919620d806faa9a5e0e9d857bc74fdb643809ea3108827f1372
+```
+
+`apksigner` ships with the Android SDK build tools; on a machine without the SDK
+the same digest can be read from the APK's `META-INF` with `keytool -printcert`.
+Note that release builds are currently signed with the Android debug certificate,
+which is why the subject reads `CN=Android Debug`. See
+[RELEASING.md](RELEASING.md#known-caveat-release-apks-are-signed-with-the-debug-key)
+for what that does and does not cost.
+
 ---
 
 ## 📱 Hardware & OS Compatibility
