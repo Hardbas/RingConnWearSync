@@ -1,6 +1,11 @@
 # RingConnWearSync
 
-> **Real-time Telemetry Bridge & Samsung One UI Watch 8 Suite for RingConn Smart Ring**
+[![CI](https://github.com/Hardbas/RingConnWearSync/actions/workflows/ci.yml/badge.svg)](https://github.com/Hardbas/RingConnWearSync/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+> **Real-time Telemetry Bridge & Samsung One UI Watch Companion Suite for RingConn Smart Ring**
 
 RingConnWearSync is a production-grade Android and Wear OS companion suite that bridges real-time biometric telemetry from the **RingConn Smart Ring (Gen 1 / Gen 2)** directly into **Samsung Galaxy Watch (One UI Watch 8 / Wear OS 5)**.
 
@@ -36,7 +41,7 @@ The system consists of two tightly coupled Android modules communicating over th
 │  • WearDataListenerService        Dual RPC listener updating local SharedPreferences cache             │
 │  • ComplicationDataFactory        Universal AndroidX Complication engine supporting all 6 slot types   │
 │  • 7 Native Complications         Battery, Heart Rate, SpO2, Sleep, Steps, Stress, Skin Temperature    │
-│  • 5 One UI 8 Tiles               190dp × 136dp Stadium Capsules reverse-engineered from S-Health      │
+│  • 5 One UI 8 Tiles               190dp × 136dp Stadium Capsules built for Samsung One UI Watch        │
 │  • Dedicated Detail Activities    Compose Material 3 screens with native swipe-to-dismiss navigation   │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -175,15 +180,25 @@ were removed: a fabricated clinical figure is indistinguishable from a measureme
 
 ---
 
-## ⚖️ Legal & Trademark Notice
+## 🤝 Community & Contributing
 
-**WearSync for RingConn** is an independent, unofficial open-source interoperability bridge and is NOT affiliated with, endorsed by, or sponsored by Guangdong JiuZhi Technology Co., Ltd. (RingConn) or Samsung Electronics Co., Ltd.
+We welcome community contributions, bug reports, and design feedback!
+- **Contributing Guidelines**: Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for clean-room interoperability standards and PR submission processes.
+- **Security & Privacy**: Read [SECURITY.md](SECURITY.md) to learn about our local-first privacy architecture or to report vulnerabilities.
+- **Code of Conduct**: We adhere to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
 
+---
+
+## ⚖️ Legal & Interoperability Compliance
+
+**WearSync for RingConn** is an independent, unofficial open-source interoperability tool. It is NOT affiliated with, sponsored by, or endorsed by Guangdong JiuZhi Technology Co., Ltd. (RingConn) or Samsung Electronics Co., Ltd.
+
+- **Statutory Safe Harbor**: This project was developed strictly under statutory reverse-engineering and interoperability exceptions, specifically **17 U.S.C. § 1201(f)** (United States) and **Directive 2009/24/EC Article 6** (European Union).
+- **Public OS Interfaces Only**: The application interfaces solely with standard, publicly documented Android OS APIs (`androidx.health.connect`, `AppWidgetHost`, `AccessibilityService`, and Google Play Services Wearable Data Layer).
+- **Clean-Room & Original Work**: All layouts, schemas, vector assets, and source code are 100% original. This repository contains zero decompiled binaries, zero private signing keys, and zero third-party proprietary code.
 - **Trademark Attribution**: "RingConn" is a trademark of Guangdong JiuZhi Technology Co., Ltd. "Samsung", "Galaxy Watch", and "One UI" are trademarks of Samsung Electronics Co., Ltd. All trademarks belong to their respective owners and are used strictly under nominative fair use to describe interoperability and device compatibility.
-- **Local-Only Architecture**: The project has no custom cloud backend. It reads health data locally through Health Connect with user-granted permissions and, for selected metrics currently unavailable through that integration, uses an experimental widget-hosting mechanism (`AppWidgetHost`) to access information exposed by the official RingConn widget.
-- **Device & Integrity Safety**: The application does not require root access, bootloader unlocking, or modification of the official RingConn application. It does not directly access RingConn's private application files or process memory.
-- **Widget-Based Extraction**: Data extraction from the widget depends on the layout and implementation of the official RingConn widget and may stop working or require parser updates if RingConn alters its widget design in future app releases. The project does not distribute RingConn's proprietary source code or assets.
-- **Privacy First**: Health data is intended to remain strictly on the user's device. The project itself does not intentionally transmit health readings to external servers. Users are encouraged to review the source code and permissions before installation.
+- **Local-Only Privacy**: Health telemetry is processed entirely locally on the user's personal devices. The software maintains zero external servers, cloud databases, or telemetry loggers.
+- For complete legal disclosures and copyright notices, see [NOTICE.md](NOTICE.md).
 
 ---
 

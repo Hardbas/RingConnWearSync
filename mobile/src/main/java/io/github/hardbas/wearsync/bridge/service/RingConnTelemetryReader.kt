@@ -693,7 +693,7 @@ object RingConnTelemetryReader {
         val finalAwake = if (keepExistingStages) existing.sleepAwakeMins else (if (hcAsleep > 0) awakeMins.toInt() else existing.sleepAwakeMins)
         val finalSleep = if (keepExistingStages && existing.sleepScore > 0) existing.sleepScore else (if (sleepScore > 0) sleepScore else existing.sleepScore)
 
-        // --- Reverse-Engineered Biomarkers Calculation (AHISpo2Data, CalSleepHeartRateData, SleepNapModel, BedScheduleModel, StandSyncModel) ---
+        // --- Physiological Biomarkers Calculation (AHISpo2Data, CalSleepHeartRateData, SleepNapModel, BedScheduleModel, StandSyncModel) ---
         // 1. Sleep Sessions (SleepNapModel & BedScheduleModel)
         val allSleepRecords = if (sleepResponse != null) {
             val ringSleep = sleepResponse.records.filter { it.metadata.dataOrigin.packageName == RINGCONN_PKG }
