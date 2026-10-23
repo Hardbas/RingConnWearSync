@@ -16,6 +16,7 @@ class RingConnAccessibilityService : AccessibilityService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var scrapeJob: Job? = null
+    private var delayedHcSyncJob: Job? = null
     private var lastScrapeTimestamp = 0L
 
     /**
@@ -78,6 +79,7 @@ class RingConnAccessibilityService : AccessibilityService() {
         super.onDestroy()
         instance = null
         scrapeJob?.cancel()
+        delayedHcSyncJob?.cancel()
         serviceScope.cancel()
         Log.i(TAG, "RingConnAccessibilityService destroyed")
     }
@@ -143,6 +145,7 @@ class RingConnAccessibilityService : AccessibilityService() {
                 serviceScope.launch {
                     WearDataSyncService(this@RingConnAccessibilityService).syncVitalsToWatch(parsedVitals)
                 }
+                scheduleDelayedHealthConnectSync()
 
                 Log.i(TAG, "100% Exact RingConn telemetry scraped & synced: HR=${parsedVitals.lastHeartRate}, Sleep=${parsedVitals.sleepScore}, Act=${parsedVitals.activityScore}, Steps=${parsedVitals.liveSteps}, Bat=${parsedVitals.ringBattery}%")
             } else {
@@ -291,6 +294,7 @@ class RingConnAccessibilityService : AccessibilityService() {
             source = "RingConn Directo (100% Exacto)"
         )
         WearDataSyncService(this).syncVitalsToWatch(finalVitals, force = true)
+        scheduleDelayedHealthConnectSync()
         Log.i(
             TAG,
             "Morning peek captured sleep=${finalVitals.sleepScore} after ${elapsedMs}ms and $attempt polls " +
@@ -318,6 +322,14 @@ class RingConnAccessibilityService : AccessibilityService() {
             startActivity(homeIntent)
         } catch (e: Exception) {
             Log.w(TAG, "Fallback home intent error", e)
+        }
+    }
+
+    private fun scheduleDelayedHealthConnectSync() {
+        delayedHcSyncJob?.cancel()
+        delayedHcSyncJob = serviceScope.launch {
+            delay(6_000L)
+            RingConnForegroundService.syncTelemetryNow(applicationContext)
         }
     }
 
