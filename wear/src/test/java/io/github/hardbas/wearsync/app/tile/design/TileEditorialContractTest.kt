@@ -12,10 +12,10 @@ import org.junit.Test
 /**
  * Executable contract of the warm editorial dial.
  *
- * These assertions are what "the warm editorial render" means in code: the exact
- * palette, the type scale, the arc geometry, the measured motion vocabulary and
- * the chord budget. A tile that stops using this vocabulary breaks here instead
- * of drifting silently.
+ * These assertions are what "Editorial Cálida" means in code: the exact palette,
+ * the type scale, the arc geometry, the measured motion vocabulary and the chord
+ * budget. A tile that stops using this vocabulary breaks here instead of drifting
+ * silently.
  */
 class TileEditorialContractTest {
 

@@ -5,10 +5,11 @@ import kotlin.math.roundToInt
 /**
  * Every flat colour a tile is allowed to paint.
  *
- * This is the "Editorial Cálida" palette from the warm editorial design render: a near
- * black OLED face, warm off-white ink and a solid charcoal pill. Metric colours
- * do not live here — they live in [TileAccents] as ramps, because a tile may
- * only paint an accent that belongs to its own metric.
+ * The "Editorial Cálida" surface palette: a near-black OLED face (`#080807`),
+ * warm off-white ink (`#F5F2EB`) and a solid charcoal pill (`#262522`) held down
+ * by a warm hairline. Metric colours do not live here — they live in
+ * [TileAccents] as ramps, because a tile may only paint an accent that belongs
+ * to its own metric.
  */
 object TileInk {
 
