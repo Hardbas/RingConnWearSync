@@ -55,6 +55,14 @@
     <string name="stress_insight_balanced">Tono autonómico equilibrado</string>
     <string name="stress_insight_moderate">Demanda moderada · Hacé una pausa</string>
     <string name="stress_insight_high">Demanda fisiológica elevada</string>
+    <string name="stress_blocks_chip">4 bloques</string>
+    <string name="stress_block_lowest">Mínimo</string>
+    <string name="stress_block_spread">Variación</string>
+    <string name="stress_block_peak">Pico</string>
+    <string name="stress_phase_dawn">Antes del alba</string>
+    <string name="stress_phase_morning">Mañana</string>
+    <string name="stress_phase_afternoon">Tarde</string>
+    <string name="stress_phase_night">Noche</string>
     <string name="stress_zones_title">Zonas de Estrés</string>
     <string name="stress_zone_relaxed_desc">0 – 29</string>
     <string name="stress_zone_balanced_desc">30 – 59</string>

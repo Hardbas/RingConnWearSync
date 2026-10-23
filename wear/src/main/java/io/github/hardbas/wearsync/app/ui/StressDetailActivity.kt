@@ -66,6 +66,8 @@ import androidx.wear.compose.material.*
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
 import io.github.hardbas.wearsync.app.data.RingConnHistoryStore
+import io.github.hardbas.wearsync.app.data.StressPhase
+import io.github.hardbas.wearsync.app.data.StressPhases
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
@@ -304,7 +306,7 @@ fun StressDetailContent(vitals: RingConnVitals) {
             // c) 24h Stress Timeline Chart with centered stats grid
             // =========================================================================
             item {
-                StressTimelineCard(score = score)
+                StressTimelineCard(vitals = vitals)
             }
 
             // =========================================================================
@@ -564,8 +566,7 @@ private fun FullScreenStressBackdrop(
 
 
 @Composable
-private fun StressTimelineCard(score: Int) {
-    val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+private fun StressTimelineCard(vitals: RingConnVitals) {
     var selectedBarIndex by remember { mutableStateOf<Int?>(null) }
     val haptic = LocalHapticFeedback.current
 
@@ -576,19 +577,19 @@ private fun StressTimelineCard(score: Int) {
         }
     }
 
-    val epochValues = remember(score, currentHour) {
-        val baseScore = if (score > 0) score else 25
-        List(24) { hour ->
-            when {
-                hour < 6 -> (12 + (hour * 2) + (hour % 3)).coerceIn(10, 24)
-                hour in 6..9 -> (22 + (hour - 6) * 4).coerceIn(20, 38)
-                hour in 10..13 -> (baseScore + 6 + (hour % 4) * 3).coerceIn(25, 75)
-                hour in 14..18 -> (baseScore + (hour % 5) * 2).coerceIn(22, 70)
-                hour in 19..22 -> (26 + (22 - hour) * 3).coerceIn(20, 40)
-                else -> 18
-            }
-        }
+    // RingConn records four circadian stress blocks a day and nothing finer, so
+    // the chart draws exactly those four. A block the ring did not measure stays
+    // at zero, and a day with no measured block says so instead of drawing a
+    // curve derived from the daily score.
+    val readings = remember(vitals) { StressPhases.readings(vitals) }
+    if (readings.isEmpty()) {
+        StressTimelineEmptyCard()
+        return
     }
+    val epochValues = readings.map { it.score }
+    // Blocks the ring did not record stay in the chart as gaps, but they must not
+    // drag the summary numbers down as if they were measured zeros.
+    val measuredBlocks = readings.filter { it.score > 0 }
 
     Box(
         modifier = Modifier
@@ -632,7 +633,7 @@ private fun StressTimelineCard(score: Int) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "24h",
+                        text = stringResource(R.string.stress_blocks_chip),
                         color = Color(0xFFD8B4FE),
                         fontSize = TextCaption,
                         fontWeight = FontWeight.Bold
@@ -645,7 +646,12 @@ private fun StressTimelineCard(score: Int) {
             // Sleek floating pill HUD above the chart showing exact hour + stress value
             val inspected = selectedBarIndex
             if (inspected != null) {
-                val hourText = String.format(Locale.US, "%02d:00", inspected)
+                val phaseLabel = when (readings[inspected].phase) {
+                    StressPhase.DAWN -> stringResource(R.string.stress_phase_dawn)
+                    StressPhase.MORNING -> stringResource(R.string.stress_phase_morning)
+                    StressPhase.AFTERNOON -> stringResource(R.string.stress_phase_afternoon)
+                    StressPhase.NIGHT -> stringResource(R.string.stress_phase_night)
+                }
                 val valScore = epochValues[inspected]
                 val statusAtIdx = when {
                     valScore < 30 -> stringResource(R.string.stress_relaxed)
@@ -682,7 +688,7 @@ private fun StressTimelineCard(score: Int) {
                                 .background(colorAtIdx)
                         )
                         Text(
-                            text = "$hourText · $valScore pts · $statusAtIdx",
+                            text = "$phaseLabel · $valScore pts · $statusAtIdx",
                             color = Color.White,
                             fontSize = TextCaption,
                             fontWeight = FontWeight.Bold,
@@ -701,7 +707,7 @@ private fun StressTimelineCard(score: Int) {
                     .height(72.dp)
                     .pointerInput(Unit) {
                         detectTapGestures { offset ->
-                            val idx = ((offset.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                            val idx = ((offset.x / size.width.toFloat()) * 4).toInt().coerceIn(0, 3)
                             if (idx != selectedBarIndex) {
                                 selectedBarIndex = idx
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -711,7 +717,7 @@ private fun StressTimelineCard(score: Int) {
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragStart = { offset ->
-                                val idx = ((offset.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                                val idx = ((offset.x / size.width.toFloat()) * 4).toInt().coerceIn(0, 3)
                                 if (idx != selectedBarIndex) {
                                     selectedBarIndex = idx
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -719,7 +725,7 @@ private fun StressTimelineCard(score: Int) {
                             },
                             onHorizontalDrag = { change, _ ->
                                 change.consume()
-                                val idx = ((change.position.x / size.width.toFloat()) * 24).toInt().coerceIn(0, 23)
+                                val idx = ((change.position.x / size.width.toFloat()) * 4).toInt().coerceIn(0, 3)
                                 if (idx != selectedBarIndex) {
                                     selectedBarIndex = idx
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -730,7 +736,7 @@ private fun StressTimelineCard(score: Int) {
             ) {
                 val totalW = size.width
                 val totalH = size.height - 12.dp.toPx()
-                val barCount = 24
+                val barCount = epochValues.size
                 val barSlotWidth = totalW / barCount
                 val barWidth = barSlotWidth * 0.65f
 
@@ -779,8 +785,7 @@ private fun StressTimelineCard(score: Int) {
                     val alpha = when {
                         isSelected -> 1.0f
                         selectedBarIndex != null -> 0.35f
-                        i <= currentHour -> 0.95f
-                        else -> 0.35f
+                        else -> 0.95f
                     }
 
                     drawRoundRect(
@@ -800,13 +805,6 @@ private fun StressTimelineCard(score: Int) {
                         )
                     }
 
-                    if (i == currentHour) {
-                        drawCircle(
-                            color = Color.White,
-                            radius = 2.dp.toPx(),
-                            center = Offset(x + (barWidth / 2f), y - 3.dp.toPx())
-                        )
-                    }
                 }
 
                 // Vertical glowing scrubber line + indicator dot
@@ -843,16 +841,15 @@ private fun StressTimelineCard(score: Int) {
                 }
             }
 
-            // X-Axis Time Labels
+            // Circadian block labels: the four windows the ring actually measures
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "0h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = "6h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = "12h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = "18h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = "24h", color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = stringResource(R.string.stress_phase_dawn), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = stringResource(R.string.stress_phase_morning), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = stringResource(R.string.stress_phase_afternoon), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                Text(text = stringResource(R.string.stress_phase_night), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -868,7 +865,7 @@ private fun StressTimelineCard(score: Int) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "74%",
+                        text = measuredBlocks.minOf { it.score }.toString(),
                         color = StressRelaxed,
                         fontSize = TextBody,
                         style = TabularNums,
@@ -876,7 +873,7 @@ private fun StressTimelineCard(score: Int) {
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = stringResource(R.string.calm),
+                        text = stringResource(R.string.stress_block_lowest),
                         color = Color(0xFF94A3B8),
                         fontSize = TextCaption,
                         textAlign = TextAlign.Center
@@ -888,7 +885,7 @@ private fun StressTimelineCard(score: Int) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "26%",
+                        text = (measuredBlocks.maxOf { it.score } - measuredBlocks.minOf { it.score }).toString(),
                         color = StressModerate,
                         fontSize = TextBody,
                         style = TabularNums,
@@ -896,7 +893,7 @@ private fun StressTimelineCard(score: Int) {
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = stringResource(R.string.tension),
+                        text = stringResource(R.string.stress_block_spread),
                         color = Color(0xFF94A3B8),
                         fontSize = TextCaption,
                         textAlign = TextAlign.Center
@@ -908,7 +905,7 @@ private fun StressTimelineCard(score: Int) {
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "64",
+                        text = measuredBlocks.maxOf { it.score }.toString(),
                         color = StressHigh,
                         fontSize = TextBody,
                         style = TabularNums,
@@ -916,13 +913,51 @@ private fun StressTimelineCard(score: Int) {
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = stringResource(R.string.peak),
+                        text = stringResource(R.string.stress_block_peak),
                         color = Color(0xFF94A3B8),
                         fontSize = TextCaption,
                         textAlign = TextAlign.Center
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StressTimelineEmptyCard() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(ShapeCard)
+            .background(CardBg)
+            .border(SpecularBorderCard, ShapeCard)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFD8B4FE))
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.stress_timeline_title),
+                    color = Color.White,
+                    fontSize = TextBody,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.no_data),
+                color = Color(0xFF94A3B8),
+                fontSize = TextCaption
+            )
         }
     }
 }

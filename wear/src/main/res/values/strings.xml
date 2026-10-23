@@ -55,6 +55,14 @@
     <string name="stress_insight_balanced">Balanced autonomic tone</string>
     <string name="stress_insight_moderate">Moderate demand · Take a break</string>
     <string name="stress_insight_high">High physiological demand</string>
+    <string name="stress_blocks_chip">4 blocks</string>
+    <string name="stress_block_lowest">Lowest</string>
+    <string name="stress_block_spread">Spread</string>
+    <string name="stress_block_peak">Peak</string>
+    <string name="stress_phase_dawn">Before dawn</string>
+    <string name="stress_phase_morning">Morning</string>
+    <string name="stress_phase_afternoon">Afternoon</string>
+    <string name="stress_phase_night">Night</string>
     <string name="stress_zones_title">Stress Zones</string>
     <string name="stress_zone_relaxed_desc">0 – 29</string>
     <string name="stress_zone_balanced_desc">30 – 59</string>
