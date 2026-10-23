@@ -136,6 +136,7 @@ object RingConnWidgetHostReader {
     fun hasValidTelemetry(vitals: RingConnVitals): Boolean {
         return vitals.lastHeartRate > 0 ||
                 vitals.sleepScore > 0 ||
+                (vitals.sleepDeepMins + vitals.sleepRemMins + vitals.sleepLightMins) > 0 ||
                 vitals.activityScore > 0 ||
                 vitals.liveSteps > 0 ||
                 vitals.ringBattery > 0 ||

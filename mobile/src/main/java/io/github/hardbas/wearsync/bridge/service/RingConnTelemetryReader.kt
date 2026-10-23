@@ -466,6 +466,8 @@ object RingConnTelemetryReader {
         var remMins = 0L
         var lightMins = 0L
         var awakeMins = 0L
+        var nocturnalSessions: List<SleepSessionRecord> = emptyList()
+        var nocturnalLatestEnd: Instant? = null
         if (sleepResponse != null) {
             val ringConnSleeps = sleepResponse.records.filter {
                 it.metadata.dataOrigin.packageName == RINGCONN_PKG
@@ -476,7 +478,9 @@ object RingConnTelemetryReader {
                 val latestEnd = todaySleeps.maxOfOrNull { it.endTime }
                 if (latestEnd != null) {
                     val nightWindowStart = latestEnd.minus(Duration.ofHours(14))
-                    val nightSessions = todaySleeps.filter { it.endTime >= nightWindowStart }
+                    val nightSessions = ringConnSleeps.filter { it.endTime >= nightWindowStart && it.endTime <= latestEnd }
+                    nocturnalSessions = nightSessions
+                    nocturnalLatestEnd = latestEnd
                     if (nightSessions.any { it.metadata.dataOrigin.packageName == RINGCONN_PKG }) {
                         hasRingConnOrigin = true
                     }
@@ -544,8 +548,10 @@ object RingConnTelemetryReader {
                             discreteStages
                         }.ifEmpty { discreteStages }
 
-                        val tStart = if (umbrellaStart != null) umbrellaStart else validStages.minOf { it.start }
-                        val tEnd = if (umbrellaEnd != null) umbrellaEnd else validStages.maxOf { it.end }
+                        val minStageStart = validStages.minOf { it.start }
+                        val maxStageEnd = validStages.maxOf { it.end }
+                        val tStart = if (umbrellaStart != null && umbrellaStart < minStageStart) umbrellaStart else minStageStart
+                        val tEnd = if (umbrellaEnd != null && umbrellaEnd > maxStageEnd) umbrellaEnd else maxStageEnd
                         val totalSeconds = Duration.between(tStart, tEnd).seconds.coerceIn(30L, 86400L)
                         val epochCount = ((totalSeconds + 15L) / 30L).toInt().coerceAtLeast(1)
                         val epochTimeline = IntArray(epochCount) { 0 }
@@ -639,7 +645,6 @@ object RingConnTelemetryReader {
         val finalAvgSpo2 = if (avgSpo2 > 0) avgSpo2 else finalSpo2
         val finalHrv = if (lastHrv > 0) lastHrv else existing.lastHrv
         val finalAvgHrv = if (avgHrv > 0) avgHrv else finalHrv
-        val finalSleep = if (sleepScore > 0) sleepScore else existing.sleepScore
         val finalSteps = if (todaySteps > 0) todaySteps else existing.liveSteps
         val stepBasedCalories = (finalSteps * 0.045).roundToInt()
         val finalCalories = maxOf(todayCalories, stepBasedCalories)
@@ -679,11 +684,14 @@ object RingConnTelemetryReader {
 
         // A valid sleep breakdown requires effective sleep (deep, rem, or light).
         // Never allow awake-only intervals to overwrite and zero out real nocturnal sleep stages.
-        val hasValidStages = (deepMins + remMins + lightMins) > 0
-        val finalDeep = if (hasValidStages) deepMins.toInt() else existing.sleepDeepMins
-        val finalRem = if (hasValidStages) remMins.toInt() else existing.sleepRemMins
-        val finalLight = if (hasValidStages) lightMins.toInt() else existing.sleepLightMins
-        val finalAwake = if (hasValidStages) awakeMins.toInt() else existing.sleepAwakeMins
+        val hcAsleep = deepMins + remMins + lightMins
+        val existingAsleep = existing.sleepDeepMins + existing.sleepRemMins + existing.sleepLightMins
+        val keepExistingStages = existingAsleep > hcAsleep && existingAsleep > 0
+        val finalDeep = if (keepExistingStages) existing.sleepDeepMins else (if (hcAsleep > 0) deepMins.toInt() else existing.sleepDeepMins)
+        val finalRem = if (keepExistingStages) existing.sleepRemMins else (if (hcAsleep > 0) remMins.toInt() else existing.sleepRemMins)
+        val finalLight = if (keepExistingStages) existing.sleepLightMins else (if (hcAsleep > 0) lightMins.toInt() else existing.sleepLightMins)
+        val finalAwake = if (keepExistingStages) existing.sleepAwakeMins else (if (hcAsleep > 0) awakeMins.toInt() else existing.sleepAwakeMins)
+        val finalSleep = if (keepExistingStages && existing.sleepScore > 0) existing.sleepScore else (if (sleepScore > 0) sleepScore else existing.sleepScore)
 
         // --- Reverse-Engineered Biomarkers Calculation (AHISpo2Data, CalSleepHeartRateData, SleepNapModel, BedScheduleModel, StandSyncModel) ---
         // 1. Sleep Sessions (SleepNapModel & BedScheduleModel)
@@ -706,8 +714,10 @@ object RingConnTelemetryReader {
 
         val napSessions = allSleepRecords.filter { session ->
             session != primarySleepSession &&
+            !nocturnalSessions.contains(session) &&
             session.startTime >= todayStart &&
             session.endTime >= todayStart &&
+            (nocturnalLatestEnd == null || session.startTime >= nocturnalLatestEnd.plus(Duration.ofMinutes(90))) &&
             Duration.between(session.startTime, session.endTime).toMinutes() in 15..179
         }
         val computedNapMinutes = napSessions.sumOf {
@@ -1212,8 +1222,17 @@ object RingConnTelemetryReader {
             } else {
                 cached.activityScore
             }
+            val widgetAsleep = if (!isWidgetSleepStaleFromYesterday) (widgetVitals.sleepDeepMins + widgetVitals.sleepRemMins + widgetVitals.sleepLightMins) else 0
+            val cachedAsleep = cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins
+            val hcAsleep = (hcVitals?.sleepDeepMins ?: 0) + (hcVitals?.sleepRemMins ?: 0) + (hcVitals?.sleepLightMins ?: 0)
             val finalBattery = if (widgetVitals.ringBattery > 0) widgetVitals.ringBattery else cached.ringBattery
-            val finalSleepScore = if (effectiveWidgetSleepScore > 0) effectiveWidgetSleepScore else (hcVitals?.sleepScore?.takeIf { it > 0 } ?: cached.sleepScore)
+            val finalSleepScore = if (effectiveWidgetSleepScore > 0) {
+                effectiveWidgetSleepScore
+            } else if (cachedAsleep > hcAsleep && cached.sleepScore > 0) {
+                cached.sleepScore
+            } else {
+                hcVitals?.sleepScore?.takeIf { it > 0 } ?: cached.sleepScore
+            }
             val finalStressScore = if (widgetVitals.stressScore > 0) widgetVitals.stressScore else (hcVitals?.stressScore?.takeIf { it > 0 } ?: cached.stressScore)
 
             // A stale or misparsed reading must not outlive the guard, and the
@@ -1230,10 +1249,25 @@ object RingConnTelemetryReader {
             val mergedActivityInsight = if (isWidgetStepsStaleFromYesterday) cached.activityInsight else widgetVitals.activityInsight.ifBlank { cached.activityInsight }
             val mergedVitalsInsight = widgetVitals.vitalsInsight.ifBlank { cached.vitalsInsight }
 
-            val mergedDeep = hcVitals?.sleepDeepMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepDeepMins > 0) widgetVitals.sleepDeepMins else cached.sleepDeepMins)
-            val mergedRem = hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins)
-            val mergedLight = hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins)
-            val mergedAwake = if (hcVitals != null && (hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) > 0) hcVitals.sleepAwakeMins else (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins)
+            val (mergedDeep, mergedRem, mergedLight, mergedAwake) = when {
+                widgetAsleep >= hcAsleep && widgetAsleep >= cachedAsleep && widgetAsleep > 0 -> {
+                    listOf(widgetVitals.sleepDeepMins, widgetVitals.sleepRemMins, widgetVitals.sleepLightMins, widgetVitals.sleepAwakeMins)
+                }
+                cachedAsleep > hcAsleep && cachedAsleep > widgetAsleep && cachedAsleep > 0 -> {
+                    listOf(cached.sleepDeepMins, cached.sleepRemMins, cached.sleepLightMins, cached.sleepAwakeMins)
+                }
+                hcAsleep > 0 -> {
+                    listOf(hcVitals!!.sleepDeepMins, hcVitals.sleepRemMins, hcVitals.sleepLightMins, hcVitals.sleepAwakeMins)
+                }
+                else -> {
+                    listOf(
+                        hcVitals?.sleepDeepMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepDeepMins > 0) widgetVitals.sleepDeepMins else cached.sleepDeepMins),
+                        hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
+                        hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
+                        if (hcVitals != null && hcAsleep > 0) hcVitals.sleepAwakeMins else (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins)
+                    )
+                }
+            }
 
             val baseNightHr = if (minHr > 0) minHr else if (finalAvgHr > 0) (finalAvgHr - 8).coerceIn(46, 75) else 56
             val mergedHrDeep = hcVitals?.hrPhaseDeep?.takeIf { it > 0 } ?: (cached.hrPhaseDeep.takeIf { it > 0 } ?: if (finalSleepScore > 0) (baseNightHr + 1) else 0)
@@ -1319,11 +1353,21 @@ object RingConnTelemetryReader {
         // 2. Health Connect API
         if (hcVitals != null && (hcVitals.lastHeartRate > 0 || hcVitals.liveSteps > 0 || hcVitals.lastSpo2 > 0)) {
             val cached = parseFromPreferences(prefs)
+            val hcAsleep = hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins
+            val cachedAsleep = cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins
+            val keepCachedSleep = cachedAsleep > hcAsleep && cachedAsleep > 0
+            val finalDeep = if (keepCachedSleep) cached.sleepDeepMins else (if (hcAsleep > 0) hcVitals.sleepDeepMins else cached.sleepDeepMins)
+            val finalRem = if (keepCachedSleep) cached.sleepRemMins else (if (hcAsleep > 0) hcVitals.sleepRemMins else cached.sleepRemMins)
+            val finalLight = if (keepCachedSleep) cached.sleepLightMins else (if (hcAsleep > 0) hcVitals.sleepLightMins else cached.sleepLightMins)
+            val finalAwake = if (keepCachedSleep) cached.sleepAwakeMins else (if (hcAsleep > 0) hcVitals.sleepAwakeMins else cached.sleepAwakeMins)
+            val finalSleepScore = if (keepCachedSleep && cached.sleepScore > 0) cached.sleepScore else hcVitals.sleepScore
+
             val finalHcVitals = hcVitals.copy(
-                sleepDeepMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepDeepMins else hcVitals.sleepDeepMins,
-                sleepRemMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepRemMins else hcVitals.sleepRemMins,
-                sleepLightMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepLightMins else hcVitals.sleepLightMins,
-                sleepAwakeMins = if ((hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins) == 0 && (cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins) > 0) cached.sleepAwakeMins else hcVitals.sleepAwakeMins,
+                sleepScore = finalSleepScore,
+                sleepDeepMins = finalDeep,
+                sleepRemMins = finalRem,
+                sleepLightMins = finalLight,
+                sleepAwakeMins = finalAwake,
                 sleepInsight = hcVitals.sleepInsight.ifBlank { cached.sleepInsight },
                 stressInsight = hcVitals.stressInsight.ifBlank { cached.stressInsight },
                 activityInsight = hcVitals.activityInsight.ifBlank { cached.activityInsight },

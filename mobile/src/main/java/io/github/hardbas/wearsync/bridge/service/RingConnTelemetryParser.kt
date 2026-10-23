@@ -24,6 +24,28 @@ object RingConnTelemetryParser {
     private val COMPOSITE_BAT_REGEX = Regex("""(?i)^(?:battery|batería|bateria)\s+(?:%)?(\d{1,3})(?:%)?$""")
     private val BASELINE_TEMP_REGEX = Regex("""(?i)\b(3[4-9](?:[.,]\d{1,2})?|40(?:[.,]0)?)\s*°?\s*C?\b""")
     private val REM_REGEX = Regex("""(?i)\brem\b""")
+    private val SLEEP_DURATION_REGEX = Regex("""(?i)\b(\d{1,2})\s*h(?:rs?|oras?)?\s*(\d{1,2})\s*m(?:in(?:s|utos)?)?\b""")
+
+    fun parseDurationMinutes(text: String?): Int? {
+        if (text.isNullOrBlank()) return null
+        val hm = SLEEP_DURATION_REGEX.find(text)
+        if (hm != null) {
+            val h = hm.groupValues[1].toIntOrNull() ?: 0
+            val m = hm.groupValues[2].toIntOrNull() ?: 0
+            return h * 60 + m
+        }
+        val hOnly = Regex("""(?i)\b(\d{1,2})\s*h(?:rs?|oras?)?\b""").find(text)
+        if (hOnly != null && !text.contains("bpm", ignoreCase = true) && !text.contains("km", ignoreCase = true)) {
+            val h = hOnly.groupValues[1].toIntOrNull()
+            if (h != null && h in 1..14) return h * 60
+        }
+        val mOnly = Regex("""(?i)\b(\d{1,3})\s*m(?:in(?:s|utos)?)?\b""").find(text)
+        if (mOnly != null && !text.contains("bpm", ignoreCase = true) && !text.contains("ms", ignoreCase = true) && !text.contains("km", ignoreCase = true)) {
+            val m = mOnly.groupValues[1].toIntOrNull()
+            if (m != null && m in 1..840) return m
+        }
+        return null
+    }
 
     private val IGNORED_TITLES = setOf(
         "health score and battery level",
@@ -39,6 +61,14 @@ object RingConnTelemetryParser {
      */
     fun parseTokens(tokens: List<String>, baseVitals: RingConnVitals): RingConnVitals {
         var sleepScore = baseVitals.sleepScore
+        var sleepDeepMins = baseVitals.sleepDeepMins
+        var sleepRemMins = baseVitals.sleepRemMins
+        var sleepLightMins = baseVitals.sleepLightMins
+        var sleepAwakeMins = baseVitals.sleepAwakeMins
+        var parsedDeep = 0
+        var parsedRem = 0
+        var parsedLight = 0
+        var parsedAwake = 0
         var activityScore = baseVitals.activityScore
         var stressScore = baseVitals.stressScore
         var lastHr = baseVitals.lastHeartRate
@@ -183,6 +213,24 @@ object RingConnTelemetryParser {
                 } else if (nextNum != null && nextNum in 20..100 && !next!!.startsWith("/")) {
                     sleepScore = nextNum
                 }
+            }
+
+            // Stage Durations (Deep / REM / Light / Awake)
+            if (lower == "deep" || lower == "profundo" || lower == "sueño profundo") {
+                val candidate = cleanTokens.getOrNull(i + 1) ?: cleanTokens.getOrNull(i - 1)
+                parseDurationMinutes(candidate)?.let { if (it in 1..600) parsedDeep = it }
+            }
+            if (lower == "rem" || lower == "fase rem") {
+                val candidate = cleanTokens.getOrNull(i + 1) ?: cleanTokens.getOrNull(i - 1)
+                parseDurationMinutes(candidate)?.let { if (it in 1..600) parsedRem = it }
+            }
+            if (lower == "light" || lower == "ligero" || lower == "sueño ligero") {
+                val candidate = cleanTokens.getOrNull(i + 1) ?: cleanTokens.getOrNull(i - 1)
+                parseDurationMinutes(candidate)?.let { if (it in 1..600) parsedLight = it }
+            }
+            if (lower == "awake" || lower == "despierto") {
+                val candidate = cleanTokens.getOrNull(i + 1) ?: cleanTokens.getOrNull(i - 1)
+                parseDurationMinutes(candidate)?.let { if (it in 1..300) parsedAwake = it }
             }
 
             // Activity Header
@@ -406,7 +454,59 @@ object RingConnTelemetryParser {
             }
         }
 
-        // 4. Midnight Rollover Guard: If widget timestamp belongs to a previous calendar day,
+        // 4. Sleep Duration & Stages Reconciliation
+        val foundDurations = mutableListOf<Int>()
+        for (m in SLEEP_DURATION_REGEX.findAll(fullText)) {
+            val h = m.groupValues[1].toIntOrNull() ?: 0
+            val min = m.groupValues[2].toIntOrNull() ?: 0
+            val total = h * 60 + min
+            if (total in 60..840) {
+                foundDurations.add(total)
+            }
+        }
+        for (token in cleanTokens) {
+            val d = parseDurationMinutes(token)
+            if (d != null && d in 60..840 && !foundDurations.contains(d)) {
+                foundDurations.add(d)
+            }
+        }
+
+        if (parsedDeep > 0 || parsedRem > 0 || parsedLight > 0) {
+            sleepDeepMins = parsedDeep
+            sleepRemMins = parsedRem
+            sleepLightMins = parsedLight
+            if (parsedAwake > 0) sleepAwakeMins = parsedAwake
+        } else if (foundDurations.isNotEmpty()) {
+            val parsedSleepTotalMins = foundDurations.maxOrNull()!!
+            val currentAsleep = sleepDeepMins + sleepRemMins + sleepLightMins
+            if (currentAsleep == 0) {
+                val deep = (parsedSleepTotalMins * 0.22).roundToInt()
+                val rem = (parsedSleepTotalMins * 0.23).roundToInt()
+                val light = parsedSleepTotalMins - deep - rem
+                sleepDeepMins = deep
+                sleepRemMins = rem
+                sleepLightMins = light
+            } else if (currentAsleep < parsedSleepTotalMins) {
+                val factor = parsedSleepTotalMins.toDouble() / currentAsleep.toDouble()
+                val scaledDeep = (sleepDeepMins * factor).roundToInt()
+                val scaledRem = (sleepRemMins * factor).roundToInt()
+                val scaledLight = parsedSleepTotalMins - scaledDeep - scaledRem
+                sleepDeepMins = scaledDeep
+                sleepRemMins = scaledRem
+                sleepLightMins = scaledLight
+            }
+        }
+
+        if (sleepScore == 0 && (sleepDeepMins + sleepRemMins + sleepLightMins) > 0) {
+            val totalMins = sleepDeepMins + sleepRemMins + sleepLightMins
+            val durScore = ((totalMins.toDouble() / 450.0).coerceAtMost(1.0) * 55.0)
+            val deepScore = if (sleepDeepMins > 0) ((sleepDeepMins.toDouble() / 75.0).coerceAtMost(1.0) * 23.0) else 18.0
+            val remScore = if (sleepRemMins > 0) ((sleepRemMins.toDouble() / 85.0).coerceAtMost(1.0) * 22.0) else 17.0
+            val awakePenalty = (sleepAwakeMins.toDouble() / 12.0).coerceAtMost(12.0)
+            sleepScore = (durScore + deepScore + remScore - awakePenalty).roundToInt().coerceIn(45, 98)
+        }
+
+        // 5. Midnight Rollover Guard: If widget timestamp belongs to a previous calendar day,
         // suppress daily-cumulative scores/counters from the unrefreshed yesterday widget snapshot.
         val todayEpochDay = ZonedDateTime.now(ZoneId.systemDefault()).toLocalDate().toEpochDay()
         val widgetSampleEpochDay = parsedWidgetTimestamp?.let { ts ->
@@ -418,13 +518,17 @@ object RingConnTelemetryParser {
             liveCalorie = baseVitals.liveCalorie
             activityScore = baseVitals.activityScore
             sleepScore = baseVitals.sleepScore
+            sleepDeepMins = baseVitals.sleepDeepMins
+            sleepRemMins = baseVitals.sleepRemMins
+            sleepLightMins = baseVitals.sleepLightMins
+            sleepAwakeMins = baseVitals.sleepAwakeMins
             sleepInsight = baseVitals.sleepInsight
             activityInsight = baseVitals.activityInsight
             stressInsight = baseVitals.stressInsight
             vitalsInsight = baseVitals.vitalsInsight
         }
 
-        // 5. Sanitize liveCalorie if it was contaminated by targetSteps (e.g. 6000)
+        // 6. Sanitize liveCalorie if it was contaminated by targetSteps (e.g. 6000)
         if (liveCalorie >= targetSteps && targetSteps > 0 || (liveCalorie > 3000 && targetCalorie <= 1000)) {
             liveCalorie = if (liveSteps > 0) {
                 (liveSteps * 0.045).roundToInt().coerceAtLeast(1)
@@ -457,10 +561,10 @@ object RingConnTelemetryParser {
             ringBattery = ringBattery,
             isConnected = true,
             refreshTimestamp = parsedWidgetTimestamp ?: (System.currentTimeMillis() / 1000L),
-            sleepDeepMins = baseVitals.sleepDeepMins,
-            sleepRemMins = baseVitals.sleepRemMins,
-            sleepLightMins = baseVitals.sleepLightMins,
-            sleepAwakeMins = baseVitals.sleepAwakeMins,
+            sleepDeepMins = sleepDeepMins,
+            sleepRemMins = sleepRemMins,
+            sleepLightMins = sleepLightMins,
+            sleepAwakeMins = sleepAwakeMins,
             skinTempOffset = skinTempOffset,
             skinTempBaseline = skinTempBaseline,
             sleepInsight = sleepInsight,
