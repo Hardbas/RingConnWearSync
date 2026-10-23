@@ -31,5 +31,8 @@ jobs:
       - name: Grant Execute Permission to Gradlew
         run: chmod +x gradlew
 
+      - name: Test the version-tag guard
+        run: bash scripts/test-check-version-tag.sh
+
       - name: Run Unit Tests & Assemble Debug APKs
         run: ./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest :mobile:assembleDebug :wear:assembleDebug --no-daemon
