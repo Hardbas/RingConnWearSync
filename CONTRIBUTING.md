@@ -83,7 +83,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 ### Rules:
 - Write commit descriptions in **English**, using the imperative mood (e.g., `feat(tile): add haptic feedback to score tap`).
-- **No AI attribution tags**: Do not include `Co-Authored-By` lines or AI generator signatures in commit messages.
+- **AI assistance goes in the disclosure, not in trailers**: do not include `Co-Authored-By` lines or generator signatures in commit messages. AI-assisted contributions are expected in this project; the project-level disclosure is maintained in [README.md](README.md).
 
 ---
 

@@ -5,7 +5,7 @@ import kotlin.math.roundToInt
 /**
  * Every flat colour a tile is allowed to paint.
  *
- * This is the "Editorial Cálida" palette from the Claude Design render: a near
+ * This is the "Editorial Cálida" palette from the warm editorial design render: a near
  * black OLED face, warm off-white ink and a solid charcoal pill. Metric colours
  * do not live here — they live in [TileAccents] as ramps, because a tile may
  * only paint an accent that belongs to its own metric.

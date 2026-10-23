@@ -13,6 +13,19 @@ It was engineered to solve the **wrist tattoo optical blockage problem**: dark t
 
 ---
 
+## 🤖 AI Assistance Disclosure
+
+Most of the source code in this repository was written by AI coding agents, directed and reviewed by a human maintainer. Saying so up front is cheaper than having someone discover it in the history.
+
+- **Models and harnesses**: Claude-family models driven through agentic coding harnesses (Claude Code, Pi) with subagents for bounded implementation tasks.
+- **What the agents wrote**: the Kotlin and ProtoLayout implementation, the unit tests and their contracts, the vector drawables, and most of the prose in this README.
+- **What the human did**: defined the required behaviour and the design targets, chose the architecture and the legal posture, reviewed every diff, and verified releases on real hardware (Galaxy Watch 8, S25 Ultra) before tagging.
+- **What gates it**: `./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest` and the CI workflow in `.github/workflows/ci.yml`.
+
+AI authorship does not change the guarantees below: MIT-licensed, fully auditable, and no telemetry leaves your device. Judge the code on its own merits, and open an issue if something in it is wrong.
+
+---
+
 ## 🏛️ Architecture Overview
 
 The system consists of two tightly coupled Android modules communicating over the Bluetooth Wearable Data Layer:

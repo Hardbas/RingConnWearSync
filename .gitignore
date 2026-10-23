@@ -26,3 +26,8 @@ __pycache__/
 
 # Kotlin 2.x build artifact
 .kotlin/
+
+# Agent working artifacts: task specs, orchestration logs and design briefs are
+# kept on the maintainer's machine, never in the published tree. The project-level
+# AI disclosure lives in README.md.
+odd/

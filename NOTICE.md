@@ -37,7 +37,7 @@ This repository does **not** host, distribute, or incorporate:
 - Any private API signing keys, certificates, or tokens.
 - Any extracted DEX, APK, or compiled shared object (`.so`) libraries.
 
-All code, schemas, and UI elements in this repository were independently designed and written from scratch in Kotlin and XML.
+All code, schemas, and UI elements in this repository were produced for this project in Kotlin and XML without copying or deriving from any proprietary RingConn or Samsung implementation. AI-assisted authorship is disclosed in [README.md](README.md).
 
 ---
 
