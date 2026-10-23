@@ -37,6 +37,32 @@ class NoSyntheticHeartRateTest {
         )
     }
 
+    @Test
+    fun `only reports a refresh when the reading itself advanced`() {
+        // Pins the argument wiring, not behaviour: a source audit cannot see a
+        // runtime gate. Hardwiring syncSignalSeen = true would change this text.
+        assertTrue(
+            "the decision must receive all three facts, not a pre-decided true",
+            body.contains("MeasureOutcome.refreshed(before = before, after = after, syncSignalSeen = signalSeen)")
+        )
+        assertTrue(
+            "the reading must be compared before and after the request",
+            body.contains("refreshTimestamp")
+        )
+        assertTrue(
+            "an unreachable phone must fail without waiting out the whole timeout",
+            body.contains("NODE_DISCOVERY_TIMEOUT_MS")
+        )
+    }
+
+    @Test
+    fun `a measurement that produced nothing tells the user`() {
+        assertTrue(
+            "silence looks like a tap that was not registered",
+            body.contains("R.string.measure_failed_no_new_reading")
+        )
+    }
+
     private fun assertAbsent(what: String, needle: String) {
         assertTrue(
             "$source still contains $what (`$needle`); persist only values that came from the ring",

@@ -20,6 +20,7 @@
     <string name="steps">Daily Steps</string>
     <string name="stress">Stress Index</string>
     <string name="measure_now">Sync</string>
+    <string name="measure_failed_no_new_reading">No new reading · check the phone</string>
     <string name="measuring">Syncing...</string>
     <string name="measure">Sync</string>
     <string name="ring_battery">Ring Battery: %1$d%%</string>

@@ -21,6 +21,7 @@
     <string name="stress">Nivel de Estrés</string>
     <string name="measure_now">Sincronizar</string>
     <string name="measuring">Sincronizando...</string>
+    <string name="measure_failed_no_new_reading">Sin lectura nueva · revisá el teléfono</string>
     <string name="measure">Sincronizar</string>
     <string name="ring_battery">Batería Anillo: %1$d%%</string>
     <string name="ring_short">Anillo</string>

@@ -46,9 +46,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material.*
+import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 import io.github.hardbas.wearsync.app.R
 import io.github.hardbas.wearsync.app.complication.RingConnComplicationProvider
+import io.github.hardbas.wearsync.app.data.MeasureOutcome
 import io.github.hardbas.wearsync.app.data.RingConnVitals
 import io.github.hardbas.wearsync.app.service.WearDataListenerService
 import androidx.compose.ui.geometry.Rect
@@ -112,38 +116,60 @@ class VitalsDetailActivity : ComponentActivity() {
     }
 }
 
+/** How long to wait for the node list before treating the phone as unreachable. */
+private const val NODE_DISCOVERY_TIMEOUT_MS = 3_000L
+
 /**
- * Asks the phone for a fresh RingConn sync and waits until the watch observes a
- * new completion signal.
+ * Asks the phone for a fresh RingConn sync and reports whether the reading on the
+ * watch is demonstrably newer than it was when the request started.
  *
- * Returns true only when a real round trip finished, so no caller can present or
- * persist a reading that did not arrive from the ring.
+ * A completion signal alone does not prove that, because an unrelated sync can
+ * land while we wait; see [MeasureOutcome]. Returns false when no phone is
+ * reachable, when nothing completes before the timeout, or when the reading did
+ * not advance, so no caller can present or persist an unrefreshed value as new.
  */
 private suspend fun requestRingSync(context: Context, timeoutMs: Long = 8500L): Boolean {
+    val before = RingConnComplicationProvider.getLatestVitals(context).refreshTimestamp
     val startSync = WearDataListenerService.lastSyncCompletedMs.value
-    try {
-        Wearable.getNodeClient(context).connectedNodes.addOnSuccessListener { nodeList ->
-            nodeList.forEach { node ->
-                Wearable.getMessageClient(context).sendMessage(
-                    node.id,
-                    "/action/sync_ringconn",
-                    ByteArray(0)
-                )
-            }
+
+    // No reachable phone means no round trip to wait for: fail now instead of
+    // spending the whole timeout to learn the same thing.
+    val nodes = withTimeoutOrNull(NODE_DISCOVERY_TIMEOUT_MS) { awaitNodes(context) } ?: emptyList()
+    if (nodes.isEmpty()) return false
+
+    nodes.forEach { node ->
+        try {
+            Wearable.getMessageClient(context).sendMessage(
+                node.id,
+                "/action/sync_ringconn",
+                ByteArray(0)
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
-    return withTimeoutOrNull(timeoutMs) {
+
+    val signalSeen = withTimeoutOrNull(timeoutMs) {
         WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
     } != null
+
+    val after = RingConnComplicationProvider.getLatestVitals(context).refreshTimestamp
+    return MeasureOutcome.refreshed(before = before, after = after, syncSignalSeen = signalSeen)
 }
+
+private suspend fun awaitNodes(context: Context): List<Node> =
+    suspendCancellableCoroutine { continuation ->
+        Wearable.getNodeClient(context).connectedNodes
+            .addOnSuccessListener { continuation.resume(it) }
+            .addOnFailureListener { continuation.resume(emptyList()) }
+    }
 
 @Composable
 fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) {
     val scope = rememberCoroutineScope()
     var vitals by remember { mutableStateOf(RingConnComplicationProvider.getLatestVitals(context)) }
     var isMeasuring by remember { mutableStateOf(false) }
+    var measureFailed by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
 
     DisposableEffect(context) {
@@ -164,10 +190,12 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
     LaunchedEffect(startMeasureDirectly) {
         if (startMeasureDirectly && !isMeasuring) {
             isMeasuring = true
-            if (requestRingSync(context)) {
+            val refreshed = requestRingSync(context)
+            if (refreshed) {
                 vitals = RingConnComplicationProvider.getLatestVitals(context)
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             }
+            measureFailed = !refreshed
             isMeasuring = false
         }
     }
@@ -175,13 +203,17 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
     VitalsDetailContent(
         vitals = vitals,
         isMeasuring = isMeasuring,
+        measureFailed = measureFailed,
         onMeasureClick = {
             if (!isMeasuring) {
                 isMeasuring = true
+                measureFailed = false
                 scope.launch {
-                    if (requestRingSync(context)) {
+                    val refreshed = requestRingSync(context)
+                    if (refreshed) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
+                    measureFailed = !refreshed
                     isMeasuring = false
                 }
             }
@@ -193,6 +225,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
 fun VitalsDetailContent(
     vitals: RingConnVitals,
     isMeasuring: Boolean = false,
+    measureFailed: Boolean = false,
     onMeasureClick: () -> Unit = {}
 ) {
     val listState = rememberScalingLazyListState()
@@ -452,6 +485,18 @@ fun VitalsDetailContent(
                             fontSize = TextCaption,
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // A measurement that produced nothing has to say so: silence
+                    // looks like the button did not register the tap.
+                    if (measureFailed) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = stringResource(R.string.measure_failed_no_new_reading),
+                            fontSize = TextCaption,
+                            color = Color(0xFFFFB4AB),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
