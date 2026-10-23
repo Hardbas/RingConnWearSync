@@ -112,6 +112,33 @@ class VitalsDetailActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Asks the phone for a fresh RingConn sync and waits until the watch observes a
+ * new completion signal.
+ *
+ * Returns true only when a real round trip finished, so no caller can present or
+ * persist a reading that did not arrive from the ring.
+ */
+private suspend fun requestRingSync(context: Context, timeoutMs: Long = 8500L): Boolean {
+    val startSync = WearDataListenerService.lastSyncCompletedMs.value
+    try {
+        Wearable.getNodeClient(context).connectedNodes.addOnSuccessListener { nodeList ->
+            nodeList.forEach { node ->
+                Wearable.getMessageClient(context).sendMessage(
+                    node.id,
+                    "/action/sync_ringconn",
+                    ByteArray(0)
+                )
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return withTimeoutOrNull(timeoutMs) {
+        WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
+    } != null
+}
+
 @Composable
 fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) {
     val scope = rememberCoroutineScope()
@@ -130,18 +157,17 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
         }
     }
 
-    // Auto-trigger measurement if launched via "Medir Ahora" pill (HeartRateMeasureActivity)
+    // Auto-trigger measurement if launched via "Medir Ahora" pill (HeartRateMeasureActivity).
+    // The pill asks the phone for a real reading and waits for it. It never derives
+    // a number from the previous one: a fabricated value here is indistinguishable
+    // from a measured one once it is persisted.
     LaunchedEffect(startMeasureDirectly) {
         if (startMeasureDirectly && !isMeasuring) {
             isMeasuring = true
-            delay(3500L)
-            val current = RingConnComplicationProvider.getLatestVitals(context)
-            val updated = current.copy(
-                lastHeartRate = current.lastHeartRate + (-2..3).random(),
-                refreshTimestamp = System.currentTimeMillis() / 1000L
-            )
-            RingConnComplicationProvider.saveAndBroadcastVitals(context, updated)
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            if (requestRingSync(context)) {
+                vitals = RingConnComplicationProvider.getLatestVitals(context)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
             isMeasuring = false
         }
     }
@@ -153,25 +179,7 @@ fun VitalsDetailScreen(context: Context, startMeasureDirectly: Boolean = false) 
             if (!isMeasuring) {
                 isMeasuring = true
                 scope.launch {
-                    val startSync = WearDataListenerService.lastSyncCompletedMs.value
-                    try {
-                        val nodes = Wearable.getNodeClient(context).connectedNodes
-                        nodes.addOnSuccessListener { nodeList ->
-                            nodeList.forEach { node ->
-                                Wearable.getMessageClient(context).sendMessage(
-                                    node.id,
-                                    "/action/sync_ringconn",
-                                    ByteArray(0)
-                                )
-                            }
-                        }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                    val syncResult = withTimeoutOrNull(8500L) {
-                        WearDataListenerService.lastSyncCompletedMs.first { it != startSync }
-                    }
-                    if (syncResult != null) {
+                    if (requestRingSync(context)) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     isMeasuring = false
