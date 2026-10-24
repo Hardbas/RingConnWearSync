@@ -1,0 +1,51 @@
+version: 2
+
+# Two ecosystems, both weekly. The point is not to update everything: a solo
+# maintainer with a watch on the wrist cannot review twelve dependency PRs a
+# week. The point is to stop discovering a stale AndroidX or a Kotlin bump by
+# accident, and to have a record when a dependency is the reason a release
+# behaves differently than the one before it.
+#
+# Bumps are grouped by origin so a group lands as one reviewable PR instead of
+# one per artifact: sixteen AndroidX lines are the same decision. Pinned
+# versions that must move together (agp + kotlin, protolayout + tiles) are
+# easier to read as a single diff.
+
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      google-play:
+        patterns:
+          - "com.google.*"
+      toolchain:
+        patterns:
+          - "org.jetbrains*"
+          - "com.android.tools*"
+          - "org.gradle*"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
