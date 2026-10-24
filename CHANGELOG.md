@@ -9,6 +9,17 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.32] - 2026-10-24
+
+### Changed
+
+- **The sleep diagnostic reports stage types, not only their count.** Every session from
+  the hardware report carried exactly one stage record, and the reader maps only five
+  types; a fragment with an unmapped type is silently dropped and the night reads empty
+  even though Health Connect holds it. Each session now prints `types=[...]`, and the
+  report closes with the longest session and the distinct stage types received, so it can
+  be read at a glance instead of sixty-six lines.
+
 ## [1.9.31] - 2026-10-24
 
 ### Fixed
