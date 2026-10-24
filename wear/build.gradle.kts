@@ -25,7 +25,13 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 25.3 MB of the 26.4 MB release APK was DEX: Compose, Wear Compose, ProtoLayout and
+            // the Tiles runtime, unshrunk. A watch has little storage and the user sideloads every
+            // update by hand over ADB, so the size is paid on the wrist, not on a build machine.
+            // Nothing here needs a keep rule that the libraries do not already ship; if a build
+            // ever does, wear/proguard-rules.pro says what to write and what to check.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
