@@ -9,6 +9,37 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.28] - 2026-10-24
+
+Published as a pre-release: the sleep fix has not been verified on hardware yet.
+
+### Fixed
+
+- **Sleep stages read wrong even when Health Connect held the data.** The merge
+  resolved overlapping segments by `lastModified`, so the newest segment won each
+  epoch. RingConn rewrites a coarse night-long segment when it syncs, and that
+  rewrite carries the newest timestamp, so it overwrote the short deep, REM and
+  awake segments: the night collapsed into one stage and deep/REM read as zero.
+  Specificity now wins over recency — a shorter segment owns the epochs it covers,
+  recency only breaks ties between segments of equal length, and arrival order
+  cannot change the result (`SleepStageMerger`, 5 tests).
+
+### Changed
+
+- **Overnight polling backs off.** The in-service poll ran every five minutes
+  around the clock, waking the RingConn app each cycle for data that only changes
+  every 15-30 minutes. Between 23:00 and 06:00 the interval is now 150 minutes, so
+  a night costs three wake cycles instead of about eighty-four. Reported as 6%
+  overnight drain where the same night used to cost 2-3%.
+
+### Known limitations
+
+- Nothing on the phone checks that a captured value is present before sending it:
+  `DataMap.getInt` returns 0 for a missing key, so an unmeasured stage and a
+  measured zero are indistinguishable on the watch.
+- The morning capture still opens the RingConn app for up to 24 seconds, aborting
+  after 6 if the app is not in front — which happens when the phone is locked.
+
 ## [1.9.27] - 2026-10-24
 
 ### Fixed
