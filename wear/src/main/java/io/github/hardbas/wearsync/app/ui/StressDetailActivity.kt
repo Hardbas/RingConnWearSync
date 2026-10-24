@@ -621,7 +621,8 @@ private fun StressTimelineCard(vitals: RingConnVitals) {
                         color = Color.White,
                         fontSize = TextBody,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = TextBody,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -968,7 +969,8 @@ private fun StressTimelineEmptyCard() {
                     color = Color.White,
                     fontSize = TextBody,
                     fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    maxLines = 2,
+                    lineHeight = TextBody,
                     overflow = TextOverflow.Ellipsis
                 )
             }

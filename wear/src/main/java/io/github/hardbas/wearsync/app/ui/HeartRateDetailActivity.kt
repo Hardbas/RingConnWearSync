@@ -584,12 +584,15 @@ fun HeartRateDetailContent(
                                     .background(CyanActive)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
+                            // Two lines: a card title can wrap, it must not read
+                            // as "Rhythm and…" because a value chip took the room.
                             Text(
                                 text = stringResource(R.string.rhythm_and_rest),
                                 fontSize = TextBody,
                                 color = Color.White,
                                 fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
+                                maxLines = 2,
+                                lineHeight = TextBody,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
@@ -633,7 +636,9 @@ fun HeartRateDetailContent(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = stringResource(R.string.avg_resting_hr),
+                                    // Row label: it shares the row with a value, so it
+                                    // uses the short copy instead of ellipsizing.
+                                    text = stringResource(R.string.avg_resting_hr_short),
                                     fontSize = TextCaption,
                                     color = LabelSilver,
                                     textAlign = TextAlign.Center,
@@ -741,7 +746,8 @@ fun HeartRateDetailContent(
                                     fontSize = TextBody,
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    lineHeight = TextBody,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
@@ -944,7 +950,8 @@ fun HeartRateDetailContent(
                                     fontSize = TextBody,
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    lineHeight = TextBody,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }

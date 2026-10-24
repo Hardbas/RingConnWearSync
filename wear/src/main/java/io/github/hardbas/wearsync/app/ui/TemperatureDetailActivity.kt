@@ -841,7 +841,8 @@ private fun CircadianThermalCurveCard(vitals: RingConnVitals) {
                     fontSize = TextBody,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
+                    maxLines = 2,
+                    lineHeight = TextBody,
                     overflow = TextOverflow.Ellipsis
                 )
 

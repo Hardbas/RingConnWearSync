@@ -153,6 +153,7 @@
     <string name="rhythm_and_rest">Rhythm &amp; Rest</string>
     <string name="daily_range">Daily Range</string>
     <string name="avg_resting_hr">Avg Resting HR</string>
+    <string name="avg_resting_hr_short">Avg Rest</string>
     <string name="variation">Variation</string>
     <string name="zone_rest">Z1 · Resting</string>
     <string name="zone_warmup">Z2 · Warm Up</string>
