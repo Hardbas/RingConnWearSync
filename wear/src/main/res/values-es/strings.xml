@@ -249,7 +249,7 @@
     <string name="hr_dip_optimal">Óptimo</string>
     <string name="hr_dip_reduced">Reducido</string>
     <string name="hr_dip_extreme">Alto</string>
-    <string name="hr_dip_optimal_range">Meta 10–20%</string>
+    <string name="hr_dip_optimal_range" formatted="false">Meta 10–20%</string>
 
     <!-- Sleep Debt, Daytime Naps & Circadian Bedtime Coach -->
     <string name="sleep_coach_title">Deuda y Horario Ideal</string>

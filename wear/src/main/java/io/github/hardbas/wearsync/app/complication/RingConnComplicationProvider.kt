@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import android.os.Build
 import android.util.Log
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.data.ComplicationData
@@ -72,6 +73,22 @@ object ComplicationDataFactory {
         val shortValText = PlainComplicationText.Builder(shortText).build()
         val longValText = PlainComplicationText.Builder(longText).build()
 
+        // ComplicationType.GOAL_PROGRESS and GoalProgressComplicationData only exist
+        // from Android 13 (API 33), while the watch app supports API 30. Referencing
+        // them needs an explicit version gate; below 33 the request falls through to
+        // the types that do exist, and on 33+ the data is built exactly as before.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            type == ComplicationType.GOAL_PROGRESS
+        ) {
+            val target = if (targetValue > 0f) targetValue else 100f
+            val builder = GoalProgressComplicationData.Builder(currentValue, target, descText)
+                .setText(shortValText)
+                .setTitle(titleText)
+                .setMonochromaticImage(icon)
+            if (tapIntent != null) builder.setTapAction(tapIntent)
+            return builder.build()
+        }
+
         return when (type) {
             ComplicationType.SHORT_TEXT -> {
                 val builder = ShortTextComplicationData.Builder(shortValText, descText)
@@ -84,15 +101,6 @@ object ComplicationDataFactory {
                 val safeMax = if (maxValue > minValue) maxValue else minValue + 1f
                 val clamped = currentValue.coerceIn(minValue, safeMax)
                 val builder = RangedValueComplicationData.Builder(clamped, minValue, safeMax, descText)
-                    .setText(shortValText)
-                    .setTitle(titleText)
-                    .setMonochromaticImage(icon)
-                if (tapIntent != null) builder.setTapAction(tapIntent)
-                builder.build()
-            }
-            ComplicationType.GOAL_PROGRESS -> {
-                val target = if (targetValue > 0f) targetValue else 100f
-                val builder = GoalProgressComplicationData.Builder(currentValue, target, descText)
                     .setText(shortValText)
                     .setTitle(titleText)
                     .setMonochromaticImage(icon)

@@ -1,16 +1,19 @@
 package io.github.hardbas.wearsync.app.service
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMap
@@ -141,6 +144,19 @@ class WearDataListenerService : WearableListenerService() {
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
                 .build()
+
+            // Android 13+ drops a notification posted without POST_NOTIFICATIONS,
+            // so say why instead of writing into the void. Below 33 the permission
+            // does not exist and the notification is always allowed.
+            val canPostNotification = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            if (!canPostNotification) {
+                Log.w(TAG, "Low battery alert skipped: POST_NOTIFICATIONS is not granted")
+                return
+            }
 
             notificationManager.notify(NOTIFICATION_LOW_BAT_ID, notification)
             Log.i(TAG, "Low battery haptic alert triggered: ring battery at $battery%")

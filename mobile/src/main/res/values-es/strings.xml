@@ -7,7 +7,7 @@
     <string name="phone_health_connect_title">Health Connect • Sincronización Real</string>
     <string name="phone_checking_permissions">Comprobando permisos de Health Connect...</string>
     <string name="phone_open_official">Abrir RingConn Oficial (Forzar Lectura del Anillo)</string>
-    <string name="phone_native_extraction">Extracción Nativa Directa (100% Exacto)</string>
+    <string name="phone_native_extraction" formatted="false">Extracción Nativa Directa (100% Exacto)</string>
     <string name="phone_widgethost_checking">• WidgetHost: Activo (BIND_APPWIDGET)\n• Accesibilidad: Comprobando...</string>
     <string name="phone_sync_from_ringconn">⚡ Sincronizar desde RingConn (Accesibilidad)</string>
     <string name="phone_sync_now_watch">⚡ Sincronizar ahora con el reloj</string>
@@ -24,15 +24,15 @@
     <string name="phone_hc_permission_required">⚠️ Permiso de Health Connect Requerido para leer datos reales</string>
     <string name="phone_permission_required">Permiso Requerido</string>
     <string name="phone_widgethost_active">• WidgetHost: Vinculado y Activo ✅</string>
-    <string name="phone_accessibility_active">• Accesibilidad: Activa (100% Exacto) ✅</string>
+    <string name="phone_accessibility_active" formatted="false">• Accesibilidad: Activa (100% Exacto) ✅</string>
     <string name="phone_accessibility_off">"• Accesibilidad: Toca 'Sincronizar (Accesibilidad)' para activar en Ajustes"</string>
-    <string name="phone_source_widgethost">Fuente: RingConn WidgetHost (100% Exacto)</string>
+    <string name="phone_source_widgethost" formatted="false">Fuente: RingConn WidgetHost (100% Exacto)</string>
     <string name="phone_synced_from_widgets">✅ Sincronizado directo desde widgets</string>
     <string name="phone_grant_from_card">Concedelo desde la tarjeta de permisos y volvé a intentar.</string>
     <string name="phone_enable_accessibility">"Activa 'WearSync' en Aplicaciones Instaladas de Accesibilidad"</string>
-    <string name="phone_source_ringconn_direct">Fuente: RingConn Directo (100% Exacto)</string>
+    <string name="phone_source_ringconn_direct" formatted="false">Fuente: RingConn Directo (100% Exacto)</string>
     <string name="phone_telemetry_captured">✅ Telemetría exacta capturada</string>
-    <string name="phone_telemetry_captured_toast">¡Telemetría 100% exacta capturada!</string>
+    <string name="phone_telemetry_captured_toast" formatted="false">¡Telemetría 100% exacta capturada!</string>
     <string name="phone_querying_telemetry">Consultando telemetría de Health Connect...</string>
     <string name="phone_sending_to_watch">Enviando al Galaxy Watch 8...</string>
     <string name="phone_calibration_manual">Calibración Manual</string>
@@ -43,9 +43,9 @@
     <string name="phone_source_label">Fuente: %1$s</string>
     <string name="phone_synced_at">✅ Sincronizado (%1$s) • %2$s</string>
     <string name="phone_steps_kcal">Pasos • %1$d kcal</string>
-    <string name="source_ringconn_direct_short">RingConn Directo (100% Exacto)</string>
+    <string name="source_ringconn_direct_short" formatted="false">RingConn Directo (100% Exacto)</string>
     <string name="source_health_connect">Health Connect (Sincronizado)</string>
-    <string name="source_widgethost_short">RingConn WidgetHost (100% Exacto)</string>
+    <string name="source_widgethost_short" formatted="false">RingConn WidgetHost (100% Exacto)</string>
     <string name="phone_connected_watch">Conectado con el reloj</string>
     <string name="phone_searching_watch">Buscando el reloj...</string>
     <string name="phone_sync_note">Sincronizado · FC: %1$d bpm · SpO2: %2$d%% · Anillo: %3$d%%</string>

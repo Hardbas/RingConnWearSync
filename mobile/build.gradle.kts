@@ -48,6 +48,15 @@ android {
 }
 
 dependencies {
+    // play-services-basement 18.4.0, pulled in by play-services-wearable, asks for
+    // androidx.fragment 1.0.0, which resolves to 1.1.0. A FragmentActivity older than 1.3.0
+    // overrides onActivityResult and consumes the result ComponentActivity's
+    // ActivityResultRegistry is waiting for. Nothing here extends FragmentActivity today, so
+    // this is a floor rather than a usage: it keeps that trap out of the graph at the cost of
+    // one unused artifact.
+    constraints {
+        implementation(libs.androidx.fragment)
+    }
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.health.connect)

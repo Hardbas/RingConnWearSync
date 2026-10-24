@@ -8,6 +8,7 @@ import androidx.wear.protolayout.DimensionBuilders.wrap
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.TypeBuilders
+import androidx.wear.protolayout.expression.ProtoLayoutExperimental
 
 /**
  * The shell every tile shares: black face, radial glow, dial layers, centred
@@ -16,7 +17,11 @@ import androidx.wear.protolayout.TypeBuilders
  * The stack is centred by the root box, so no tile has to compute its own
  * vertical rhythm; the pill is centred too and then pushed 63dp down by a
  * static translation, which is how the design pins it without absolute layout.
+ *
+ * The content cross-fade is an experimental ProtoLayout API: opting the object in
+ * keeps the animation exactly as the design specifies it instead of dropping it.
  */
+@androidx.annotation.OptIn(markerClass = [ProtoLayoutExperimental::class])
 object TileShell {
 
     /**

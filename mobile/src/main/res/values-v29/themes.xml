@@ -1,0 +1,4 @@
+<resources>
+    <!-- Android 10 and later have the framework's automatic day/night device default. -->
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault.DayNight" />
+</resources>
