@@ -9,6 +9,19 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.29] - 2026-10-24
+
+### Fixed
+
+- **Sleep stages stayed wrong after 1.9.28 even with a correct Health Connect
+  record.** The score matched the official app because it comes from the widget;
+  the stages did not, because their source was chosen by "whichever claims the most
+  sleep" — widget, then cache, then Health Connect. A cache left inflated by the
+  earlier merge bug outbid the corrected record permanently, and a per-field
+  fallback could build a night from two different sources. Health Connect now owns
+  the night whenever it holds one, the cache only covers a night Health Connect has
+  not received, and no field is taken from a second source.
+
 ## [1.9.28] - 2026-10-24
 
 Published as a pre-release: the sleep fix has not been verified on hardware yet.
