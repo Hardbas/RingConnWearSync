@@ -70,6 +70,14 @@ internal object SleepDiagnostics {
         }
 
         build.appendLine()
+        // Sum of the fragment durations per stage type. The watch must show these, or the
+        // numbers came from somewhere else and the merge is not the suspect.
+        val totals = report.sessions
+            .filter { it.stageTypes.isNotEmpty() }
+            .groupBy { it.stageTypes.first() }
+            .mapValues { (_, sessions) -> sessions.sumOf { it.durationMinutes() } }
+            .toSortedMap()
+        build.appendLine("typeTotalsMin=$totals")
         val longest = report.sessions.maxByOrNull { it.durationMinutes() }
         build.appendLine("longestSessionMin=${longest?.durationMinutes() ?: 0} types=${longest?.stageTypes ?: emptyList<Int>()}")
         val distinctTypes = report.sessions.flatMap { it.stageTypes }.distinct().sorted()

@@ -88,9 +88,6 @@ class SleepDiagnosticsTest {
 
     @Test
     fun theReportPrintsTheStageTypesBecauseTheMergeOnlyMapsFive() {
-        // Reported from hardware: every session carried exactly one stage, so the report had
-        // to say WHICH stage. A fragment whose type is not one of the five the reader maps is
-        // silently dropped, which empties the night while the data is present.
         val umbrella = Session(todayStart, todayStart + 390 * minuteMs, 1, listOf(2))
         val deep = Session(todayStart + 30 * minuteMs, todayStart + 60 * minuteMs, 1, listOf(5))
 
@@ -106,6 +103,10 @@ class SleepDiagnosticsTest {
 
         assertTrue("the type must be visible per session", text.contains("types=[2]"))
         assertTrue(text.contains("types=[5]"))
+        assertTrue(
+            "the per-type totals are the number the watch must show",
+            text.contains("typeTotalsMin={2=390, 4=0, 5=30}") || text.contains("typeTotalsMin={2=390, 5=30}")
+        )
         assertTrue("the longest session is the night anchor", text.contains("longestSessionMin=390"))
         assertTrue("distinct types answer 'did anything usable arrive'", text.contains("distinctStageTypes=[2, 5]"))
     }

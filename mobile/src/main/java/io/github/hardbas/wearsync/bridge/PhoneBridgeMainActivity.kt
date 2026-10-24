@@ -826,13 +826,21 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             )
         }
 
+        // What the app itself persisted for the watch. If this does not match typeTotalsMin,
+        // the watch is showing something that Health Connect's fragments cannot explain.
+        val prefs = getSharedPreferences(RingConnTelemetryReader.PREFS_NAME, Context.MODE_PRIVATE)
+        val persisted = "deep=${prefs.getInt(RingConnTelemetryReader.KEY_SLEEP_DEEP_MINS, 0)} " +
+            "rem=${prefs.getInt(RingConnTelemetryReader.KEY_SLEEP_REM_MINS, 0)} " +
+            "light=${prefs.getInt(RingConnTelemetryReader.KEY_SLEEP_LIGHT_MINS, 0)} " +
+            "awake=${prefs.getInt(RingConnTelemetryReader.KEY_SLEEP_AWAKE_MINS, 0)}"
+
         return SleepDiagnostics.format(
             SleepDiagnostics.Report(
                 nowMs = now.toEpochMilli(),
                 todayStartMs = todayStart.toEpochMilli(),
                 sessions = sessions,
-                chosenStages = "no recalculado por la sonda",
-                chosenSource = "ver veredicto por sesión"
+                chosenStages = persisted,
+                chosenSource = "persisted by the app for the watch"
             )
         )
     }

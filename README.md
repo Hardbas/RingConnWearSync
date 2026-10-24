@@ -235,9 +235,9 @@ their design, not an opinion: no other component has BLE access to the ring.
 waits up to 24 seconds for the sleep card to render, then returns to the home screen. It aborts
 if the app is not in front after 6 seconds — which is what happens when the phone is locked, since
 the keyguard owns the screen. It does not force itself over the lock screen.
-- **Stage minutes are counted in 30-minute epochs.** A seven minute awakening can fall inside an
-epoch labelled with another stage, so short awakenings are approximate by construction. The
-official app reads the raw records and will often show a different number.
+- **Stage minutes are assigned by 30-second epochs.** The resolution is half a minute, so a short
+awakening is not lost to rounding; where the totals can still differ from the official app is in
+overlapping fragments, which this app unions rather than sums.
 - **A missing value can render as a zero.** The phone-to-watch transport sends numbers only; a
 stage that was never measured arrives as `0 m` instead of `--`. If Awake reads 0 while Deep and
 REM look right, that is this limitation, not a night without awakenings.
