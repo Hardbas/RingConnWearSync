@@ -684,12 +684,29 @@ object RingConnTelemetryReader {
         // Never allow awake-only intervals to overwrite and zero out real nocturnal sleep stages.
         val hcAsleep = deepMins + remMins + lightMins
         val existingAsleep = existing.sleepDeepMins + existing.sleepRemMins + existing.sleepLightMins
-        val keepExistingStages = existingAsleep > hcAsleep && existingAsleep > 0
-        val finalDeep = if (keepExistingStages) existing.sleepDeepMins else (if (hcAsleep > 0) deepMins.toInt() else existing.sleepDeepMins)
-        val finalRem = if (keepExistingStages) existing.sleepRemMins else (if (hcAsleep > 0) remMins.toInt() else existing.sleepRemMins)
-        val finalLight = if (keepExistingStages) existing.sleepLightMins else (if (hcAsleep > 0) lightMins.toInt() else existing.sleepLightMins)
-        val finalAwake = if (keepExistingStages) existing.sleepAwakeMins else (if (hcAsleep > 0) awakeMins.toInt() else existing.sleepAwakeMins)
-        val finalSleep = if (keepExistingStages && existing.sleepScore > 0) existing.sleepScore else (if (sleepScore > 0) sleepScore else existing.sleepScore)
+        // Health Connect owns the night; the cache only covers a night it does not have. The
+        // old rule kept whichever source declared MORE sleep, so an inflated cache outbid the
+        // correct record forever — and because this read is the authoritative writer, the bad
+        // value stayed persisted no matter how many times the user tapped sync.
+        val night = SleepSourcePolicy.stages(
+            hc = SleepSourcePolicy.StageMinutes(
+                deep = deepMins.toInt(),
+                rem = remMins.toInt(),
+                light = lightMins.toInt(),
+                awake = awakeMins.toInt()
+            ),
+            cached = SleepSourcePolicy.StageMinutes(
+                deep = existing.sleepDeepMins,
+                rem = existing.sleepRemMins,
+                light = existing.sleepLightMins,
+                awake = existing.sleepAwakeMins
+            )
+        )
+        val finalDeep = night.deep
+        val finalRem = night.rem
+        val finalLight = night.light
+        val finalAwake = night.awake
+        val finalSleep = if (existingAsleep > hcAsleep && existingAsleep > 0 && existing.sleepScore > 0) existing.sleepScore else (if (sleepScore > 0) sleepScore else existing.sleepScore)
 
         // --- Physiological Biomarkers Calculation (AHISpo2Data, CalSleepHeartRateData, SleepNapModel, BedScheduleModel, StandSyncModel) ---
         // 1. Sleep Sessions (SleepNapModel & BedScheduleModel)
@@ -1357,11 +1374,27 @@ object RingConnTelemetryReader {
             val cached = parseFromPreferences(prefs)
             val hcAsleep = hcVitals.sleepDeepMins + hcVitals.sleepRemMins + hcVitals.sleepLightMins
             val cachedAsleep = cached.sleepDeepMins + cached.sleepRemMins + cached.sleepLightMins
+            // Same rule as the Health Connect read: capability, not size. The score keeps its
+            // own logic below because it legitimately comes from the widget.
             val keepCachedSleep = cachedAsleep > hcAsleep && cachedAsleep > 0
-            val finalDeep = if (keepCachedSleep) cached.sleepDeepMins else (if (hcAsleep > 0) hcVitals.sleepDeepMins else cached.sleepDeepMins)
-            val finalRem = if (keepCachedSleep) cached.sleepRemMins else (if (hcAsleep > 0) hcVitals.sleepRemMins else cached.sleepRemMins)
-            val finalLight = if (keepCachedSleep) cached.sleepLightMins else (if (hcAsleep > 0) hcVitals.sleepLightMins else cached.sleepLightMins)
-            val finalAwake = if (keepCachedSleep) cached.sleepAwakeMins else (if (hcAsleep > 0) hcVitals.sleepAwakeMins else cached.sleepAwakeMins)
+            val mergedNight = SleepSourcePolicy.stages(
+                hc = SleepSourcePolicy.StageMinutes(
+                    deep = hcVitals.sleepDeepMins,
+                    rem = hcVitals.sleepRemMins,
+                    light = hcVitals.sleepLightMins,
+                    awake = hcVitals.sleepAwakeMins
+                ),
+                cached = SleepSourcePolicy.StageMinutes(
+                    deep = cached.sleepDeepMins,
+                    rem = cached.sleepRemMins,
+                    light = cached.sleepLightMins,
+                    awake = cached.sleepAwakeMins
+                )
+            )
+            val finalDeep = mergedNight.deep
+            val finalRem = mergedNight.rem
+            val finalLight = mergedNight.light
+            val finalAwake = mergedNight.awake
             val finalSleepScore = if (keepCachedSleep && cached.sleepScore > 0) cached.sleepScore else hcVitals.sleepScore
 
             val finalHcVitals = hcVitals.copy(
