@@ -166,6 +166,26 @@ which is why the subject reads `CN=Android Debug`. See
 [RELEASING.md](RELEASING.md#known-caveat-release-apks-are-signed-with-the-debug-key)
 for what that does and does not cost.
 
+### Staying up to date
+
+This app does not check for updates and never contacts a server, so installing a
+new version is always your decision. Three ways to know one exists, in order of
+how much they ask of you:
+
+- **The repository's releases page** always redirects to the newest build:
+  <https://github.com/Hardbas/RingConnWearSync/releases/latest>. Bookmark it or
+  add it to your watch browser home screen.
+- **GitHub notifications**: on the repository, use *Watch → Custom → Releases*.
+  GitHub then emails you when a release is published. Nothing is sent to the app.
+- **The CHANGELOG** in the repository lists what changed in each version, so you
+  can decide whether an update is worth the two minutes of reinstalling.
+
+To update, download the new APK and install it over the old one: because every
+release is signed with the same certificate, Android treats it as an update and
+keeps your Health Connect grants, tiles and complications configured. There is no
+in-app updater, and adding one would mean the app making network requests — which
+would contradict the privacy statement above.
+
 ---
 
 ## 📱 Hardware & OS Compatibility
