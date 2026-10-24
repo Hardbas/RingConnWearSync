@@ -72,13 +72,18 @@ The guard's own regression tests live in `scripts/test-check-version-tag.sh` and
 `scripts/test-check-release-signing-identity.sh`, and run in both workflows, so a
 change that weakens a guard breaks CI instead of silently shipping.
 
-## Known caveat: release APKs are signed with the debug key
+## Known caveat: the identity is an Android debug certificate
 
-Both modules currently sign `release` builds with the Android **debug**
-keystore:
+The certificate every APK carries is the one Android Studio generates for debugging,
+which is why `apksigner` reports `CN=Android Debug`. Since 1.9.39 the key is re-wrapped
+under a real password and supplied through `keystore.properties` (see below), so the
+public password is gone; the certificate lineage is the same, which is what keeps every
+existing install updatable. The build falls back to the raw debug keystore, with a warning
+in the log, only when `keystore.properties` is absent:
 
 ```kotlin
-signingConfig = signingConfigs.getByName("debug")
+signingConfig = if (keystorePropertiesFile.isFile) signingConfigs.getByName("release")
+                else signingConfigs.getByName("debug")
 ```
 
 This is a legitimate choice for an open-source, sideloaded app. It has nothing to
@@ -113,13 +118,56 @@ the maintainer's machine or backups can sign as them.
 That is why the gate workflow assembles and uploads release *candidates* as
 workflow artifacts, and never publishes a GitHub Release itself.
 
-### If the project stays on the debug key
+### The release key: same identity, its own password
 
-That is a defensible end state. Two things keep it honest:
+The certificate every APK has carried since v1.1.0 stays. What changes is the file around it:
+the debug keystore opens with the password `android`, which every Android developer on earth
+knows, so anyone holding a copy could sign an update Android would accept. A keystore
+password protects the container, not the identity, so the key can be re-wrapped under a real
+password without changing a single certificate:
 
-1. **Back up `~/.android/debug.keystore`.** It is the identity of every release
-   published so far. Losing it means every existing user must uninstall. It is not
-   in the repository and it is not in any cloud account by default.
+```bash
+# One time, in a directory outside the repository and outside OneDrive.
+keytool -importkeystore     -srckeystore ~/.android/debug.keystore -srcstorepass android     -srcalias androiddebugkey     -destkeystore ~/release.p12 -deststoretype PKCS12 -deststorepass '<a real password>'     -destalias wearsync
+
+# Prove the identity survived, which is the only thing users can feel:
+KEYSTORE_PASSWORD='<a real password>' KEY_ALIAS=wearsync     bash scripts/check-release-signing-identity.sh ~/release.p12
+# ok: ... carries the published release certificate (1ccf5348...)
+```
+
+Then point the build at it with `keystore.properties` at the repository root. It is gitignored
+and it never leaves this machine:
+
+```properties
+storeFile=/home/you/release.p12
+storePassword=<a real password>
+keyAlias=wearsync
+keyPassword=<a real password>
+```
+
+With that file present both modules sign `release` with it. Without it they fall back to the
+debug key and say so in the build log: that is what CI does, because every runner generates a
+throwaway keystore and publishes nothing. **A published APK must carry the certificate in
+`signing-identity.properties`** — check it, do not assume it:
+
+```bash
+bash scripts/check-release-signing-identity.sh path/to/app.apk
+```
+
+Two things keep the identity honest:
+
+1. **Back up the keystore.** It is the identity of every release published so far, and
+   losing it means every existing user must uninstall. Three copies, two media, one of them
+   off-site, all encrypted, stored with the password and the alias in the same password-manager
+   item: the file on its own is useless and the password on its own is worse.
+
+   ```bash
+   gpg -c --cipher-algo AES256 ~/release.p12      # release.p12.gpg
+   KEYSTORE_PASSWORD='<the password>' KEY_ALIAS=wearsync        bash scripts/check-release-signing-identity.sh ~/release.p12.gpg.decrypted
+   ```
+
+   Keep it out of the repository folder. This repository lives inside OneDrive: git would
+   ignore the file, OneDrive would upload it.
 
    A backup that has never been restored is not a backup. The procedure:
 

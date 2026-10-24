@@ -111,6 +111,11 @@ chmod +x "$tmp/fake-apksigner"
 expect "apk matches"                0 env APKSIGNER="$tmp/fake-apksigner" bash "$guard" "$tmp/good.apk" "$tmp/match.properties"
 expect "apk signed by another key"  1 env APKSIGNER="$tmp/fake-apksigner" bash "$guard" "$tmp/other.apk" "$tmp/match.properties"
 expect "apk that will not verify" 2 env APKSIGNER="$tmp/fake-apksigner" bash "$guard" "$tmp/unreadable.apk" "$tmp/match.properties"
+# The release key is re-wrapped as PKCS12, so the extensions the guard accepts have to include
+# it; rejecting the format the release procedure writes made the guard useless for that file.
+cp "$keystore" "$tmp/release.p12"
+KEYSTORE_PASSWORD="$passphrase" KEY_ALIAS="$alias_name"     expect "p12 keystore accepted"      0 bash "$guard" "$tmp/release.p12" "$tmp/match.properties"
+
 expect "no apksigner at all"     2 env APKSIGNER= bash "$guard" "$tmp/good.apk" "$tmp/match.properties"
 
 if [[ "$failures" -ne 0 ]]; then
