@@ -8,16 +8,6 @@ sensors.
 [![release](https://img.shields.io/github/v/release/Hardbas/RingConnWearSync)](https://github.com/Hardbas/RingConnWearSync/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<img src="docs/screenshots/sleep-tile.png" width="620" alt="Sleep tile, two frames of the entrance animation: a score of 88, nights duration and the temperature capsule">
-
-<sub>Sleep tile, two frames of its entrance animation. Rendered from the app's own vector drawables,
-not from a mockup.</sub>
-
-<img src="docs/screenshots/heart-rate-detail.png" width="200" alt="Heart rate detail screen showing 72 bpm"> <img src="docs/screenshots/heart-rate-metrics.png" width="200" alt="Resting heart rate, variation and HRV cards with the zones slider"> <img src="docs/screenshots/hrv-zones.png" width="200" alt="HRV card showing 50 ms in the balanced zone">
-
-<sub>Detail screens captured on a Galaxy Watch 8 (438×438). Spanish locale throughout: it is the same
-build, with the translated strings.</sub>
-
 ## Why this exists
 
 Dark tattoo ink blocks the optical sensor on a Galaxy Watch, so heart rate and SpO2 read as nothing
