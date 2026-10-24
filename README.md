@@ -216,6 +216,40 @@ To ensure total transparency, the following table details the technical origin o
 | **Ring Battery Level** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (RingConn does not export Battery to Health Connect) |
 | **Skin Temperature** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Nocturnal baseline variation reading from widget |
 
+### How sleep data actually reaches the watch, and why it can be late or wrong
+
+The smart ring never talks to this app. The chain is always three hops:
+
+```
+ring  --BLE-->  official RingConn app  -->  Health Connect  --read-->  this app
+                                    \-->  its Glance widget  --read-->  this app
+```
+
+That order is the reason almost every sleep problem looks like a bug in this app and is not:
+
+- **The official app only pulls from the ring while it runs.** A ring that was never woken by its
+own app produces no new Health Connect records, so Health Connect can still hold the previous
+night. Opening the RingConn app once in the morning is what makes the last night appear. This is
+their design, not an opinion: no other component has BLE access to the ring.
+- **The bridge tries to do that opening for you, and fails safely.** It launches the official app,
+waits up to 24 seconds for the sleep card to render, then returns to the home screen. It aborts
+if the app is not in front after 6 seconds — which is what happens when the phone is locked, since
+the keyguard owns the screen. It does not force itself over the lock screen.
+- **Stage minutes are counted in 30-minute epochs.** A seven minute awakening can fall inside an
+epoch labelled with another stage, so short awakenings are approximate by construction. The
+official app reads the raw records and will often show a different number.
+- **A missing value can render as a zero.** The phone-to-watch transport sends numbers only; a
+stage that was never measured arrives as `0 m` instead of `--`. If Awake reads 0 while Deep and
+REM look right, that is this limitation, not a night without awakenings.
+- **Anything taken from the widget lags by its own refresh.** RingConn refreshes its widget every
+15-30 minutes, so the sleep score, HRV, stress, ring battery and skin temperature can trail the
+official app by up to half an hour. Polling faster than that produces no fresher data, only
+battery drain — which is why the poll backs off overnight.
+
+Practical consequence: if a morning sleep reading looks wrong or missing, open the RingConn app with
+the phone unlocked, let it sync the ring, and open the watch screen again. If it is still wrong
+after that, the problem is in this app's parsing and worth an issue report.
+
 ### Estimated values (heuristic, not measured)
 
 Some tiles and detail cards show values the ring never measures directly. They are computed from
