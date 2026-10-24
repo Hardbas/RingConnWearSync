@@ -821,7 +821,8 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             SleepDiagnostics.Session(
                 startMs = it.startTime.toEpochMilli(),
                 endMs = it.endTime.toEpochMilli(),
-                stageCount = it.stages.size
+                stageCount = it.stages.size,
+                stageTypes = it.stages.map { stage -> stage.stage }
             )
         }
 
