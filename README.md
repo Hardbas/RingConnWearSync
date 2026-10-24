@@ -175,8 +175,11 @@ Both must report this SHA-256 digest:
 ```
 
 The same value lives in [`signing-identity.properties`](signing-identity.properties),
-and `scripts/check-release-signing-identity.sh` fails a release build whose key
-produces a different one. If the file and this page ever disagree, the file wins.
+and `scripts/check-release-signing-identity.sh` refuses any keystore or APK that
+carries a different one. It is a step in the release checklist (see
+[RELEASING.md](RELEASING.md)), not a build hook: nothing runs it for you before
+`assembleRelease`, so a release is only as verified as the person cutting it. If
+the file and this page ever disagree, the file wins.
 
 `apksigner` ships with the Android SDK build tools; on a machine without the SDK
 the same digest can be read from the APK's `META-INF` with `keytool -printcert`.
