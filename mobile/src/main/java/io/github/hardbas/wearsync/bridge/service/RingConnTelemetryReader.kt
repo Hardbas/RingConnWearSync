@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.bridge.service
 
+import io.github.hardbas.wearsync.bridge.R
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -667,7 +668,7 @@ object RingConnTelemetryReader {
         val sourceLabel = if (hasRingConnOrigin) {
             "Health Connect (com.gdjztech.ringconn)"
         } else {
-            "Health Connect (Sincronizado)"
+            context.getString(R.string.source_health_connect)
         }
 
         val finalMinHr = if (minBpm > 0) minBpm else existing.minHeartRate

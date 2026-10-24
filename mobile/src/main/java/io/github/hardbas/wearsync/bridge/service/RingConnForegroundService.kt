@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.bridge.service
 
+import io.github.hardbas.wearsync.bridge.R
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -44,7 +45,7 @@ class RingConnForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        val notification = buildForegroundNotification("Conectado con Galaxy Watch 8")
+        val notification = buildForegroundNotification(getString(R.string.phone_connected_watch))
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
@@ -153,9 +154,9 @@ class RingConnForegroundService : Service() {
             val vitals = RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@RingConnForegroundService)
             val success = WearDataSyncService(this@RingConnForegroundService).syncVitalsToWatch(vitals, force = force)
             val noteText = if (success) {
-                "Sincronizado · FC: ${vitals.lastHeartRate} bpm · SpO2: ${vitals.lastSpo2}% · Anillo: ${vitals.ringBattery}%"
+                getString(R.string.phone_sync_note, vitals.lastHeartRate, vitals.lastSpo2, vitals.ringBattery)
             } else {
-                "Buscando Galaxy Watch 8..."
+                getString(R.string.phone_searching_watch)
             }
             updateNotification(noteText)
             scheduleWatchdog(this@RingConnForegroundService)

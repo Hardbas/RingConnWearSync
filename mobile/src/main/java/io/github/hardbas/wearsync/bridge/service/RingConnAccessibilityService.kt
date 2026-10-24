@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.bridge.service
 
+import io.github.hardbas.wearsync.bridge.R
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
@@ -139,7 +140,7 @@ class RingConnAccessibilityService : AccessibilityService() {
                 RingConnTelemetryReader.saveToPreferences(
                     context = this,
                     vitals = parsedVitals,
-                    source = "RingConn Directo (100% Exacto)"
+                    source = getString(R.string.source_ringconn_direct_short)
                 )
 
                 serviceScope.launch {
@@ -291,7 +292,7 @@ class RingConnAccessibilityService : AccessibilityService() {
         RingConnTelemetryReader.saveToPreferences(
             context = this,
             vitals = finalVitals,
-            source = "RingConn Directo (100% Exacto)"
+            source = getString(R.string.source_ringconn_direct_short)
         )
         WearDataSyncService(this).syncVitalsToWatch(finalVitals, force = true)
         scheduleDelayedHealthConnectSync()

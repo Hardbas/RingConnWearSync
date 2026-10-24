@@ -1,5 +1,6 @@
 package io.github.hardbas.wearsync.bridge.service
 
+import io.github.hardbas.wearsync.bridge.R
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -309,7 +310,7 @@ object RingConnWidgetHostReader {
                 RingConnTelemetryReader.saveToPreferences(
                     context = context,
                     vitals = parsedVitals,
-                    source = "RingConn WidgetHost (100% Exacto)"
+                    source = context.getString(R.string.source_widgethost_short)
                 )
                 Log.i(TAG, "Successfully extracted RingConn vitals via WidgetHost: $parsedVitals")
                 return@withContext parsedVitals

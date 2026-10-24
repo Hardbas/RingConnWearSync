@@ -213,7 +213,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         val hcTitle = TextView(this).apply {
-            text = "Health Connect • Sincronización Real"
+            text = getString(R.string.phone_health_connect_title)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#E0E6F0"))
@@ -222,7 +222,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         hcCard.addView(hcHeaderRow)
 
         hcStatusText = TextView(this).apply {
-            text = "Comprobando permisos de Health Connect..."
+            text = getString(R.string.phone_checking_permissions)
             textSize = 12.5f
             setTextColor(Color.parseColor("#A5B0CC"))
             setPadding(0, dp(6), 0, dp(14))
@@ -256,7 +256,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         hcButtonsRow.addView(connectHcBtn)
 
         val openRingConnBtn = Button(this).apply {
-            text = "Abrir RingConn Oficial (Forzar Lectura del Anillo)"
+            text = getString(R.string.phone_open_official)
             setTextColor(Color.parseColor("#A5B0CC"))
             textSize = 12.5f
             background = createCardBackground(
@@ -297,7 +297,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
 
         val directTitle = TextView(this).apply {
-            text = "Extracción Nativa Directa (100% Exacto)"
+            text = getString(R.string.phone_native_extraction)
             textSize = 14f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#00E5FF"))
@@ -305,7 +305,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         directCard.addView(directTitle)
 
         accessibilityStatusText = TextView(this).apply {
-            text = "• WidgetHost: Activo (BIND_APPWIDGET)\n• Accesibilidad: Comprobando..."
+            text = getString(R.string.phone_widgethost_checking)
             textSize = 12f
             setTextColor(Color.parseColor("#A5B0CC"))
             setPadding(0, dp(6), 0, dp(12))
@@ -339,7 +339,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         directBtnRow.addView(readWidgetsBtn)
 
         val scrapeAppBtn = Button(this).apply {
-            text = "⚡ Sincronizar desde RingConn (Accesibilidad)"
+            text = getString(R.string.phone_sync_from_ringconn)
             setTextColor(Color.WHITE)
             textSize = 12.5f
             background = createCardBackground(
@@ -380,7 +380,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
 
         val syncBtn = Button(this).apply {
-            text = "⚡ Sincronizar Ahora con Galaxy Watch 8"
+            text = getString(R.string.phone_sync_now_watch)
             setTextColor(Color.WHITE)
             textSize = 15f
             typeface = Typeface.DEFAULT_BOLD
@@ -432,7 +432,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         syncCard.addView(syncStatusText)
 
         sourceBadgeText = TextView(this).apply {
-            text = "Fuente: Consultando..."
+            text = getString(R.string.phone_source_loading)
             textSize = 11.5f
             setTextColor(Color.parseColor("#00E5FF"))
             gravity = Gravity.CENTER
@@ -510,7 +510,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // 5. COLLAPSIBLE MANUAL CALIBRATION SECTION
         // ==========================================
         val toggleCalibrationBtn = Button(this).apply {
-            text = "⚙️ Calibración / Modo Manual (Avanzado) ▼"
+            text = getString(R.string.phone_calibration_show)
             setTextColor(Color.parseColor("#8E95A5"))
             textSize = 12f
             background = createCardBackground(
@@ -530,9 +530,9 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 val isVisible = calibrationContainer.visibility == View.VISIBLE
                 calibrationContainer.visibility = if (isVisible) View.GONE else View.VISIBLE
                 text = if (isVisible) {
-                    "⚙️ Calibración / Modo Manual (Avanzado) ▼"
+                    getString(R.string.phone_calibration_show)
                 } else {
-                    "⚙️ Ocultar Calibración Manual ▲"
+                    getString(R.string.phone_calibration_hide)
                 }
             }
         }
@@ -559,14 +559,14 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         hrInput = createInputField("Frecuencia Cardíaca (BPM):", "${initialVitals.lastHeartRate}", calibrationContainer)
         spo2Input = createInputField("Oxígeno en Sangre SpO2 (%):", "${initialVitals.lastSpo2}", calibrationContainer)
         hrvInput = createInputField("VFC / HRV (ms):", "${initialVitals.lastHrv}", calibrationContainer)
-        sleepInput = createInputField("Puntaje de Sueño (pts):", "${initialVitals.sleepScore}", calibrationContainer)
-        activityInput = createInputField("Puntaje de Actividad (pts):", "${initialVitals.activityScore}", calibrationContainer)
+        sleepInput = createInputField(getString(R.string.phone_sleep_score_label), "${initialVitals.sleepScore}", calibrationContainer)
+        activityInput = createInputField(getString(R.string.phone_activity_score_label), "${initialVitals.activityScore}", calibrationContainer)
         stressInput = createInputField("Índice de Estrés (pts):", "${initialVitals.stressScore}", calibrationContainer)
         stepsInput = createInputField("Pasos del Día:", "${initialVitals.liveSteps}", calibrationContainer)
-        batteryInput = createInputField("Batería del Anillo (%):", "${initialVitals.ringBattery}", calibrationContainer)
+        batteryInput = createInputField(getString(R.string.phone_ring_battery_label), "${initialVitals.ringBattery}", calibrationContainer)
 
         val saveManualBtn = Button(this).apply {
-            text = "Guardar y Forzar Sincronización Manual"
+            text = getString(R.string.phone_save_and_force_sync)
             setTextColor(Color.WHITE)
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -639,23 +639,23 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             if (!RingConnTelemetryReader.isHealthConnectAvailable(this@PhoneBridgeMainActivity)) {
                 hcStatusText.text = "⚠️ Health Connect no está instalado o requiere actualización."
                 hcStatusText.setTextColor(Color.parseColor("#FF5252"))
-                connectHcBtn.text = "Abrir Configuración de Salud"
+                connectHcBtn.text = getString(R.string.phone_open_health_settings)
                 return@launch
             }
 
             val hasAll = RingConnTelemetryReader.hasRequiredPermissions(this@PhoneBridgeMainActivity)
             if (hasAll) {
-                hcStatusText.text = "✅ Sincronización Automática Health Connect Activa"
+                hcStatusText.text = getString(R.string.phone_hc_auto_sync_on)
                 hcStatusText.setTextColor(Color.parseColor("#00E676"))
                 connectHcBtn.visibility = View.GONE
-                headerBadge.text = "Health Connect Activo"
+                headerBadge.text = getString(R.string.phone_hc_active)
                 headerBadge.setTextColor(Color.parseColor("#00E676"))
             } else {
-                hcStatusText.text = "⚠️ Permiso de Health Connect Requerido para leer datos reales"
+                hcStatusText.text = getString(R.string.phone_hc_permission_required)
                 hcStatusText.setTextColor(Color.parseColor("#FFD60A"))
                 connectHcBtn.visibility = View.VISIBLE
                 connectHcBtn.text = "Conectar con Health Connect (Lectura Automática)"
-                headerBadge.text = "Permiso Requerido"
+                headerBadge.text = getString(R.string.phone_permission_required)
                 headerBadge.setTextColor(Color.parseColor("#FFD60A"))
             }
         }
@@ -707,14 +707,14 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         val isAccEnabled = isAccessibilityServiceEnabled()
         val isWidgetBound = RingConnWidgetHostReader.hasAnyBoundWidget(this)
         val widgetLine = if (isWidgetBound) {
-            "• WidgetHost: Vinculado y Activo ✅"
+            getString(R.string.phone_widgethost_active)
         } else {
             "• WidgetHost: Toca 'Leer Widgets Directos' para autorizar (1 toque)"
         }
         val accLine = if (isAccEnabled) {
-            "• Accesibilidad: Activa (100% Exacto) ✅"
+            getString(R.string.phone_accessibility_active)
         } else {
-            "• Accesibilidad: Toca 'Sincronizar (Accesibilidad)' para activar en Ajustes"
+            getString(R.string.phone_accessibility_off)
         }
         accessibilityStatusText.text = "$widgetLine\n$accLine"
         accessibilityStatusText.setTextColor(
@@ -749,8 +749,8 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                     best
                 }
                 updateMetricCards(merged)
-                sourceBadgeText.text = "Fuente: RingConn WidgetHost (100% Exacto)"
-                syncStatusText.text = "✅ Sincronizado directo desde widgets"
+                sourceBadgeText.text = getString(R.string.phone_source_widgethost)
+                syncStatusText.text = getString(R.string.phone_synced_from_widgets)
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
                 Toast.makeText(this@PhoneBridgeMainActivity, "¡Datos exactos leídos de widgets!", Toast.LENGTH_SHORT).show()
             } else {
@@ -808,7 +808,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         val granted = client.permissionController.getGrantedPermissions()
         if (!granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class))) {
             return "Sin permiso de lectura de sueño en Health Connect.\n" +
-                "Concedelo desde la tarjeta de permisos y volvé a intentar."
+                getString(R.string.phone_grant_from_card)
         }
 
         val response = client.readRecords(
@@ -841,7 +841,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             if (!isAccessibilityServiceEnabled()) {
                 Toast.makeText(
                     this@PhoneBridgeMainActivity,
-                    "Activa 'WearSync' en Aplicaciones Instaladas de Accesibilidad",
+                    getString(R.string.phone_enable_accessibility),
                     Toast.LENGTH_LONG
                 ).show()
                 try {
@@ -852,10 +852,10 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             val scraped = RingConnAccessibilityService.triggerImmediateScrape()
             if (scraped != null) {
                 updateMetricCards(scraped)
-                sourceBadgeText.text = "Fuente: RingConn Directo (100% Exacto)"
-                syncStatusText.text = "✅ Telemetría exacta capturada"
+                sourceBadgeText.text = getString(R.string.phone_source_ringconn_direct)
+                syncStatusText.text = getString(R.string.phone_telemetry_captured)
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
-                Toast.makeText(this@PhoneBridgeMainActivity, "¡Telemetría 100% exacta capturada!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_telemetry_captured_toast), Toast.LENGTH_SHORT).show()
             } else {
                 openOfficialRingConnApp()
                 Toast.makeText(this@PhoneBridgeMainActivity, "Abriendo RingConn... El servicio extraerá los datos al instante", Toast.LENGTH_LONG).show()
@@ -874,7 +874,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
     private fun loadAndSyncVitals(forceHealthConnect: Boolean) {
         scope.launch {
-            syncStatusText.text = "Consultando telemetría de Health Connect..."
+            syncStatusText.text = getString(R.string.phone_querying_telemetry)
 
             val vitals = withContext(Dispatchers.IO) {
                 RingConnTelemetryReader.readBestAvailableVitalsSuspend(this@PhoneBridgeMainActivity)
@@ -886,9 +886,9 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             val source = prefs.getString(RingConnTelemetryReader.KEY_LAST_SYNC_SOURCE, "Health Connect") ?: "Health Connect"
             val timeStr = prefs.getString(RingConnTelemetryReader.KEY_LAST_SYNC_TIME_STR, "--:--") ?: "--:--"
 
-            sourceBadgeText.text = "Fuente: $source"
+            sourceBadgeText.text = getString(R.string.phone_source_label, source)
 
-            syncStatusText.text = "Enviando al Galaxy Watch 8..."
+            syncStatusText.text = getString(R.string.phone_sending_to_watch)
             val result = withContext(Dispatchers.IO) {
                 try {
                     val nodes = Wearable.getNodeClient(this@PhoneBridgeMainActivity).connectedNodes.await()
@@ -901,7 +901,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             }
 
             if (result.first) {
-                syncStatusText.text = "✅ Sincronizado ($timeStr) • ${result.second}"
+                syncStatusText.text = getString(R.string.phone_synced_at, timeStr, result.second)
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
                 headerBadge.text = "Conectado en Vivo"
                 headerBadge.setTextColor(Color.parseColor("#00E676"))
@@ -944,21 +944,21 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 refreshTimestamp = System.currentTimeMillis() / 1000L
             )
 
-            RingConnTelemetryReader.saveToPreferences(this@PhoneBridgeMainActivity, vitals, source = "Calibración Manual")
+            RingConnTelemetryReader.saveToPreferences(this@PhoneBridgeMainActivity, vitals, source = getString(R.string.phone_calibration_manual))
             updateMetricCards(vitals)
 
             val ok = withContext(Dispatchers.IO) {
                 WearDataSyncService(this@PhoneBridgeMainActivity).syncVitalsToWatch(vitals)
             }
 
-            sourceBadgeText.text = "Fuente: Calibración Manual"
+            sourceBadgeText.text = getString(R.string.phone_source_calibration)
             syncStatusText.text = if (ok) {
-                "✅ Calibración enviada con éxito al Watch"
+                getString(R.string.phone_calibration_sent)
             } else {
                 "⚠️ Guardado en teléfono (en espera de Watch)"
             }
             syncStatusText.setTextColor(if (ok) Color.parseColor("#30E565") else Color.parseColor("#FF9F0A"))
-            Toast.makeText(this@PhoneBridgeMainActivity, "¡Calibración guardada!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_calibration_saved), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -990,7 +990,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Steps
         stepsValText.text = if (vitals.liveSteps > 0) String.format("%,d", vitals.liveSteps) else "0"
-        stepsSubText.text = "Pasos • ${vitals.liveCalorie} kcal"
+        stepsSubText.text = getString(R.string.phone_steps_kcal, vitals.liveCalorie)
 
         // Stress
         stressValText.text = if (vitals.stressScore > 0) "${vitals.stressScore}" else "--"
