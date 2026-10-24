@@ -9,6 +9,19 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.35] - 2026-10-24
+
+### Fixed
+
+- **A whole screen of the phone app was still Spanish.** The i18n audit only inspected
+  lines containing a UI sink, and the metric cards pass their labels as arguments to
+  helpers, so `FRECUENCIA CARDÍACA`, `PUNTAJE DE SUEÑO`, `BPM • Prom:` and `En uso`
+  never entered the check. The audit now reports every literal except comments, log
+  calls, and the parser's Spanish match patterns, and the 25 strings it found are in
+  resources with English as the default.
+- **The footer claimed `v1.6.1` on every build.** It now reports the version of the
+  installed package, so users can tell which build is running.
+
 ## [1.9.34] - 2026-10-24
 
 ### Added
