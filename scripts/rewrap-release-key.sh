@@ -58,7 +58,11 @@ if [[ -e "$destination" ]]; then
     refuse "$destination already exists; delete it deliberately if you want to start over"
 fi
 
-properties="$repo_root/keystore.properties"
+# Deliberately outside the repository. The repository usually lives inside a synced folder
+# (OneDrive, Dropbox, iCloud Drive) and a password written in there is uploaded by the sync
+# client: git ignores the file, the sync client does not. ~/.android is where the key already
+# lives and it is not synced.
+properties="$HOME/.android/wearsync-keystore.properties"
 if [[ -e "$properties" ]]; then
     refuse "$properties already exists; move it aside first, it points at the current key"
 fi
@@ -109,6 +113,9 @@ EOF
 
 echo
 echo "wrote $properties"
+echo
+echo "This file is outside the repository on purpose: a password inside a synced folder ends up"
+echo "in that cloud. Gradle reads it from there; nothing is needed in the working tree."
 echo
 echo "Next:"
 echo "  1. Back up $dest_win and this password together, in the same password-manager item."

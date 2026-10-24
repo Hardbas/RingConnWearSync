@@ -148,11 +148,13 @@ The certificate digest is the point of the exercise: if `check-release-signing-i
 prints a different one, the re-wrap did something other than copy the key and nothing should
 be published.
 
-Then point the build at it with `keystore.properties` at the repository root. It is gitignored
-and it never leaves this machine:
+Then point the build at it. Two locations are accepted, `keystore.properties` at the repository
+root and `~/.android/wearsync-keystore.properties`, and the script writes the second on purpose:
+this repository is usually inside a synced folder, and a password written in there is uploaded by
+the sync client even though git ignores it.
 
 ```properties
-storeFile=/home/you/release.p12
+storeFile=C:/Users/you/.android/release.p12
 storePassword=<a real password>
 keyAlias=wearsync
 keyPassword=<a real password>
@@ -175,12 +177,18 @@ Two things keep the identity honest:
    item: the file on its own is useless and the password on its own is worse.
 
    ```bash
-   gpg -c --cipher-algo AES256 ~/release.p12      # release.p12.gpg
-   KEYSTORE_PASSWORD='<the password>' KEY_ALIAS=wearsync        bash scripts/check-release-signing-identity.sh ~/release.p12.gpg.decrypted
+   gpg -c --cipher-algo AES256 ~/.android/release.p12        # -> release.p12.gpg
+
+   # Restore it somewhere and prove the restored copy is the identity. The decrypted file keeps
+   # a .p12 extension on purpose: the guard refuses what it cannot recognise as a keystore, and a
+   # backup check that fails over a filename is a backup nobody finishes.
+   gpg -d -o /tmp/restore-check.p12 ~/.android/release.p12.gpg
+   KEYSTORE_PASSWORD='<the password>' KEY_ALIAS=wearsync bash scripts/check-release-signing-identity.sh /tmp/restore-check.p12
+   rm -f /tmp/restore-check.p12
    ```
 
-   Keep it out of the repository folder. This repository lives inside OneDrive: git would
-   ignore the file, OneDrive would upload it.
+   Keep both the key and the properties file out of the repository folder. This repository lives
+   inside OneDrive: git would ignore them, OneDrive would upload them.
 
    A backup that has never been restored is not a backup. The procedure:
 
