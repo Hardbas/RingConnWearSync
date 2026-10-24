@@ -13,6 +13,21 @@ It was engineered to solve the **wrist tattoo optical blockage problem**: dark t
 
 ---
 
+## 📸 What it looks like
+
+Three screens from the heart-rate detail view, captured on a Galaxy Watch 8 (`438×438`).
+They are in the Spanish locale on purpose: it is the same build, and it proves the translated
+strings ship.
+
+| Heart rate | Rhythm and HRV | HRV recovery scale |
+|---|---|---|
+| <img src="docs/screenshots/heart-rate-detail.png" width="230" alt="Heart rate detail screen showing 72 bpm, minimum 71 and maximum 84"> | <img src="docs/screenshots/heart-rate-metrics.png" width="230" alt="Resting heart rate, variation and heart-rate variability cards with the zones slider"> | <img src="docs/screenshots/hrv-zones.png" width="230" alt="HRV card showing 50 milliseconds in the balanced zone"> |
+
+The tiles are not pictured here: they are composed by One UI Challenge and only exist on
+the watch, so a capture has to be taken from the device rather than rendered.
+
+---
+
 ## 🤖 AI Assistance Disclosure
 
 Most of the source code in this repository was written by AI coding agents, directed and reviewed by a human maintainer. Saying so up front is cheaper than having someone discover it in the history.
