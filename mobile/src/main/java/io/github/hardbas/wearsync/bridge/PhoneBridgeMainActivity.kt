@@ -234,7 +234,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
 
         connectHcBtn = Button(this).apply {
-            text = "Conectar con Health Connect (Lectura Automática)"
+            text = getString(R.string.phone_connect_hc)
             setTextColor(Color.parseColor("#090A0F"))
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
@@ -404,7 +404,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // Answers one question with data instead of theory: is the night excluded by the
         // "ended after today's midnight" rule, or is Health Connect not returning it at all.
         val diagnosticsBtn = Button(this).apply {
-            text = "🩺 Diagnóstico de sueño"
+            text = getString(R.string.phone_sleep_diagnostic)
             setTextColor(Color.WHITE)
             textSize = 12.5f
             background = GradientDrawable(
@@ -423,7 +423,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         syncCard.addView(diagnosticsBtn)
 
         syncStatusText = TextView(this).apply {
-            text = "Última sincronización: Pendiente..."
+            text = getString(R.string.phone_last_sync_pending)
             textSize = 12.5f
             setTextColor(Color.parseColor("#8E95A5"))
             gravity = Gravity.CENTER
@@ -444,7 +444,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // 4. 2x4 BENTO GRID / METRIC CARDS
         // ==========================================
         val gridTitle = TextView(this).apply {
-            text = "TELEMETRÍA EN VIVO"
+            text = getString(R.string.phone_live_telemetry)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#6C7387"))
@@ -637,7 +637,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     private fun checkAndUpdateHealthConnectStatus() {
         scope.launch {
             if (!RingConnTelemetryReader.isHealthConnectAvailable(this@PhoneBridgeMainActivity)) {
-                hcStatusText.text = "⚠️ Health Connect no está instalado o requiere actualización."
+                hcStatusText.text = getString(R.string.phone_hc_not_installed)
                 hcStatusText.setTextColor(Color.parseColor("#FF5252"))
                 connectHcBtn.text = getString(R.string.phone_open_health_settings)
                 return@launch
@@ -654,7 +654,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 hcStatusText.text = getString(R.string.phone_hc_permission_required)
                 hcStatusText.setTextColor(Color.parseColor("#FFD60A"))
                 connectHcBtn.visibility = View.VISIBLE
-                connectHcBtn.text = "Conectar con Health Connect (Lectura Automática)"
+                connectHcBtn.text = getString(R.string.phone_connect_hc)
                 headerBadge.text = getString(R.string.phone_permission_required)
                 headerBadge.setTextColor(Color.parseColor("#FFD60A"))
             }
@@ -692,7 +692,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                     val intent = Intent("androidx.health.ACTION_HEALTH_CONNECT_SETTINGS")
                     startActivity(intent)
                 } catch (ex: Exception) {
-                    Toast.makeText(this@PhoneBridgeMainActivity, "Abra Ajustes > Health Connect para conceder permisos.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_open_settings_hint), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -737,7 +737,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 }
             }
 
-            syncStatusText.text = "Leyendo widgets de RingConn (AppWidgetHost)..."
+            syncStatusText.text = getString(R.string.phone_reading_widgets)
             val vitals = withContext(Dispatchers.IO) {
                 RingConnWidgetHostReader.readRingConnWidgets(this@PhoneBridgeMainActivity)
             }
@@ -752,7 +752,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 sourceBadgeText.text = getString(R.string.phone_source_widgethost)
                 syncStatusText.text = getString(R.string.phone_synced_from_widgets)
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
-                Toast.makeText(this@PhoneBridgeMainActivity, "¡Datos exactos leídos de widgets!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_widgets_exact), Toast.LENGTH_SHORT).show()
             } else {
                 val bindIntent = RingConnWidgetHostReader.prepareNextBindIntent(this@PhoneBridgeMainActivity)
                 if (bindIntent != null) {
@@ -765,7 +765,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 } else {
                     syncStatusText.text = "⚠️ Abre RingConn 1 vez para inicializar sus widgets"
                     syncStatusText.setTextColor(Color.parseColor("#FF9F0A"))
-                    Toast.makeText(this@PhoneBridgeMainActivity, "Abre la app oficial de RingConn un segundo para inicializar sus datos", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_open_official_hint), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -786,9 +786,9 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 setPadding(dp(16), dp(12), dp(16), dp(12))
             }
             AlertDialog.Builder(this@PhoneBridgeMainActivity)
-                .setTitle("Diagnóstico de sueño")
+                .setTitle(getString(R.string.phone_sleep_diagnostic))
                 .setView(ScrollView(this@PhoneBridgeMainActivity).apply { addView(textView) })
-                .setPositiveButton("Cerrar", null)
+                .setPositiveButton(getString(R.string.phone_close), null)
                 .show()
         }
     }
@@ -859,7 +859,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_telemetry_captured_toast), Toast.LENGTH_SHORT).show()
             } else {
                 openOfficialRingConnApp()
-                Toast.makeText(this@PhoneBridgeMainActivity, "Abriendo RingConn... El servicio extraerá los datos al instante", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_opening_ringconn), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -869,7 +869,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         if (launchIntent != null) {
             startActivity(launchIntent)
         } else {
-            Toast.makeText(this, "La app de RingConn no está instalada en este dispositivo.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.phone_ringconn_missing), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -907,7 +907,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 headerBadge.text = "Conectado en Vivo"
                 headerBadge.setTextColor(Color.parseColor("#00E676"))
             } else {
-                syncStatusText.text = "⚠️ En espera de conexión con Watch (${result.second})"
+                syncStatusText.text = getString(R.string.phone_waiting_watch, result.second)
                 syncStatusText.setTextColor(Color.parseColor("#FF9F0A"))
             }
         }
@@ -915,7 +915,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
     private fun syncManualCalibration() {
         scope.launch {
-            syncStatusText.text = "Aplicando calibración manual..."
+            syncStatusText.text = getString(R.string.phone_applying_calibration)
             val hr = hrInput.text.toString().toIntOrNull() ?: 72
             val spo2 = spo2Input.text.toString().toIntOrNull() ?: 98
             val hrv = hrvInput.text.toString().toIntOrNull() ?: 50
@@ -970,7 +970,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // SpO2
         spo2ValText.text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
-        spo2SubText.text = if (vitals.avgSpo2 > 0) "Oxígeno • Prom: ${vitals.avgSpo2}%" else "Oxígeno"
+        spo2SubText.text = if (vitals.avgSpo2 > 0) getString(R.string.phone_spo2_avg, vitals.avgSpo2) else getString(R.string.phone_oxygen)
 
         // HRV
         hrvValText.text = if (vitals.lastHrv > 0) "${vitals.lastHrv}" else "--"
@@ -1144,7 +1144,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 }
                 startActivity(intent)
             } else {
-                Toast.makeText(this, "¡Ya cuenta con permiso de batería sin restricciones!", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.phone_battery_unrestricted), Toast.LENGTH_LONG).show()
             }
         }
     }

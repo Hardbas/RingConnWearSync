@@ -49,4 +49,21 @@
     <string name="phone_connected_watch">Conectado con Galaxy Watch 8</string>
     <string name="phone_searching_watch">Buscando Galaxy Watch 8...</string>
     <string name="phone_sync_note">Sincronizado · FC: %1$d bpm · SpO2: %2$d%% · Anillo: %3$d%%</string>
+    <string name="phone_connect_hc">Conectar con Health Connect (Lectura Automática)</string>
+    <string name="phone_sleep_diagnostic">Diagnóstico de sueño</string>
+    <string name="phone_close">Cerrar</string>
+    <string name="phone_last_sync_pending">Última sincronización: Pendiente...</string>
+    <string name="phone_live_telemetry">TELEMETRÍA EN VIVO</string>
+    <string name="phone_hc_not_installed">⚠️ Health Connect no está instalado o requiere actualización.</string>
+    <string name="phone_open_settings_hint">Abra Ajustes &gt; Health Connect para conceder permisos.</string>
+    <string name="phone_reading_widgets">Leyendo widgets de RingConn (AppWidgetHost)...</string>
+    <string name="phone_widgets_exact">¡Datos exactos leídos de widgets!</string>
+    <string name="phone_open_official_hint">Abre la app oficial de RingConn un segundo para inicializar sus datos</string>
+    <string name="phone_opening_ringconn">Abriendo RingConn... El servicio extraerá los datos al instante</string>
+    <string name="phone_ringconn_missing">La app de RingConn no está instalada en este dispositivo.</string>
+    <string name="phone_waiting_watch">⚠️ En espera de conexión con Watch (%1$s)</string>
+    <string name="phone_applying_calibration">Aplicando calibración manual...</string>
+    <string name="phone_oxygen">Oxígeno</string>
+    <string name="phone_spo2_avg">Oxígeno • Prom: %1$d%%</string>
+    <string name="phone_battery_unrestricted">¡Ya cuenta con permiso de batería sin restricciones!</string>
 </resources>

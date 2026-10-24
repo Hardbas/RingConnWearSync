@@ -19,14 +19,46 @@ class NoHardcodedSpanishUiTest {
 
     private val sources = File("src/main/java")
 
-    /** Words that only appear in the Spanish UI copy of this app. */
+    /**
+     * Words that only appear in the Spanish UI copy of this app, plus accented characters.
+     *
+     * The first version of this list was short and case-sensitive, so `"🩺 Diagnóstico de
+     * sueño"` and `"Sin permiso de lectura"` slipped through while the audit reported success.
+     * A guard that passes because it did not look is worse than no guard: it moves the
+     * Spanish strings from the UI into a green check.
+     */
     private val spanishMarkers = listOf(
-        "Sincroniz", "Anillo", "Batería", "Puntaje", "Comprobando", "Guardar",
-        "Activo", "Oficial", "Calibración", "Permiso", "Fuente:", "Telemetría",
-        "Concedelo", "Abrir Configuración", "Pasos •", "Requerido", "Enviando",
-        "Consultando", "Exacto", "Vinculado", "Activá", "Activa '", "Buscando",
-        "Conectado con", "Ocultar", "Modo Manual"
+        "sincroniz", "anillo", "batería", "bateria", "puntaje", "comprobando", "guardar",
+        "activo", "oficial", "calibración", "calibracion", "permiso", "fuente:", "telemetría",
+        "telemetria", "concedelo", "abrir configuración", "pasos •", "requerido", "enviando",
+        "consultando", "exacto", "vinculado", "activá", "activa '", "buscando", "conectado con",
+        "ocultar", "modo manual", "diagnóstico", "diagnostico", "cerrar", "leyendo", "sueño",
+        "sueno", "lectura de", "volvé", "volve"
     )
+
+    /**
+     * Where user-facing text is installed. A literal only matters if it reaches one of these.
+     *
+     * Without this filter the audit also flags `RingConnTelemetryParser`, whose Spanish
+     * keywords (`sueño`, `estrés`, `batería`) are *patterns for reading the official app's
+     * Spanish labels* — they must stay Spanish, and migrating them would break parsing. Log
+     * messages are likewise never shown to anyone.
+     */
+    private val uiSinks = listOf(
+        "text =", "setText(", "setTitle(", "Toast.makeText(", "setPositiveButton(",
+        "setContentText(", "buildForegroundNotification(", "setMessage("
+    )
+
+    private fun reachesUi(line: String): Boolean = uiSinks.any { line.contains(it) }
+
+    /** Any accented Spanish letter is proof the copy was authored in Spanish. */
+    private val accented = Regex("[áéíóúñ¿¡ÁÉÍÓÚÑ]")
+
+    private fun looksSpanish(literal: String): Boolean {
+        if (accented.containsMatchIn(literal)) return true
+        val lower = literal.lowercase()
+        return spanishMarkers.any { lower.contains(it) }
+    }
 
     private fun offenders(): List<String> {
         if (!sources.isDirectory) return emptyList()
@@ -36,9 +68,10 @@ class NoHardcodedSpanishUiTest {
             .forEach { file ->
                 file.readLines().forEachIndexed { index, line ->
                     if (line.trimStart().startsWith("//") || line.trimStart().startsWith("*")) return@forEachIndexed
+                    if (!reachesUi(line)) return@forEachIndexed
                     val literals = Regex("\"([^\"\\\\]|\\\\.){4,}\"").findAll(line).map { it.value }
                     for (literal in literals) {
-                        if (spanishMarkers.any { literal.contains(it) }) {
+                        if (looksSpanish(literal)) {
                             found += "${file.name}:${index + 1} $literal"
                         }
                     }
