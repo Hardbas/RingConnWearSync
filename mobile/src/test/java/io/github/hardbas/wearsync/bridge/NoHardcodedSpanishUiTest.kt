@@ -29,6 +29,8 @@ class NoHardcodedSpanishUiTest {
      */
     private val spanishMarkers = listOf(
         "sincroniz", "anillo", "batería", "bateria", "puntaje", "comprobando", "guardar",
+        "pasos ", "puntos", "prom:", "bueno", "en uso", "meta:", "relajado", "garantizar",
+        "sin restricciones", "vfc", "índice", "frecuencia",
         "activo", "oficial", "calibración", "calibracion", "permiso", "fuente:", "telemetría",
         "telemetria", "concedelo", "abrir configuración", "pasos •", "requerido", "enviando",
         "consultando", "exacto", "vinculado", "activá", "activa '", "buscando", "conectado con",
@@ -37,19 +39,28 @@ class NoHardcodedSpanishUiTest {
     )
 
     /**
-     * Where user-facing text is installed. A literal only matters if it reaches one of these.
+     * The audit lists Spanish in every literal it can see, and exempts only what cannot reach a
+     * user.
      *
-     * Without this filter the audit also flags `RingConnTelemetryParser`, whose Spanish
-     * keywords (`sueño`, `estrés`, `batería`) are *patterns for reading the official app's
-     * Spanish labels* — they must stay Spanish, and migrating them would break parsing. Log
-     * messages are likewise never shown to anyone.
+     * The previous version did the opposite — it inspected only lines containing a known UI
+     * sink such as `text =` — and that let a whole screen of Spanish through: metric cards pass
+     * their labels as arguments to helpers (`createCard("PUNTAJE DE SUEÑO", ...)`), so no sink
+     * appeared on the line and the audit stayed green while the app was Spanish.
      */
-    private val uiSinks = listOf(
-        "text =", "setText(", "setTitle(", "Toast.makeText(", "setPositiveButton(",
-        "setContentText(", "buildForegroundNotification(", "setMessage("
-    )
+    private fun isExempt(fileName: String, line: String): Boolean {
+        val trimmed = line.trimStart()
+        if (isParserFile(fileName)) return true
+        return trimmed.startsWith("//") ||
+            trimmed.startsWith("*") ||
+            trimmed.contains("Log.") ||
+            trimmed.contains("TAG")
+    }
 
-    private fun reachesUi(line: String): Boolean = uiSinks.any { line.contains(it) }
+    /**
+     * The parser's Spanish keywords are patterns for reading the official app's Spanish labels.
+     * They must stay Spanish; migrating them would break parsing.
+     */
+    private fun isParserFile(fileName: String) = fileName == "RingConnTelemetryParser.kt"
 
     /** Any accented Spanish letter is proof the copy was authored in Spanish. */
     private val accented = Regex("[áéíóúñ¿¡ÁÉÍÓÚÑ]")
@@ -68,7 +79,7 @@ class NoHardcodedSpanishUiTest {
             .forEach { file ->
                 file.readLines().forEachIndexed { index, line ->
                     if (line.trimStart().startsWith("//") || line.trimStart().startsWith("*")) return@forEachIndexed
-                    if (!reachesUi(line)) return@forEachIndexed
+                    if (isExempt(file.name, line)) return@forEachIndexed
                     val literals = Regex("\"([^\"\\\\]|\\\\.){4,}\"").findAll(line).map { it.value }
                     for (literal in literals) {
                         if (looksSpanish(literal)) {

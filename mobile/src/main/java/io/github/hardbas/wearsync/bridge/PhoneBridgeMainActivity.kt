@@ -460,10 +460,10 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Row 1: FC & SpO2
         val row1 = createBentoRow()
-        val cardHr = createMetricCard("FRECUENCIA CARDÍACA", "#FF3B30")
+        val cardHr = createMetricCard(getString(R.string.phone_card_hr), "#FF3B30")
         hrValText = cardHr.first
         hrSubText = cardHr.second
-        val cardSpo2 = createMetricCard("OXÍGENO SpO2", "#00E5FF")
+        val cardSpo2 = createMetricCard(getString(R.string.phone_card_spo2), "#00E5FF")
         spo2ValText = cardSpo2.first
         spo2SubText = cardSpo2.second
         row1.addView(cardHr.third)
@@ -472,10 +472,10 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Row 2: VFC / HRV & Sueño
         val row2 = createBentoRow()
-        val cardHrv = createMetricCard("VFC / HRV RMSSD", "#AF52DE")
+        val cardHrv = createMetricCard(getString(R.string.phone_card_hrv), "#AF52DE")
         hrvValText = cardHrv.first
         hrvSubText = cardHrv.second
-        val cardSleep = createMetricCard("PUNTAJE DE SUEÑO", "#5E5CE6")
+        val cardSleep = createMetricCard(getString(R.string.phone_card_sleep), "#5E5CE6")
         sleepValText = cardSleep.first
         sleepSubText = cardSleep.second
         row2.addView(cardHrv.third)
@@ -484,10 +484,10 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Row 3: Actividad & Pasos
         val row3 = createBentoRow()
-        val cardAct = createMetricCard("PUNTAJE ACTIVIDAD", "#FF9F0A")
+        val cardAct = createMetricCard(getString(R.string.phone_card_activity), "#FF9F0A")
         actValText = cardAct.first
         actSubText = cardAct.second
-        val cardSteps = createMetricCard("PASOS HOY", "#30E565")
+        val cardSteps = createMetricCard(getString(R.string.phone_card_steps), "#30E565")
         stepsValText = cardSteps.first
         stepsSubText = cardSteps.second
         row3.addView(cardAct.third)
@@ -496,10 +496,10 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Row 4: Estrés & Batería
         val row4 = createBentoRow()
-        val cardStress = createMetricCard("ÍNDICE DE ESTRÉS", "#FFD60A")
+        val cardStress = createMetricCard(getString(R.string.phone_card_stress), "#FFD60A")
         stressValText = cardStress.first
         stressSubText = cardStress.second
-        val cardBat = createMetricCard("BATERÍA DEL ANILLO", "#34C759")
+        val cardBat = createMetricCard(getString(R.string.phone_card_ring_battery), "#34C759")
         batteryValText = cardBat.first
         batterySubText = cardBat.second
         row4.addView(cardStress.third)
@@ -556,13 +556,13 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
 
         val initialVitals = RingConnTelemetryReader.readBestAvailableVitals(this)
-        hrInput = createInputField("Frecuencia Cardíaca (BPM):", "${initialVitals.lastHeartRate}", calibrationContainer)
-        spo2Input = createInputField("Oxígeno en Sangre SpO2 (%):", "${initialVitals.lastSpo2}", calibrationContainer)
-        hrvInput = createInputField("VFC / HRV (ms):", "${initialVitals.lastHrv}", calibrationContainer)
+        hrInput = createInputField(getString(R.string.phone_cal_hr), "${initialVitals.lastHeartRate}", calibrationContainer)
+        spo2Input = createInputField(getString(R.string.phone_cal_spo2), "${initialVitals.lastSpo2}", calibrationContainer)
+        hrvInput = createInputField(getString(R.string.phone_cal_hrv), "${initialVitals.lastHrv}", calibrationContainer)
         sleepInput = createInputField(getString(R.string.phone_sleep_score_label), "${initialVitals.sleepScore}", calibrationContainer)
         activityInput = createInputField(getString(R.string.phone_activity_score_label), "${initialVitals.activityScore}", calibrationContainer)
-        stressInput = createInputField("Índice de Estrés (pts):", "${initialVitals.stressScore}", calibrationContainer)
-        stepsInput = createInputField("Pasos del Día:", "${initialVitals.liveSteps}", calibrationContainer)
+        stressInput = createInputField(getString(R.string.phone_cal_stress), "${initialVitals.stressScore}", calibrationContainer)
+        stepsInput = createInputField(getString(R.string.phone_cal_steps), "${initialVitals.liveSteps}", calibrationContainer)
         batteryInput = createInputField(getString(R.string.phone_ring_battery_label), "${initialVitals.ringBattery}", calibrationContainer)
 
         val saveManualBtn = Button(this).apply {
@@ -589,7 +589,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // 6. 24/7 BATTERY OPTIMIZATION EXEMPTION
         // ==========================================
         val batteryOptBtn = Button(this).apply {
-            text = "🛡️ Garantizar 24/7 (Sin Restricciones Samsung)"
+            text = getString(R.string.phone_guarantee_247)
             setTextColor(Color.parseColor("#8E95A5"))
             textSize = 12f
             background = createCardBackground(
@@ -611,7 +611,14 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(batteryOptBtn)
 
         val footerText = TextView(this).apply {
-            text = "WearSync for RingConn (Unofficial) • v1.6.1"
+            // The footer claimed v1.6.1 on every build since, so a user could not tell which
+            // version was running. Read it from the installed package instead of a literal.
+            val runningVersion = runCatching {
+                this@PhoneBridgeMainActivity.packageManager
+                    .getPackageInfo(this@PhoneBridgeMainActivity.packageName, 0)
+                    .versionName
+            }.getOrNull() ?: "?"
+            text = getString(R.string.phone_footer_version, runningVersion)
             textSize = 11f
             setTextColor(Color.parseColor("#505666"))
             gravity = Gravity.CENTER
@@ -776,7 +783,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             val report = try {
                 collectSleepDiagnostics()
             } catch (e: Exception) {
-                "Error leyendo Health Connect: ${e.message}"
+                getString(R.string.phone_hc_read_error, e.message ?: "")
             }
             val textView = TextView(this@PhoneBridgeMainActivity).apply {
                 text = report
@@ -807,7 +814,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         val client = HealthConnectClient.getOrCreate(this)
         val granted = client.permissionController.getGrantedPermissions()
         if (!granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class))) {
-            return "Sin permiso de lectura de sueño en Health Connect.\n" +
+            return getString(R.string.phone_no_sleep_permission) +
                 getString(R.string.phone_grant_from_card)
         }
 
@@ -964,7 +971,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             syncStatusText.text = if (ok) {
                 getString(R.string.phone_calibration_sent)
             } else {
-                "⚠️ Guardado en teléfono (en espera de Watch)"
+                getString(R.string.phone_saved_waiting_watch)
             }
             syncStatusText.setTextColor(if (ok) Color.parseColor("#30E565") else Color.parseColor("#FF9F0A"))
             Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_calibration_saved), Toast.LENGTH_SHORT).show()
@@ -974,7 +981,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     private fun updateMetricCards(vitals: RingConnVitals) {
         // Heart Rate
         hrValText.text = if (vitals.lastHeartRate > 0) "${vitals.lastHeartRate}" else "--"
-        hrSubText.text = if (vitals.avgHeartRate > 0) "BPM • Prom: ${vitals.avgHeartRate}" else "BPM"
+        hrSubText.text = if (vitals.avgHeartRate > 0) getString(R.string.phone_sub_hr, vitals.avgHeartRate) else "BPM"
 
         // SpO2
         spo2ValText.text = if (vitals.lastSpo2 > 0) "${vitals.lastSpo2}%" else "--"
@@ -982,20 +989,20 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // HRV
         hrvValText.text = if (vitals.lastHrv > 0) "${vitals.lastHrv}" else "--"
-        hrvSubText.text = if (vitals.avgHrv > 0) "ms • Prom: ${vitals.avgHrv}" else "ms RMSSD"
+        hrvSubText.text = if (vitals.avgHrv > 0) getString(R.string.phone_sub_hrv, vitals.avgHrv) else "ms RMSSD"
 
         // Sleep
         sleepValText.text = if (vitals.sleepScore > 0) "${vitals.sleepScore}" else "--"
         sleepSubText.text = when {
-            vitals.sleepScore >= 85 -> "Pts • Óptimo"
-            vitals.sleepScore >= 70 -> "Pts • Bueno"
+            vitals.sleepScore >= 85 -> getString(R.string.phone_sub_optimal)
+            vitals.sleepScore >= 70 -> getString(R.string.phone_sub_good)
             vitals.sleepScore > 0 -> "Pts • Regular"
             else -> "Pts"
         }
 
         // Activity
         actValText.text = if (vitals.activityScore > 0) "${vitals.activityScore}" else "--"
-        actSubText.text = "Puntos • Meta: 100"
+        actSubText.text = getString(R.string.phone_sub_points_goal)
 
         // Steps
         stepsValText.text = if (vitals.liveSteps > 0) String.format("%,d", vitals.liveSteps) else "0"
@@ -1004,7 +1011,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         // Stress
         stressValText.text = if (vitals.stressScore > 0) "${vitals.stressScore}" else "--"
         stressSubText.text = when {
-            vitals.stressScore < 30 -> "Pts • Relajado"
+            vitals.stressScore < 30 -> getString(R.string.phone_sub_relaxed)
             vitals.stressScore < 60 -> "Pts • Normal"
             vitals.stressScore > 0 -> "Pts • Elevado"
             else -> "Pts"
@@ -1012,7 +1019,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
 
         // Battery
         batteryValText.text = if (vitals.ringBattery > 0) "${vitals.ringBattery}%" else "--"
-        batterySubText.text = if (vitals.isCharging) "Cargando..." else "En uso"
+        batterySubText.text = if (vitals.isCharging) "Cargando..." else getString(R.string.phone_in_use)
 
         // Inputs
         if (hrInput.text.isEmpty() || hrInput.text.toString() == "0") {

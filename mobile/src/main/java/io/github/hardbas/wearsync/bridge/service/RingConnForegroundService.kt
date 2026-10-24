@@ -206,7 +206,7 @@ class RingConnForegroundService : Service() {
                 "RingConn Wear Sync Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Mantiene la sincronización en tiempo real entre RingConn y Galaxy Watch 8"
+                description = getString(R.string.phone_channel_desc)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)

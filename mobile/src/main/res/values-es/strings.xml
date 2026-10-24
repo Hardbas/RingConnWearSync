@@ -52,6 +52,7 @@
     <string name="phone_connect_hc">Conectar con Health Connect (Lectura Automática)</string>
     <string name="phone_sleep_diagnostic">Diagnóstico de sueño</string>
     <string name="phone_close">Cerrar</string>
+    <string name="phone_footer_version">WearSync for RingConn (No oficial) • v%1$s</string>
     <string name="phone_last_sync_pending">Última sincronización: Pendiente...</string>
     <string name="phone_live_telemetry">TELEMETRÍA EN VIVO</string>
     <string name="phone_hc_not_installed">⚠️ Health Connect no está instalado o requiere actualización.</string>
@@ -66,4 +67,29 @@
     <string name="phone_oxygen">Oxígeno</string>
     <string name="phone_spo2_avg">Oxígeno • Prom: %1$d%%</string>
     <string name="phone_battery_unrestricted">¡Ya cuenta con permiso de batería sin restricciones!</string>
+    <string name="phone_card_hr">FRECUENCIA CARDÍACA</string>
+    <string name="phone_card_spo2">OXÍGENO SpO2</string>
+    <string name="phone_card_hrv">VFC / HRV RMSSD</string>
+    <string name="phone_card_sleep">PUNTAJE DE SUEÑO</string>
+    <string name="phone_card_activity">PUNTAJE ACTIVIDAD</string>
+    <string name="phone_card_steps">PASOS HOY</string>
+    <string name="phone_card_stress">ÍNDICE DE ESTRÉS</string>
+    <string name="phone_card_ring_battery">BATERÍA DEL ANILLO</string>
+    <string name="phone_cal_hr">Frecuencia Cardíaca (BPM):</string>
+    <string name="phone_cal_spo2">Oxígeno en Sangre SpO2 (%):</string>
+    <string name="phone_cal_hrv">VFC / HRV (ms):</string>
+    <string name="phone_cal_stress">Índice de Estrés (pts):</string>
+    <string name="phone_cal_steps">Pasos del Día:</string>
+    <string name="phone_guarantee_247">🛡️ Garantizar 24/7 (Sin Restricciones Samsung)</string>
+    <string name="phone_hc_read_error">Error leyendo Health Connect: %1$s</string>
+    <string name="phone_no_sleep_permission">Sin permiso de lectura de sueño en Health Connect.</string>
+    <string name="phone_saved_waiting_watch">⚠️ Guardado en teléfono (en espera de Watch)</string>
+    <string name="phone_sub_hr">BPM • Prom: %1$d</string>
+    <string name="phone_sub_hrv">ms • Prom: %1$d</string>
+    <string name="phone_sub_optimal">Pts • Óptimo</string>
+    <string name="phone_sub_good">Pts • Bueno</string>
+    <string name="phone_sub_points_goal">Puntos • Meta: 100</string>
+    <string name="phone_sub_relaxed">Pts • Relajado</string>
+    <string name="phone_in_use">En uso</string>
+    <string name="phone_channel_desc">Mantiene la sincronización en tiempo real entre RingConn y Galaxy Watch 8</string>
 </resources>
