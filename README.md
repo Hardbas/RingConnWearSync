@@ -1,169 +1,163 @@
 # RingConnWearSync
 
+Use the RingConn smart ring as the biometric source for a Samsung Galaxy Watch: five One UI tiles,
+seven watch-face complications, and detail screens, fed by the ring instead of the watch's own
+sensors.
+
 [![CI](https://github.com/Hardbas/RingConnWearSync/actions/workflows/ci.yml/badge.svg)](https://github.com/Hardbas/RingConnWearSync/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![release](https://img.shields.io/github/v/release/Hardbas/RingConnWearSync)](https://github.com/Hardbas/RingConnWearSync/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> **Real-time Telemetry Bridge & Samsung One UI Watch Companion Suite for RingConn Smart Ring**
+<img src="docs/screenshots/heart-rate-detail.png" width="200" alt="Heart rate detail screen showing 72 bpm"> <img src="docs/screenshots/heart-rate-metrics.png" width="200" alt="Resting heart rate, variation and HRV cards with the zones slider"> <img src="docs/screenshots/hrv-zones.png" width="200" alt="HRV card showing 50 ms in the balanced zone">
 
-RingConnWearSync is a production-grade Android and Wear OS companion suite that bridges real-time biometric telemetry from the **RingConn Smart Ring (Gen 1 / Gen 2)** directly into **Samsung Galaxy Watch (One UI Watch 8 / Wear OS 5)**.
+<sub>Screens captured on a Galaxy Watch 8 (438×438), Spanish locale. Same build, translated strings.</sub>
 
-It was engineered to solve the **wrist tattoo optical blockage problem**: dark tattoo ink completely blocks optical PPG sensors on the Galaxy Watch. RingConnWearSync establishes the RingConn smart ring as the sole biometric source of truth, rendering live vitals seamlessly across native Samsung One UI stadium tiles, detail views, and watch face complications.
+## Why this exists
 
----
+Dark tattoo ink blocks the optical sensor on a Galaxy Watch, so heart rate and SpO2 read as nothing
+or as noise. The ring does not have that problem. This project takes the ring's numbers and puts
+them where the watch already shows its own: the tiles, the complications and the detail screens.
 
-## 📸 What it looks like
+It is not a replacement for Samsung Health or for the RingConn app. It moves one number from one
+device to another, and it stays out of the cloud while doing it.
 
-Three screens from the heart-rate detail view, captured on a Galaxy Watch 8 (`438×438`).
-They are in the Spanish locale on purpose: it is the same build, and it proves the translated
-strings ship.
+## Install
 
-| Heart rate | Rhythm and HRV | HRV recovery scale |
+The app is sideloaded. It does not need root, it does not unlock the bootloader, and it does not
+trip the Knox warranty bit — Samsung Pay and Google Wallet keep working.
+
+1. **Phone.** Download [`RingConnWearSync-Phone-v*.apk`](https://github.com/Hardbas/RingConnWearSync/releases/latest)
+   and install it, allowing installs from your browser or file manager. Grant Health Connect
+   permissions when the app asks, and turn on the accessibility service it needs to read the
+   RingConn app's screen.
+2. **Watch.** Enable ADB debugging over Wi-Fi in the watch's developer options, then:
+
+   ```bash
+   adb connect <watch-ip>:<port>
+   adb install -r RingConnWearSync-Watch-v*.apk
+   ```
+
+   `-r` matters: it replaces the app without wiping the tiles and complications you configured.
+3. **First sync.** Open the official RingConn app once so it initialises its own widget. Everything
+   downstream reads that widget or Health Connect, so until it runs there is nothing to read.
+
+ADB is only needed for the install. Once both APKs are on the devices, debugging can be turned off.
+
+> [!IMPORTANT]
+> Keep the RingConn app installed. It is the only component with a Bluetooth connection to the
+> ring, and this project reads what it publishes.
+
+## What you get
+
+**Tiles** — heart rate, stress, sleep with nocturnal skin temperature, daily activity, and a
+combined vitals view. They follow the One UI Watch stadium proportions so they sit next to
+Samsung's own tiles without looking bolted on.
+
+**Complications** — ring battery, heart rate, SpO2, sleep score, steps, stress and skin temperature.
+Each answers every complication type the watch asks for, including `RANGED_VALUE` and
+`GOAL_PROGRESS`, and taps through to the matching detail screen.
+
+**Detail screens** — the same metrics, with the range, the stages, and the zones behind the single
+number the tile shows.
+
+## Limits
+
+Read this before opening an issue; most surprises live here.
+
+- **The sleep chain has three hops, and the first one is theirs.** `ring → RingConn app → Health
+  Connect (or its widget) → this app`. The ring only syncs to Health Connect while the official app
+  is running, so a night for which it was never opened simply is not there yet. Opening the app
+  once in the morning is what makes the last night appear. There is no other component with BLE
+  access to the ring.
+- **The bridge tries to do that opening for you, and fails safely.** It launches the official app,
+  waits up to 24 seconds for the sleep card, then returns home. It aborts if the app is not in
+  front after 6 seconds, which is what happens when the phone is locked: the keyguard owns the
+  screen and this app does not force itself over it.
+- **Anything read from the widget lags by that widget's own refresh.** RingConn refreshes it every
+  15–30 minutes, so sleep score, HRV, stress, ring battery and skin temperature can trail the
+  official app by up to half an hour. Polling faster produces no fresher data, only battery drain,
+  which is why the poll backs off overnight.
+- **A missing value can render as a zero.** The phone-to-watch transport sends numbers, not
+  absence, so a stage that was never measured arrives as `0 m` instead of `--`. If Awake shows 0
+  while Deep and REM look plausible, that is this limitation, not a night without awakenings.
+- **Sleep stages are assigned in 30-second epochs.** Totals can still differ from the official app
+  where fragments overlap: this app unions them rather than summing.
+- **Two paths are untested on hardware.** The `GOAL_PROGRESS` complication needs API 33, and the
+  app supports API 30; the theme fallback for Android 8 and 9 has never run on those devices.
+
+If a morning reading looks wrong, open the RingConn app with the phone unlocked, let it sync, and
+reopen the watch screen. Still wrong after that is worth an issue, and the in-app **Copy
+diagnostics** button gives you a report with the build, the device and what Health Connect actually
+returned.
+
+## How it works
+
+```mermaid
+flowchart LR
+  ring["RingConn ring"] -->|BLE| app["Official RingConn app"]
+  app -->|writes| hc["Health Connect"]
+  app -->|renders| widget["Glance widget"]
+  hc -->|reads| bridge["Phone bridge"]
+  widget -->|reads| bridge
+  bridge -->|"Wearable Data Layer, over Bluetooth"| watch["Watch: tiles · complications · detail"]
+```
+
+The phone bridge reads two sources and pushes the result to the watch. Nothing is sent anywhere
+else: the app requests no network permission at all, and a unit test fails the build if one
+reappears in the manifest.
+
+| Metric | Source | Why there |
 |---|---|---|
-| <img src="docs/screenshots/heart-rate-detail.png" width="230" alt="Heart rate detail screen showing 72 bpm, minimum 71 and maximum 84"> | <img src="docs/screenshots/heart-rate-metrics.png" width="230" alt="Resting heart rate, variation and heart-rate variability cards with the zones slider"> | <img src="docs/screenshots/hrv-zones.png" width="230" alt="HRV card showing 50 milliseconds in the balanced zone"> |
+| Heart rate, SpO2, sleep sessions, steps, calories, HRV, resting HR, skin temperature | Health Connect | Standard API, user-authorised |
+| Sleep score, stress index, ring battery, widget-side HRV and temperature | RingConn's Glance widget | RingConn does not export these to Health Connect |
 
-The tiles are not pictured here: they are composed by One UI Challenge and only exist on
-the watch, so a capture has to be taken from the device rather than rendered.
+### Values that are estimated, not measured
 
----
+Some cards show numbers the ring never measures directly. They carry a `· EST` chip (or `≈` on
+tiles) and are indicators, not measurements:
 
-## 🤖 AI Assistance Disclosure
+| Value | Derivation |
+|---|---|
+| Basal calories | elapsed minutes × 1.166 kcal — ignores weight, age and sex |
+| Distance | steps × 0.000762 — one fixed 76.2 cm stride for everyone |
+| Respiratory rate | 14.2 + (avg HR − 60) × 0.07 − (avg HRV − 45) × 0.02 |
+| Heart rate per sleep stage | nightly minimum + 1/4/6 BPM, a stage-correlation heuristic |
+| Sleep efficiency | asleep ÷ in-bed, else sleep score + 5 |
+| Circadian stress blocks | 4 × 6 h blocks, block HR mean against the nightly baseline |
 
-Most of the source code in this repository was written by AI coding agents, directed and reviewed by a human maintainer. Saying so up front is cheaper than having someone discover it in the history.
+Values that cannot be derived render as `--`. Earlier releases published estimated blood pressure,
+dehydration risk, migraine risk and body balance. Those were removed: a fabricated clinical figure
+is indistinguishable from a measurement once it is on a watch face.
 
-- **Models and harnesses**: Claude-family models driven through agentic coding harnesses (Claude Code, Pi) with subagents for bounded implementation tasks.
-- **What the agents wrote**: the Kotlin and ProtoLayout implementation, the unit tests and their contracts, the vector drawables, and most of the prose in this README.
-- **What the human did**: defined the required behaviour and the design targets, chose the architecture and the legal posture, reviewed every diff, and verified releases on real hardware (Galaxy Watch 8, S25 Ultra) before tagging.
-- **What gates it**: `./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest` and the CI workflow in `.github/workflows/ci.yml`.
+## Compatibility
 
-AI authorship does not change the guarantees below: MIT-licensed, fully auditable, and no telemetry leaves your device. Judge the code on its own merits, and open an issue if something in it is wrong.
+| | |
+|---|---|
+| Watch | Galaxy Watch 4, 5, 6, 7, Ultra, 8 Classic — Wear OS 4/5, One UI Watch 5/6/8. Other Wear OS devices get complications and detail screens, not the One UI tile treatment |
+| Phone | Android 12 or newer, with Health Connect available |
+| Not supported | iOS and Apple Watch: watchOS cannot sideload an APK and has no Wearable Data Layer |
 
----
+## Staying up to date
 
-## 🏛️ Architecture Overview
+There is no in-app updater, on purpose: an updater would mean the app making network requests,
+which would contradict the privacy statement. Updates are your decision:
 
-The system consists of two tightly coupled Android modules communicating over the Bluetooth Wearable Data Layer:
+- **Releases** — <https://github.com/Hardbas/RingConnWearSync/releases/latest> always points at the
+  newest build.
+- **Notifications** — on the repository, *Watch → Custom → Releases*. GitHub emails you; nothing is
+  sent to the app.
+- **CHANGELOG.md** — what changed in each version, so you can decide whether two minutes of
+  reinstalling is worth it.
 
-```
-┌─────────────────────────────────┐           Bluetooth BLE           ┌─────────────────────────────────┐
-│     RingConn Smart Ring         │ ────────────────────────────────► │     Official RingConn App       │
-└─────────────────────────────────┘                                   │   (com.gdjztech.ringconn)       │
-                                                                      └────────────────┬────────────────┘
-                                                                                       │ Android Accessibility &
-                                                                                       │ UI Node Inspection
-                                                                                       ▼
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Phone Bridge (io.github.hardbas.wearsync)                                 │
-│                                                                                                        │
-│  • RingConnForegroundService      24/7 unkillable foreground service (exempt from battery throttling)  │
-│  • RingConnAccessibilityService   Zero-overhead node observer extracting raw ring vitals               │
-│  • RingConnTelemetryParser        High-precision regex parser for HR, SpO2, HRV, Stress & Skin Temp    │
-│  • WearDataSyncService            Dual transport: DataClient (reliable) + MessageClient RPC (instant) │
-└──────────────────────────────────────────────────┬─────────────────────────────────────────────────────┘
-                                                   │ Bluetooth Wearable RPC (<100ms)
-                                                   ▼
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Wear OS Suite (io.github.hardbas.wearsync)                                │
-│                                                                                                        │
-│  • WearDataListenerService        Dual RPC listener updating local SharedPreferences cache             │
-│  • ComplicationDataFactory        Universal AndroidX Complication engine supporting all 6 slot types   │
-│  • 7 Native Complications         Battery, Heart Rate, SpO2, Sleep, Steps, Stress, Skin Temperature    │
-│  • 5 One UI 8 Tiles               190dp × 136dp Stadium Capsules built for Samsung One UI Watch        │
-│  • Dedicated Detail Activities    Compose Material 3 screens with native swipe-to-dismiss navigation   │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+Update by installing over the current version. Every release is signed with the same certificate,
+so Android treats it as an update and keeps your Health Connect grants and your layout.
 
----
+## Verifying what you download
 
-## ⌚ One UI Watch 8 Native Tiles
+Every release APK is signed with one certificate. Confirm that the file you have is the one
+published here:
 
-All tiles replicate Samsung Health One UI Watch 8 metrics down to exact device density specifications:
-- **Hero Stadium Dimensions:** `190dp × 136dp` with `68dp` corner radius.
-- **Progress Arc / Track:** `136dp` horizontal bar with glassmorphic track (`0x33FFFFFF`).
-- **Pill Buttons:** `92dp × 24dp` capsule buttons for direct action ("Measure", "Breathe", "Details").
-- **Visual Typography:** Scaled primary value (28sp semi-bold), unit (11sp medium), status insight (12sp medium).
-
-### Available Tiles:
-1. **Heart Rate Tile (`HeartRateTileService`)**: Live BPM, resting HR, min/max range, tap leads to `HeartRateDetailActivity`.
-2. **Stress Index Tile (`StressTileService`)**: Live stress score (0–100), autonomic zone (Relaxed / Balanced / Moderate / High), HRV vagal tone metric, tap leads to `StressDetailActivity`.
-3. **Sleep & Nocturnal Temperature Tile (`SleepTileService`)**: Nocturnal entrance animation ("night falling" perimeter sweep), breathing celestial moon reveal, starry night backdrop, hero score, duration chip, and integrated nocturnal skin temperature recovery capsule. Tap opens `SleepDetailActivity`.
-4. **Daily Activity Tile (`DailySummaryTileService`)**: Concentric activity rings, steps, calories, active time, and daily goal progress capsule. Tap leads to `DailySummaryDetailActivity`.
-5. **Vitals Tile (`VitalsTileService`)**: Unified biometrics overview.
-
----
-
-## 🎯 7 Universal Watch Face Complications
-
-Every complication is compatible with Samsung's **Watch Face Format (WFF)** and legacy Wear OS 3/4 watch faces, supporting all slot types:
-- `SHORT_TEXT` (value + title)
-- `RANGED_VALUE` (circular gauge / progress arc)
-- `GOAL_PROGRESS` (daily targets)
-- `LONG_TEXT` (text banner with status)
-- `MONOCHROMATIC_IMAGE` (theme-reactive vector icon)
-- `SMALL_IMAGE` (high-contrast icon)
-
-| Complication | Provider | Supported Types | Tap Action |
-|---|---|---|---|
-| **Ring Battery** | `RingBatteryComplicationProvider` | All 6 types | Launches Wear MainActivity |
-| **Heart Rate** | `RingConnComplicationProvider` | All 6 types | Launches HeartRateDetailActivity |
-| **Blood Oxygen (SpO2)** | `Spo2ComplicationProvider` | All 6 types | Launches VitalsDetailActivity |
-| **Sleep Score** | `SleepScoreComplicationProvider` | All 6 types | Launches SleepDetailActivity |
-| **Daily Steps** | `StepsComplicationProvider` | All 6 types | Launches DailySummaryDetailActivity |
-| **Stress Index** | `StressComplicationProvider` | All 6 types | Launches StressDetailActivity |
-| **Skin Temperature** | `TemperatureComplicationProvider` | All 6 types | Launches TemperatureDetailActivity |
-
----
-
-## 🔧 Extensibility & Future Patching
-
-Because the extraction layer is decoupled from presentation, future changes from RingConn or Samsung can be patched cleanly:
-
-1. **RingConn App UI Changes**:
-   - The extraction parser in `RingConnTelemetryParser.kt` uses pattern tokenization. If RingConn alters label IDs or strings, only the regex matchers in `parse(...)` need adjustment.
-2. **Direct Bluetooth Low Energy (BLE) Fallback**:
-   - The transport layer is ready to receive packets directly from the ring via GATT characteristic notifications if direct ring-to-watch pairing is enabled.
-3. **Multi-language Support**:
-   - Clean separation of UI strings in `values/strings.xml` (English default) and `values-es/strings.xml` (Spanish).
-
----
-
-## 🛠️ Building & Deploying
-
-### Prerequisites:
-- Android Studio Ladybug+ / JDK 21 (`$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"`)
-- Android SDK Platform 35, Build Tools 35.0.0
-- ADB over Wi-Fi paired to Galaxy Watch 8 Classic (`SM-L500`)
-
-### Compile & Install:
-```powershell
-# 1. Compile Release APKs
-$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
-.\gradlew assembleRelease
-
-# 2. Deploy Mobile Bridge to Phone
-adb -s <PHONE_SERIAL> install -r mobile/build/outputs/apk/release/mobile-release.apk
-
-# 3. Deploy Wear App to Watch
-adb -s <WATCH_IP:PORT> install -r wear/build/outputs/apk/release/wear-release.apk
-```
-
----
-
-## 🔒 Security & Device Integrity
-
-- **100% User-Space Sideloading**: Does **NOT** require unlocking the bootloader, rooting your phone, or rooting your watch.
-- **Knox Warranty Safe**: Samsung Knox warranty bit is **NOT** tripped (`0x0` remains intact). Samsung Pay / Google Wallet continue working normally.
-- **Temporary ADB Requirement**: ADB (Android Debug Bridge) is used strictly for initial sideloading. Once the APKs are installed and permissions granted, **ADB debugging can be disabled immediately** on both the phone and the watch.
-- **Zero Cloud Leaks**: Operates 100% locally on-device. No telemetry, credentials, or personal biometrics are transmitted to external servers. The bridge does not even request `INTERNET` or `CHANGE_NETWORK_STATE`; the only network-related entry in the merged manifest is `ACCESS_NETWORK_STATE`, declared by `androidx.work:work-runtime` and never exercised (this app schedules no network-constrained work). A unit test fails the build if `INTERNET`, `ACCESS_NETWORK_STATE` or `CHANGE_NETWORK_STATE` ever reappear in the source manifest.
-
-### Verifying your download
-
-Every release APK is signed with the same certificate. You can confirm that the
-file you downloaded is the one published here, and not a rebuild by someone else,
-by checking the signing certificate:
-
-```
+```bash
 apksigner verify --print-certs RingConnWearSync-Phone-v*.apk
 apksigner verify --print-certs RingConnWearSync-Watch-v*.apk
 ```
@@ -174,149 +168,66 @@ Both must report this SHA-256 digest:
 1ccf5348ff46a919620d806faa9a5e0e9d857bc74fdb643809ea3108827f1372
 ```
 
-The same value lives in [`signing-identity.properties`](signing-identity.properties),
-and `scripts/check-release-signing-identity.sh` refuses any keystore or APK that
-carries a different one. It is a step in the release checklist (see
-[RELEASING.md](RELEASING.md)), not a build hook: nothing runs it for you before
-`assembleRelease`, so a release is only as verified as the person cutting it. If
-the file and this page ever disagree, the file wins.
+The same value lives in [`signing-identity.properties`](signing-identity.properties), and
+`scripts/check-release-signing-identity.sh` refuses any key or APK that carries a different one. It
+is a step in the release checklist, not a build hook: a release is only as verified as the person
+cutting it. If the file and this page disagree, the file wins.
 
-`apksigner` ships with the Android SDK build tools; on a machine without the SDK
-the same digest can be read from the APK's `META-INF` with `keytool -printcert`.
-Note that release builds are currently signed with the Android debug certificate,
-which is why the subject reads `CN=Android Debug`. See
-[RELEASING.md](RELEASING.md#known-caveat-release-apks-are-signed-with-the-debug-key)
-for what that does and does not cost.
+`apksigner` ships with the Android SDK build tools; without the SDK, the same digest can be read
+from the APK's `META-INF` with `keytool -printcert`.
 
-### Staying up to date
+The certificate subject still reads `CN=Android Debug`, because that is the key this project began
+on and changing it would strand every existing install. The subject is not the identity; the digest
+above is, and it is the same one every release has carried.
 
-This app does not check for updates and never contacts a server, so installing a
-new version is always your decision. Three ways to know one exists, in order of
-how much they ask of you:
+## Building it
 
-- **The repository's releases page** always redirects to the newest build:
-  <https://github.com/Hardbas/RingConnWearSync/releases/latest>. Bookmark it or
-  add it to your watch browser home screen.
-- **GitHub notifications**: on the repository, use *Watch → Custom → Releases*.
-  GitHub then emails you when a release is published. Nothing is sent to the app.
-- **The CHANGELOG** in the repository lists what changed in each version, so you
-  can decide whether an update is worth the two minutes of reinstalling.
+Requires JDK 21 and Android SDK Platform 35.
 
-To update, download the new APK and install it over the old one: because every
-release is signed with the same certificate, Android treats it as an update and
-keeps your Health Connect grants, tiles and complications configured. There is no
-in-app updater, and adding one would mean the app making network requests — which
-would contradict the privacy statement above.
-
----
-
-## 📱 Hardware & OS Compatibility
-
-- **Watches**:
-  - **Samsung Galaxy Watch** (Watch 4, Watch 5, Watch 6, Watch 7, Watch Ultra, Watch 8 Classic) running Wear OS 4, Wear OS 5, or One UI Watch 5/6/8. *(Full support for custom One UI 8 stadium tiles and AndroidX complications)*.
-  - **Other Wear OS Devices** (Google Pixel Watch 1/2/3, OnePlus Watch 2, TicWatch): Compatible with AndroidX complications and detail screens.
-  - **Apple Watch / iOS**: **Not supported** (Apple watchOS does not support Android sideloading or Android Wearable Data Layer).
-- **Phones**:
-  - Android 12+ (Android 14/15/16 recommended) with Health Connect support.
-
----
-
-## 📊 Telemetry Sourcing & Metric Provenance
-
-To ensure total transparency, the following table details the technical origin of each metric:
-
-| Metric | Primary Source | Underlying Mechanism | Technical Details |
-|---|---|---|---|
-| **Heart Rate (BPM)** | Google Health Connect | Official Health Connect API (`HeartRateRecord`) | User-authorized standard OS health sync |
-| **Blood Oxygen (SpO2)** | Google Health Connect | Official Health Connect API (`OxygenSaturationRecord`) | User-authorized standard OS health sync |
-| **Sleep Stages & Duration** | Google Health Connect | Official Health Connect API (`SleepSessionRecord`) | Nocturnal session duration and sleep stages |
-| **Daily Steps** | Google Health Connect | Official Health Connect API (`StepsRecord`) | Cumulative daily step counts |
-| **Daily Calories** | Google Health Connect | Official Health Connect API (`TotalCaloriesBurnedRecord`) | Energy expenditure records |
-| **Sleep Score (0–100)** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (Health Connect has no standard sleep score field) |
-| **HRV (RMSSD)** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (RingConn does not export HRV to Health Connect) |
-| **Stress Index** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (RingConn does not export Stress to Health Connect) |
-| **Ring Battery Level** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Extracted from widget (RingConn does not export Battery to Health Connect) |
-| **Skin Temperature** | RingConn Official Widget | Android `AppWidgetHost` (`RemoteViews` inspection) | Nocturnal baseline variation reading from widget |
-
-### How sleep data actually reaches the watch, and why it can be late or wrong
-
-The smart ring never talks to this app. The chain is always three hops:
-
-```
-ring  --BLE-->  official RingConn app  -->  Health Connect  --read-->  this app
-                                    \-->  its Glance widget  --read-->  this app
+```bash
+./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest   # unit tests
+./gradlew :mobile:lintDebug :wear:lintDebug                   # lint; errors fail CI
+./gradlew :mobile:assembleDebug :wear:assembleDebug           # installable APKs
 ```
 
-That order is the reason almost every sleep problem looks like a bug in this app and is not:
+CI runs exactly that on every pull request, plus two shell guards: the tag must name the version in
+`version.properties`, and a watch label that does not fit its surface fails the build instead of
+rendering as `Rhythm and…`.
 
-- **The official app only pulls from the ring while it runs.** A ring that was never woken by its
-own app produces no new Health Connect records, so Health Connect can still hold the previous
-night. Opening the RingConn app once in the morning is what makes the last night appear. This is
-their design, not an opinion: no other component has BLE access to the ring.
-- **The bridge tries to do that opening for you, and fails safely.** It launches the official app,
-waits up to 24 seconds for the sleep card to render, then returns to the home screen. It aborts
-if the app is not in front after 6 seconds — which is what happens when the phone is locked, since
-the keyguard owns the screen. It does not force itself over the lock screen.
-- **Stage minutes are assigned by 30-second epochs.** The resolution is half a minute, so a short
-awakening is not lost to rounding; where the totals can still differ from the official app is in
-overlapping fragments, which this app unions rather than sums.
-- **A missing value can render as a zero.** The phone-to-watch transport sends numbers only; a
-stage that was never measured arrives as `0 m` instead of `--`. If Awake reads 0 while Deep and
-REM look right, that is this limitation, not a night without awakenings.
-- **Anything taken from the widget lags by its own refresh.** RingConn refreshes its widget every
-15-30 minutes, so the sleep score, HRV, stress, ring battery and skin temperature can trail the
-official app by up to half an hour. Polling faster than that produces no fresher data, only
-battery drain — which is why the poll backs off overnight.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — clean-room interoperability rules, commit conventions, how
+  to submit a patch. Read the clean-room section before changing the parser.
+- [RELEASING.md](RELEASING.md) — the version source of truth, the release gate, and how the signing
+  key is backed up.
+- [SECURITY.md](SECURITY.md) — threat model and how to report a vulnerability privately.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
 
-Practical consequence: if a morning sleep reading looks wrong or missing, open the RingConn app with
-the phone unlocked, let it sync the ring, and open the watch screen again. If it is still wrong
-after that, the problem is in this app's parsing and worth an issue report.
+Questions belong in [Discussions](https://github.com/Hardbas/RingConnWearSync/discussions); bugs
+and parser breakage belong in [Issues](https://github.com/Hardbas/RingConnWearSync/issues).
 
-### Estimated values (heuristic, not measured)
+## How this was written
 
-Some tiles and detail cards show values the ring never measures directly. They are computed from
-the metrics above by fixed heuristics and are always marked with a `· EST` chip (or `≈` on tiles).
-They are indicators, not clinical measurements:
+Most of the source in this repository was written by AI coding agents — Claude-family models driven
+through agentic harnesses (Claude Code, Pi) — directed and reviewed by a human maintainer. The
+Kotlin and ProtoLayout implementation, the unit tests and their contracts, the vector drawables and
+most of the prose in this README came out of that loop.
 
-| Value | Derivation | Notes |
-|---|---|---|
-| **Basal calories** | elapsed minutes × 1.166 kcal | Does not use body weight, age or sex |
-| **Distance (km)** | steps × 0.000762 | Fixed 76.2 cm stride for every user |
-| **Respiratory rate** | 14.2 + (avg HR − 60) × 0.07 − (avg HRV − 45) × 0.02 | Derived from heart rate and HRV |
-| **Heart rate per sleep stage** | nightly minimum HR + 1 / 4 / 6 BPM | Stage-correlation heuristic, not stage-scoped measurement |
-| **Sleep efficiency** | asleep ÷ in-bed minutes, else sleep score + 5 | Derived from stage durations |
-| **Circadian stress blocks** | block HR mean vs nightly baseline, blended with daily stress | 4 × 6 h derived blocks |
+The human defined the required behaviour and the design targets, chose the architecture and the
+legal posture, reviewed every diff, and verified releases on a Galaxy Watch 8 and an S25 Ultra
+before tagging them.
 
-Values that cannot be derived are rendered as `--` instead of being invented. Earlier releases also
-published estimated blood pressure, dehydration risk, migraine risk and body-balance scores. Those
-were removed: a fabricated clinical figure is indistinguishable from a measurement on a watch face.
+The gates are the same either way: unit tests, Android Lint, the two shell guards, and a release
+that must assemble before a tag can exist. Judge the code on its own merits, and open an issue if
+something in it is wrong.
 
----
+## Legal
 
-## 🤝 Community & Contributing
+Interoperability, clean-room. This project reads data the RingConn app already publishes on the
+user's own device and displays it on the user's own watch. It contains no RingConn code, no Samsung
+code, and no extracted artwork: images of unclear provenance are replaced with original vector
+drawables. "RingConn" and "Samsung" are trademarks of their owners, used only to describe what this
+software interoperates with. Not affiliated with, endorsed by, or supported by either company. See
+[NOTICE.md](NOTICE.md) for the full disclosure.
 
-We welcome community contributions, bug reports, and design feedback!
-- **Contributing Guidelines**: Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for clean-room interoperability standards and PR submission processes.
-- **Releasing**: [RELEASING.md](RELEASING.md) documents the version source of truth and the release gate that every tag must pass.
-- **Security & Privacy**: Read [SECURITY.md](SECURITY.md) to learn about our local-first privacy architecture or to report vulnerabilities.
-- **Code of Conduct**: We adhere to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md).
+## License
 
----
-
-## ⚖️ Legal & Interoperability Compliance
-
-**WearSync for RingConn** is an independent, unofficial open-source interoperability tool. It is NOT affiliated with, sponsored by, or endorsed by Guangdong JiuZhi Technology Co., Ltd. (RingConn) or Samsung Electronics Co., Ltd.
-
-- **Statutory Safe Harbor**: This project was developed strictly under statutory reverse-engineering and interoperability exceptions, specifically **17 U.S.C. § 1201(f)** (United States) and **Directive 2009/24/EC Article 6** (European Union).
-- **Public OS Interfaces Only**: The application interfaces solely with standard, publicly documented Android OS APIs (`androidx.health.connect`, `AppWidgetHost`, `AccessibilityService`, and Google Play Services Wearable Data Layer).
-- **Clean-Room & Original Work**: All layouts, schemas, vector assets, and source code are 100% original. This repository contains zero decompiled binaries, zero private signing keys, and zero third-party proprietary code.
-- **Trademark Attribution**: "RingConn" is a trademark of Guangdong JiuZhi Technology Co., Ltd. "Samsung", "Galaxy Watch", and "One UI" are trademarks of Samsung Electronics Co., Ltd. All trademarks belong to their respective owners and are used strictly under nominative fair use to describe interoperability and device compatibility.
-- **Local-Only Privacy**: Health telemetry is processed entirely locally on the user's personal devices. The software maintains zero external servers, cloud databases, or telemetry loggers.
-- For complete legal disclosures and copyright notices, see [NOTICE.md](NOTICE.md).
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
-Free for personal and educational use.
+MIT — see [LICENSE](LICENSE).

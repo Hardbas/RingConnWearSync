@@ -20,18 +20,43 @@ updates:
     open-pull-requests-limit: 4
     commit-message:
       prefix: "build(deps)"
+    # Majors are ignored on purpose, and this list is the reason the first four
+    # dependabot PRs sat red: AGP 9 needs a Gradle and DSL migration, the Kotlin
+    # toolchain group makes `jvmTarget` a build error until `compilerOptions` is
+    # adopted, and androidx.health.connect 1.2.0-alpha06 requires compileSdk 36.
+    # A pull request that cannot pass is noise that hides the one that can. Those
+    # three upgrades are deliberate work with their own commits.
+    #
+    # Removing an entry here is how you opt back in: delete the ignore, open the
+    # PR, and do the migration it asks for.
+    ignore:
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.jetbrains.kotlin*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "androidx.health.connect:connect-client"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       androidx:
         patterns:
           - "androidx.*"
+        update-types:
+          - "minor"
+          - "patch"
       google-play:
         patterns:
           - "com.google.*"
+        update-types:
+          - "minor"
+          - "patch"
       toolchain:
         patterns:
           - "org.jetbrains*"
           - "com.android.tools*"
           - "org.gradle*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "dependencies"
 
