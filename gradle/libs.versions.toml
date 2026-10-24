@@ -13,10 +13,12 @@ junit = "4.13.2"
 
 connectClient = "1.1.0-alpha11"
 activityKtx = "1.9.3"
+fragment = "1.3.0"
 workRuntime = "2.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "activityKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.9.3" }
 androidx-health-connect = { group = "androidx.health.connect", name = "connect-client", version.ref = "connectClient" }

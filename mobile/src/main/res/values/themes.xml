@@ -1,0 +1,10 @@
+<resources>
+    <!--
+      Theme.DeviceDefault.DayNight arrived in API 29, but minSdk is 26: the app pointed the
+      manifest straight at the framework style, so on Android 8 and 9 there was no theme to
+      resolve at all and the launcher activity died before drawing its first frame. Referring to
+      this name instead means the system picks the day/night variant where it exists and falls
+      back to the closest one that does where it does not. See values-v29/themes.xml.
+    -->
+    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault" />
+</resources>

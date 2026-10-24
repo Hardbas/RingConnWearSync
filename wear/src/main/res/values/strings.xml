@@ -248,7 +248,7 @@
     <string name="hr_dip_optimal">Optimal</string>
     <string name="hr_dip_reduced">Reduced</string>
     <string name="hr_dip_extreme">High</string>
-    <string name="hr_dip_optimal_range">10–20% goal</string>
+    <string name="hr_dip_optimal_range" formatted="false">10–20% goal</string>
 
     <!-- Sleep Debt, Daytime Naps & Circadian Bedtime Coach -->
     <string name="sleep_coach_title">Sleep Debt &amp; Bedtime</string>

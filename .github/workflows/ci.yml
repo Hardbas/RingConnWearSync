@@ -48,6 +48,14 @@ jobs:
           python3 scripts/test-audit-watch-strings.py
           python3 scripts/audit-watch-strings.py
 
+      # Lint is the only check that inspects the manifest and the resource table rather than the
+      # Kotlin. It was disabled here, and the first run found a theme that required API 29 under
+      # a minSdk of 26, two activity-result registrations sitting on a fragment version too old
+      # to defer to them, and thirteen resource strings whose literal percent sign would throw
+      # the moment anything formatted them. Errors fail this step; warnings do not.
+      - name: Run Android Lint
+        run: ./gradlew :mobile:lintDebug :wear:lintDebug --no-daemon
+
       - name: Run Unit Tests & Assemble Debug APKs
         run: ./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest :mobile:assembleDebug :wear:assembleDebug --no-daemon
 

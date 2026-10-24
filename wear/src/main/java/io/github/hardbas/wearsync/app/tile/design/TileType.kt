@@ -4,6 +4,7 @@ import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DimensionBuilders
 import androidx.wear.protolayout.DimensionBuilders.sp
 import androidx.wear.protolayout.LayoutElementBuilders
+import androidx.wear.protolayout.expression.ProtoLayoutExperimental
 
 /**
  * The type scale of the editorial dial.
@@ -12,7 +13,11 @@ import androidx.wear.protolayout.LayoutElementBuilders
  * The hero is a *medium* weight (500) number with tabular figures and negative
  * tracking: at 50sp a bold face reads as a marketing poster, a medium face with
  * tight tracking reads as a watch dial.
+ *
+ * The font weights and settings builders are experimental ProtoLayout APIs, so
+ * the whole scale opts in once instead of every call site doing it.
  */
+@androidx.annotation.OptIn(markerClass = [ProtoLayoutExperimental::class])
 object TileType {
 
     /** Heart rate, stress and sleep. */
