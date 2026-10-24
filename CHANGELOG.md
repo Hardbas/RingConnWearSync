@@ -9,6 +9,16 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.27] - 2026-10-24
+
+### Fixed
+
+- Sixteen more card titles were cut mid-word where they share a row with a value:
+  stand hours, total TDEE, phase heart rate, cardiac coherence, circadian blocks,
+  immune radar, daily range, baseline temperature, autonomic tone and the body
+  battery status. Titles now wrap to two lines. Value texts are deliberately left
+  on one line, since a number split across two lines is worse than a truncation.
+
 ## [1.9.26] - 2026-10-24
 
 Removes fabricated biometric data from two screens. Found by auditing the app
