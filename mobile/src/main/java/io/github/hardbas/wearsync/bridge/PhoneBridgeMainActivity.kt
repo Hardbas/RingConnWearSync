@@ -1,5 +1,7 @@
 package io.github.hardbas.wearsync.bridge
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
@@ -18,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.ComponentActivity
+import androidx.core.content.pm.PackageInfoCompat
 import android.app.AlertDialog
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
@@ -25,6 +28,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import io.github.hardbas.wearsync.bridge.service.DiagnosticsReport
 import io.github.hardbas.wearsync.bridge.service.SleepDiagnostics
 import java.time.Instant
 import java.time.LocalDate
@@ -613,12 +617,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         val footerText = TextView(this).apply {
             // The footer claimed v1.6.1 on every build since, so a user could not tell which
             // version was running. Read it from the installed package instead of a literal.
-            val runningVersion = runCatching {
-                this@PhoneBridgeMainActivity.packageManager
-                    .getPackageInfo(this@PhoneBridgeMainActivity.packageName, 0)
-                    .versionName
-            }.getOrNull() ?: "?"
-            text = getString(R.string.phone_footer_version, runningVersion)
+            text = getString(R.string.phone_footer_version, runningBuild().versionName)
             textSize = 11f
             setTextColor(Color.parseColor("#505666"))
             gravity = Gravity.CENTER
@@ -796,7 +795,52 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 .setTitle(getString(R.string.phone_sleep_diagnostic))
                 .setView(ScrollView(this@PhoneBridgeMainActivity).apply { addView(textView) })
                 .setPositiveButton(getString(R.string.phone_close), null)
+                .setNeutralButton(getString(R.string.phone_copy_diagnostics)) { _, _ ->
+                    copyDiagnosticsToClipboard(report)
+                }
                 .show()
+        }
+    }
+
+    /**
+     * The build this process is actually running, never a literal.
+     *
+     * Both the footer and the copied diagnostic read it from the installed package: a constant
+     * here would drift from version.properties and the one line a user quotes in a report would
+     * be the only one that is wrong.
+     */
+    private fun runningBuild(): DiagnosticsReport.Build = runCatching {
+        val info = packageManager.getPackageInfo(packageName, 0)
+        DiagnosticsReport.Build(
+            versionName = info.versionName ?: "?",
+            versionCode = PackageInfoCompat.getLongVersionCode(info),
+            sdkInt = Build.VERSION.SDK_INT,
+            manufacturer = Build.MANUFACTURER ?: "?",
+            model = Build.MODEL ?: "?"
+        )
+    }.getOrElse {
+        Log.w(TAG, "Could not read the installed package info", it)
+        DiagnosticsReport.Build("?", 0L, Build.VERSION.SDK_INT, "?", "?")
+    }
+
+    /**
+     * Puts the report on the clipboard with the build it came from.
+     *
+     * The user pastes this into whatever thread they already use; nothing is sent by the app,
+     * which is the only version of this that keeps the privacy statement true. From Android 13
+     * the system shows its own confirmation for every clipboard write, so the app's toast is
+     * suppressed there: two confirmations for one event read as a duplicate report.
+     */
+    private fun copyDiagnosticsToClipboard(report: String) {
+        val payload = DiagnosticsReport.compose(runningBuild(), report)
+        val clipboard = getSystemService(ClipboardManager::class.java)
+        if (clipboard == null) {
+            Log.w(TAG, "Clipboard service unavailable, the diagnostic was not copied")
+            return
+        }
+        clipboard.setPrimaryClip(ClipData.newPlainText("RingConnWearSync diagnostics", payload))
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(this, getString(R.string.phone_diagnostics_copied), Toast.LENGTH_SHORT).show()
         }
     }
 
