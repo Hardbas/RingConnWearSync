@@ -9,6 +9,18 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.38] - 2026-10-24
+
+### Fixed
+
+- **Sleep stages still wrong after 1.9.37, because the Health Connect read itself preferred
+  the cache.** Two spots kept the old "whichever source declares more sleep wins" rule:
+  `keepExistingStages` inside the Health Connect read and `keepCachedSleep` in the widget-branch
+  merge. With the reported night the cache summed 450 minutes against 364 from Health Connect, so
+  the cache won every sync and the write policy added in 1.9.37 preserved that value faithfully.
+  Both now defer to `SleepSourcePolicy`: Health Connect owns a night it has, the cache covers one
+  it does not.
+
 ## [1.9.37] - 2026-10-24
 
 ### Fixed
