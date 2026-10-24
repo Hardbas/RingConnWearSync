@@ -9,6 +9,24 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.36] - 2026-10-24
+
+### Fixed
+
+- **Two labels still shipped in Spanish**, and the audit could not see them: it was a word
+  list, and `Leer Widgets Directos` has no accents and no listed word. The guard now rests
+  on a language-agnostic rule — a line that paints text must take it from `getString(...)` —
+  and only ignores literals that interpolate values. Six real offenders were found and
+  migrated, the title now uses `R.string.app_name`, and the hardcoded
+  `Galaxy Watch 8 Classic` subtitle is neutral.
+- The sync button says "Sync now with the watch" instead of naming one watch model.
+
+### Added
+
+- `SleepMergeReproTest` feeds a reported night's 28 real intervals into the stage merge:
+  deep 55 and rem 60, matching Health Connect and contradicting the 99/104 the watch shows.
+  It documents that awake loses fragments concluding at the umbrella start.
+
 ## [1.9.35] - 2026-10-24
 
 ### Fixed
