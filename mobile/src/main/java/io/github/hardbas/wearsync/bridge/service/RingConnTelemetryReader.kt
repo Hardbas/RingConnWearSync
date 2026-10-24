@@ -977,7 +977,7 @@ object RingConnTelemetryReader {
             respiratoryRate = computedRespRate
         )
 
-        saveToPreferences(context, vitals, source = sourceLabel)
+        saveToPreferences(context, vitals, source = sourceLabel, stagesAuthoritative = true)
         Log.i(TAG, "[$sourceLabel] Fresh vitals loaded: HR=$finalHr, Min=$finalMinHr, Max=$finalMaxHr, SpO2=$finalSpo2, Steps=$finalSteps, Sleep=$finalSleep, HRV=$finalHrv, ODI=$finalOdi, MinSleepSpO2=$finalMinSleepingSpo2, HrDip=$finalSleepingHrDipPct%, Naps=${finalNapMinutes}m, BedWindow=$finalBedtimeWindow, Stand=${finalStandHours}h")
         return@coroutineScope vitals
     }
@@ -1348,7 +1348,7 @@ object RingConnTelemetryReader {
                 respiratoryRate = mergedRespRate
             )
             val sourceLabel = if (hcHrIsFresher) "Health Connect (Fresher)" else "Glance Widgets + HC"
-            saveToPreferences(context, merged, source = sourceLabel)
+            saveToPreferences(context, merged, source = sourceLabel, stagesAuthoritative = true)
             return@coroutineScope merged
         }
 
@@ -1451,12 +1451,39 @@ object RingConnTelemetryReader {
         )
     }
 
-    fun saveToPreferences(context: Context, vitals: RingConnVitals, source: String = "Manual") {
+    /**
+     * @param stagesAuthoritative true only for the two paths that resolve stage minutes properly:
+     *   the Health Connect read and the policy-merged write. Scrapes and widget reads pass false so
+     *   they cannot overwrite a night another source already resolved.
+     */
+    fun saveToPreferences(
+        context: Context,
+        vitals: RingConnVitals,
+        source: String = "Manual",
+        stagesAuthoritative: Boolean = false
+    ) {
         val nowZoned = ZonedDateTime.now(ZoneId.systemDefault())
         val todayEpochDay = nowZoned.toLocalDate().toEpochDay()
         val timeStr = nowZoned.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         ensureDailyRollover(prefs, todayEpochDay)
+
+        val stages = SleepSourcePolicy.stagesForWrite(
+            incoming = SleepSourcePolicy.StageMinutes(
+                deep = vitals.sleepDeepMins,
+                rem = vitals.sleepRemMins,
+                light = vitals.sleepLightMins,
+                awake = vitals.sleepAwakeMins
+            ),
+            persisted = SleepSourcePolicy.StageMinutes(
+                deep = prefs.getInt(KEY_SLEEP_DEEP_MINS, 0),
+                rem = prefs.getInt(KEY_SLEEP_REM_MINS, 0),
+                light = prefs.getInt(KEY_SLEEP_LIGHT_MINS, 0),
+                awake = prefs.getInt(KEY_SLEEP_AWAKE_MINS, 0)
+            ),
+            authoritative = stagesAuthoritative
+        )
+
         prefs.edit().apply {
             putLong(KEY_CACHE_EPOCH_DAY, todayEpochDay)
             putInt(KEY_LASTLY_HR, vitals.lastHeartRate)
@@ -1484,10 +1511,10 @@ object RingConnTelemetryReader {
             putInt(KEY_ZONE3_MINS, vitals.zone3Mins)
             putInt(KEY_ZONE4_MINS, vitals.zone4Mins)
             putInt(KEY_ZONE5_MINS, vitals.zone5Mins)
-            putInt(KEY_SLEEP_DEEP_MINS, vitals.sleepDeepMins)
-            putInt(KEY_SLEEP_REM_MINS, vitals.sleepRemMins)
-            putInt(KEY_SLEEP_LIGHT_MINS, vitals.sleepLightMins)
-            putInt(KEY_SLEEP_AWAKE_MINS, vitals.sleepAwakeMins)
+            putInt(KEY_SLEEP_DEEP_MINS, stages.deep)
+            putInt(KEY_SLEEP_REM_MINS, stages.rem)
+            putInt(KEY_SLEEP_LIGHT_MINS, stages.light)
+            putInt(KEY_SLEEP_AWAKE_MINS, stages.awake)
             // A bad scrape must not become a stored reading.
             putFloat(KEY_SKIN_TEMP_OFFSET, SkinTemperatureGuard.sanitizeOffset(vitals.skinTempOffset))
             putFloat(KEY_SKIN_TEMP_BASELINE, SkinTemperatureGuard.sanitizeBaseline(vitals.skinTempBaseline))

@@ -36,4 +36,28 @@ internal object SleepSourcePolicy {
         if (cached != null && cached.asleepMinutes > 0) return cached
         return EMPTY_NIGHT
     }
+
+    /**
+     * The stage minutes to persist, given who is asking.
+     *
+     * Six places persist vitals; only the Health Connect read and the policy-merged write
+     * resolve stages properly. The accessibility scrape and the widget reader persist what
+     * they parsed from the official app's interface and run last, so without this rule they
+     * overwrite a correct night with their own numbers — the reported case was deep 99 and
+     * rem 104 replacing 55 and 60.
+     *
+     * A non-authoritative writer therefore keeps whatever is already resolved, unless nothing
+     * is persisted yet: on a device whose Health Connect read has not run, the widget is the
+     * only source and dropping it would leave the screen empty.
+     */
+    fun stagesForWrite(
+        incoming: StageMinutes,
+        persisted: StageMinutes,
+        authoritative: Boolean
+    ): StageMinutes {
+        if (authoritative) {
+            return if (incoming.asleepMinutes > 0) incoming else persisted
+        }
+        return if (persisted.asleepMinutes > 0) persisted else incoming
+    }
 }
