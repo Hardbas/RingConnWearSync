@@ -343,7 +343,8 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                     fontSize = TextBody,
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    lineHeight = TextBody,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
@@ -482,7 +483,8 @@ fun TemperatureDetailContent(vitals: RingConnVitals) {
                                 fontSize = TextBody,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f, fill = false),
-                                maxLines = 1,
+                                maxLines = 2,
+                                lineHeight = TextBody,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }

@@ -488,7 +488,8 @@ fun HeartRateDetailContent(
                                     fontSize = TextBody,
                                     color = Color.White,
                                     fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
+                                    maxLines = 2,
+                                    lineHeight = TextBody,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }

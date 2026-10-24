@@ -1026,7 +1026,8 @@ private fun AutonomicBalanceCard(hrv: Int, score: Int, stressInsight: String = "
                     fontSize = TextBody,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
+                    maxLines = 2,
+                    lineHeight = TextBody,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -1532,7 +1533,8 @@ private fun CardiacCoherenceBreathworkCard(vitals: RingConnVitals) {
                         color = Color.White,
                         fontSize = TextBody,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = TextBody,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -1941,7 +1943,8 @@ private fun CircadianStressBlocksCard(vitals: RingConnVitals) {
                         color = Color.White,
                         fontSize = TextBody,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = TextBody,
                         overflow = TextOverflow.Ellipsis
                     )
                 }

@@ -312,7 +312,8 @@ fun WearAppContent(
                                 fontSize = TextBody,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                maxLines = 1,
+                                maxLines = 2,
+                                lineHeight = TextBody,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(2.dp))
