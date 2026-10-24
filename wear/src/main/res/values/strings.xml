@@ -20,7 +20,7 @@
     <string name="steps">Daily Steps</string>
     <string name="stress">Stress Index</string>
     <string name="measure_now">Sync</string>
-    <string name="measure_failed_no_new_reading">No new reading · check the phone</string>
+    <string name="measure_failed_no_new_reading">No new reading\ncheck the phone</string>
     <string name="measuring">Syncing...</string>
     <string name="measure">Sync</string>
     <string name="ring_battery">Ring Battery: %1$d%%</string>
@@ -57,6 +57,10 @@
     <string name="stress_insight_moderate">Moderate demand · Take a break</string>
     <string name="stress_insight_high">High physiological demand</string>
     <string name="stress_blocks_chip">4 blocks</string>
+    <string name="stress_window_dawn">00–06</string>
+    <string name="stress_window_morning">06–12</string>
+    <string name="stress_window_afternoon">12–18</string>
+    <string name="stress_window_night">18–24</string>
     <string name="stress_block_lowest">Lowest</string>
     <string name="stress_block_spread">Spread</string>
     <string name="stress_block_peak">Peak</string>

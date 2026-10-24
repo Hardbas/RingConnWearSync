@@ -21,7 +21,7 @@
     <string name="stress">Nivel de Estrés</string>
     <string name="measure_now">Sincronizar</string>
     <string name="measuring">Sincronizando...</string>
-    <string name="measure_failed_no_new_reading">Sin lectura nueva · revisá el teléfono</string>
+    <string name="measure_failed_no_new_reading">Sin lectura nueva\nrevisá el teléfono</string>
     <string name="measure">Sincronizar</string>
     <string name="ring_battery">Batería Anillo: %1$d%%</string>
     <string name="ring_short">Anillo</string>
@@ -57,6 +57,10 @@
     <string name="stress_insight_moderate">Demanda moderada · Hacé una pausa</string>
     <string name="stress_insight_high">Demanda fisiológica elevada</string>
     <string name="stress_blocks_chip">4 bloques</string>
+    <string name="stress_window_dawn">00–06</string>
+    <string name="stress_window_morning">06–12</string>
+    <string name="stress_window_afternoon">12–18</string>
+    <string name="stress_window_night">18–24</string>
     <string name="stress_block_lowest">Mínimo</string>
     <string name="stress_block_spread">Variación</string>
     <string name="stress_block_peak">Pico</string>

@@ -841,15 +841,17 @@ private fun StressTimelineCard(vitals: RingConnVitals) {
                 }
             }
 
-            // Circadian block labels: the four windows the ring actually measures
+            // The axis names the four windows the ring aggregates (0-5, 6-11, 12-17,
+            // 18-23) as hour ranges. Phase words do not fit four-up on a 192dp screen:
+            // each label owns a quarter of the row and centres under its own bar.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = stringResource(R.string.stress_phase_dawn), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = stringResource(R.string.stress_phase_morning), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = stringResource(R.string.stress_phase_afternoon), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
-                Text(text = stringResource(R.string.stress_phase_night), color = Color(0xFF94A3B8), fontSize = TextCaption, style = TabularNums)
+                AxisLabel(stringResource(R.string.stress_window_dawn))
+                AxisLabel(stringResource(R.string.stress_window_morning))
+                AxisLabel(stringResource(R.string.stress_window_afternoon))
+                AxisLabel(stringResource(R.string.stress_window_night))
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -921,6 +923,24 @@ private fun StressTimelineCard(vitals: RingConnVitals) {
                 }
             }
         }
+    }
+}
+
+/**
+ * One quarter of the axis row, centred under its own bar. Labels share the width
+ * evenly so a long translation cannot push its neighbours off the card.
+ */
+@Composable
+private fun RowScope.AxisLabel(text: String) {
+    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            color = Color(0xFF94A3B8),
+            fontSize = TextCaption,
+            style = TabularNums,
+            maxLines = 1,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

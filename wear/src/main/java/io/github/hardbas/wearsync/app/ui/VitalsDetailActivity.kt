@@ -496,7 +496,9 @@ fun VitalsDetailContent(
                             text = stringResource(R.string.measure_failed_no_new_reading),
                             fontSize = TextCaption,
                             color = Color(0xFFFFB4AB),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            lineHeight = TextCaption
                         )
                     }
                 }
