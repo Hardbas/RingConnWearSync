@@ -1,6 +1,7 @@
 package io.github.hardbas.wearsync.bridge
 
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
@@ -838,7 +840,14 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             Log.w(TAG, "Clipboard service unavailable, the diagnostic was not copied")
             return
         }
-        clipboard.setPrimaryClip(ClipData.newPlainText("RingConnWearSync diagnostics", payload))
+        val clip = ClipData.newPlainText("RingConnWearSync diagnostics", payload)
+        // The report carries sleep stage minutes. Mark the clip sensitive so the system shows
+        // "copied" instead of a preview of someone's night: the point of copying it is to hand
+        // it to the maintainer, not to put it on a lock screen.
+        clip.description.extras = PersistableBundle().apply {
+            putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+        clipboard.setPrimaryClip(clip)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             Toast.makeText(this, getString(R.string.phone_diagnostics_copied), Toast.LENGTH_SHORT).show()
         }

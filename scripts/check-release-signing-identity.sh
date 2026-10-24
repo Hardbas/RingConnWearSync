@@ -68,15 +68,24 @@ digest_of_keystore() {
     fi
 
     local listing
-    if ! listing="$(keytool -list -v -keystore "$keystore" -storepass "$password" -alias "$alias" 2>/dev/null)"; then
+    # `-storepass:env` instead of `-storepass`: an argument is visible to every other process on
+    # the machine through `ps`, and a password on a command line is a habit worth not having even
+    # when this particular one is the well-known `android`.
+    if ! listing="$(KEYSTORE_PASSWORD="$password" keytool -list -v -keystore "$keystore" \
+        -storepass:env KEYSTORE_PASSWORD -alias "$alias" 2>/dev/null)"; then
         echo "error: could not read alias '$alias' from $keystore" >&2
         echo "       set KEY_ALIAS and KEYSTORE_PASSWORD if the key uses other values" >&2
         return 2
     fi
 
+    # awk, not sed with `\|` alternation: that is a GNU extension, and on BSD sed the pattern
+    # silently matches nothing, which would read as "cannot tell" on a macOS maintainer's machine
+    # while the key was perfectly fine. Both spellings of the fingerprint line are handled.
     printf '%s\n' "$listing" \
-        | sed -n 's/^[[:space:]]*SHA\(-256\|256\):[[:space:]]*//p' \
-        | head -n 1
+        | awk '
+            /SHA-256:/ { sub(/^.*SHA-256:[[:space:]]*/, ""); print; exit }
+            /SHA256:/  { sub(/^.*SHA256:[[:space:]]*/,  ""); print; exit }
+        '
 }
 
 digest_of_apk() {
