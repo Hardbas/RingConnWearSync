@@ -1,6 +1,7 @@
 package io.github.hardbas.wearsync.app.ui
 
-import java.io.File
+import io.github.hardbas.wearsync.app.WearSources
+
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,8 +17,13 @@ import org.junit.Test
  */
 class NoSyntheticStressDataTest {
 
-    private val source = File("src/main/java/io/github/hardbas/wearsync/app/ui/StressDetailActivity.kt")
-    private val body = source.readText()
+    private val source = WearSources.file(
+        "src/main/java/io/github/hardbas/wearsync/app/ui/StressDetailActivity.kt"
+    )
+    private val body: String = run {
+        assertTrue("cannot locate $source; the audit must run from the module", source.isFile)
+        source.readText()
+    }
 
     @Test
     fun `draws the measured circadian blocks instead of an hourly formula`() {

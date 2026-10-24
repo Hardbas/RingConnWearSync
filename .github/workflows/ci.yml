@@ -34,6 +34,13 @@ jobs:
       - name: Test the version-tag guard
         run: bash scripts/test-check-version-tag.sh
 
+      # A one-line label that does not fit its surface renders as "Rhythm and…",
+      # which silently renames the card. Fail the build instead.
+      - name: Test and run the watch-string audit
+        run: |
+          python3 scripts/test-audit-watch-strings.py
+          python3 scripts/audit-watch-strings.py
+
       - name: Run Unit Tests & Assemble Debug APKs
         run: ./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest :mobile:assembleDebug :wear:assembleDebug --no-daemon
 
