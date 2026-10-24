@@ -39,6 +39,12 @@ jobs:
       - name: Test the version-tag guard
         run: bash scripts/test-check-version-tag.sh
 
+      # Exercised here too, because this is the workflow whose artifacts someone might
+      # mistake for a publishable release. The runner's keystore is a fresh throwaway, so
+      # the only thing that can be checked on CI is that the guard still fails closed.
+      - name: Test the release-signing identity guard
+        run: bash scripts/test-check-release-signing-identity.sh
+
       # Always runs: on a tag push it reads the tag being pushed, and on a manual
       # rehearsal it reads the tag typed into the input. A dispatch that skipped
       # this step would produce release APKs with no tag gate at all.

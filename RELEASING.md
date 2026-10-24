@@ -28,7 +28,14 @@ it is not a release.
    ./gradlew :mobile:testDebugUnitTest :wear:testDebugUnitTest
    ./gradlew :mobile:assembleRelease :wear:assembleRelease
    bash scripts/check-version-tag.sh v1.9.26
+   bash scripts/check-release-signing-identity.sh ~/.android/debug.keystore
    ```
+
+   The last one is the one that cannot be undone later: it compares the key you
+   are about to sign with against the certificate in
+   `signing-identity.properties`, which is the certificate every published APK
+   already carries. If it fails, stop — read the backup section below before
+   building anything.
 
 3. Install both APKs on real hardware and confirm the behaviour you are about to
    promise. Automated tests prove the code compiles and the contracts hold; they
@@ -62,8 +69,8 @@ the same tests and the same `assembleRelease`, so a rehearsal failure tells you 
 real tag would fail too.
 
 The guard's own regression tests live in `scripts/test-check-version-tag.sh` and
-run in both workflows, so a change that weakens the guard breaks CI instead of
-silently shipping.
+`scripts/test-check-release-signing-identity.sh`, and run in both workflows, so a
+change that weakens a guard breaks CI instead of silently shipping.
 
 ## Known caveat: release APKs are signed with the debug key
 
@@ -113,8 +120,27 @@ That is a defensible end state. Two things keep it honest:
 1. **Back up `~/.android/debug.keystore`.** It is the identity of every release
    published so far. Losing it means every existing user must uninstall. It is not
    in the repository and it is not in any cloud account by default.
+
+   A backup that has never been restored is not a backup. The procedure:
+
+   ```bash
+   # 1. Copy the file off this machine, to two places you do not need this laptop for.
+   #    Any password manager or encrypted drive works; it is 2.6 KB.
+
+   # 2. Prove the copy is the identity, from the copy itself:
+   bash scripts/check-release-signing-identity.sh /path/to/backup/debug.keystore
+   # ok: ... carries the published release certificate (1ccf5348...)
+   ```
+
+   The same command against `~/.android/debug.keystore` proves the working copy is
+   still the right one. Run it before every release: the Android SDK silently
+   regenerates a debug keystore whenever the original is missing, and a freshly
+   generated one has the same subject line (`CN=Android Debug`) and a different
+   fingerprint, so nothing else in the build would notice.
+
 2. **Publish its fingerprint** in the README next to the download links, so users
-   can verify what they install.
+   can verify what they install. `signing-identity.properties` holds the value;
+   if the README and that file ever disagree, the file wins.
 
 ### If publication is ever automated
 
