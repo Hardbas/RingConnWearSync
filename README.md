@@ -140,7 +140,7 @@ adb -s <WATCH_IP:PORT> install -r wear/build/outputs/apk/release/wear-release.ap
 - **100% User-Space Sideloading**: Does **NOT** require unlocking the bootloader, rooting your phone, or rooting your watch.
 - **Knox Warranty Safe**: Samsung Knox warranty bit is **NOT** tripped (`0x0` remains intact). Samsung Pay / Google Wallet continue working normally.
 - **Temporary ADB Requirement**: ADB (Android Debug Bridge) is used strictly for initial sideloading. Once the APKs are installed and permissions granted, **ADB debugging can be disabled immediately** on both the phone and the watch.
-- **Zero Cloud Leaks**: Operates 100% locally on-device. No telemetry, credentials, or personal biometrics are transmitted to external servers.
+- **Zero Cloud Leaks**: Operates 100% locally on-device. No telemetry, credentials, or personal biometrics are transmitted to external servers. The bridge does not even request `INTERNET` or `CHANGE_NETWORK_STATE`; the only network-related entry in the merged manifest is `ACCESS_NETWORK_STATE`, declared by `androidx.work:work-runtime` and never exercised (this app schedules no network-constrained work). A unit test fails the build if `INTERNET`, `ACCESS_NETWORK_STATE` or `CHANGE_NETWORK_STATE` ever reappear in the source manifest.
 
 ### Verifying your download
 

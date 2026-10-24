@@ -2,13 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- No network permission is declared on purpose. The Wearable Data Layer moves messages
+         over the paired Bluetooth connection, and neither module contains a network call. INTERNET
+         and CHANGE_NETWORK_STATE would describe an app that can reach the internet, against the
+         privacy statement in README.md.
+
+         ACCESS_NETWORK_STATE still appears in the merged manifest because androidx.work:work-runtime
+         declares it; the only WorkManager request here sets setRequiresBatteryNotLow and no
+         network constraint, so it is never exercised. It is not removed with tools:node so the
+         library keeps its declared contract. Origin verified with the manifest merger blame
+         report. Guarded by NetworkPermissionGuardTest.kt. -->
     <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
