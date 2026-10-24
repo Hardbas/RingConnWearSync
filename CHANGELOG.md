@@ -9,6 +9,17 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.37] - 2026-10-24
+
+### Fixed
+
+- **Stage minutes could be overwritten by the wrong source.** Six places persist vitals and
+  only two resolve stages properly; the accessibility scrape and the widget reader run last
+  and stored their own numbers, which is why a night displayed deep 99 / rem 104 / awake 0
+  while Health Connect held 55 / 60 / 60 and the merge produces exactly that. A non-authoritative
+  write now keeps whatever another source already resolved, except on a device where nothing is
+  stored yet and the widget is all there is.
+
 ## [1.9.36] - 2026-10-24
 
 ### Fixed
