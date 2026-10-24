@@ -9,6 +9,20 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.34] - 2026-10-24
+
+### Added
+
+- The sleep diagnostic prints `typeTotalsMin`, the fragment durations Health Connect
+  returned grouped by stage type, next to `persistedStages`, what the app stored for the
+  watch. The two numbers decide whether a wrong night comes from the merge or from a
+  different source, without another round of guessing.
+
+### Fixed
+
+- The README claimed stage minutes are counted in 30-minute epochs. They are counted in
+  30-**second** epochs, so short awakenings are not lost to rounding.
+
 ## [1.9.33] - 2026-10-24
 
 ### Fixed
