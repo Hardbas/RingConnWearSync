@@ -6,17 +6,17 @@ labels: ["enhancement"]
 assignees: ""
 ---
 
-### 💡 Feature Summary
+### Feature Summary
 A clear and concise description of the suggested feature or capability.
 
 ---
 
-### 🎯 Problem Statement / Motivation
+### Problem Statement / Motivation
 Is your feature request related to a problem or limitation? Please describe (e.g. *I want to see hourly HRV trend intervals on my watch complication...*).
 
 ---
 
-### 📐 Proposed Solution & Architecture
+### Proposed Solution & Architecture
 Describe how you envision this working. Does it involve:
 - [ ] `:wear` Tile layout / animation
 - [ ] `:wear` Complication provider
@@ -26,12 +26,12 @@ Describe how you envision this working. Does it involve:
 
 ---
 
-### ⚖️ Legal & Clean-Room Compliance Check
+### Legal & Clean-Room Compliance Check
 - [ ] Uses only standard public Android / Health Connect APIs.
 - [ ] Does not require proprietary assets, decompilation, or reverse-engineered binaries.
 - [ ] Operates 100% locally on-device without cloud dependencies.
 
 ---
 
-### 📌 Additional Context
+### Additional Context
 Add any other context, UI mockups, or diagrams here.

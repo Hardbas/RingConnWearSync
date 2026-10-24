@@ -8,9 +8,15 @@ sensors.
 [![release](https://img.shields.io/github/v/release/Hardbas/RingConnWearSync)](https://github.com/Hardbas/RingConnWearSync/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+<img src="docs/screenshots/sleep-tile.png" width="620" alt="Sleep tile, two frames of the entrance animation: a score of 88, nights duration and the temperature capsule">
+
+<sub>Sleep tile, two frames of its entrance animation. Rendered from the app's own vector drawables,
+not from a mockup.</sub>
+
 <img src="docs/screenshots/heart-rate-detail.png" width="200" alt="Heart rate detail screen showing 72 bpm"> <img src="docs/screenshots/heart-rate-metrics.png" width="200" alt="Resting heart rate, variation and HRV cards with the zones slider"> <img src="docs/screenshots/hrv-zones.png" width="200" alt="HRV card showing 50 ms in the balanced zone">
 
-<sub>Screens captured on a Galaxy Watch 8 (438×438), Spanish locale. Same build, translated strings.</sub>
+<sub>Detail screens captured on a Galaxy Watch 8 (438×438). Spanish locale throughout: it is the same
+build, with the translated strings.</sub>
 
 ## Why this exists
 
@@ -206,10 +212,9 @@ and parser breakage belong in [Issues](https://github.com/Hardbas/RingConnWearSy
 
 ## How this was written
 
-Most of the source in this repository was written by AI coding agents — Claude-family models driven
-through agentic harnesses (Claude Code, Pi) — directed and reviewed by a human maintainer. The
-Kotlin and ProtoLayout implementation, the unit tests and their contracts, the vector drawables and
-most of the prose in this README came out of that loop.
+Most of the source in this repository was written by AI coding agents, directed and reviewed by a
+human maintainer. The Kotlin and ProtoLayout implementation, the unit tests and their contracts, the
+vector drawables and most of the prose in this README came out of that loop.
 
 The human defined the required behaviour and the design targets, chose the architecture and the
 legal posture, reviewed every diff, and verified releases on a Galaxy Watch 8 and an S25 Ultra

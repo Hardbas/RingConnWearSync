@@ -6,7 +6,7 @@ labels: ["bug"]
 assignees: ""
 ---
 
-### 📋 Environment & Device Details
+### Environment & Device Details
 
 - **Watch Device Model**: (e.g. Samsung Galaxy Watch 6 Classic 47mm, Galaxy Watch 7 44mm, Pixel Watch 2)
 - **Wear OS / One UI Watch Version**: (e.g. One UI Watch 6.0 / Wear OS 5.0)
@@ -18,22 +18,22 @@ assignees: ""
 
 ---
 
-### 🐛 Problem Description
+### Problem Description
 A clear and concise description of what the bug is.
 
 ---
 
-### 🔁 Steps to Reproduce
+### Steps to Reproduce
 1. Open ...
 2. Scroll to ...
 3. Observe ...
 
 ---
 
-### 🎯 Expected Behavior
+### Expected Behavior
 A clear and concise description of what you expected to happen.
 
 ---
 
-### 📸 Screenshots & Logs
+### Screenshots & Logs
 If applicable, attach screenshots or log outputs from `adb logcat -s RingConnReader WearDataSync PhoneBridge RingConnTile` (ensure any personal biometrics or device IDs are redacted).

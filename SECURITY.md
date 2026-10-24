@@ -4,7 +4,7 @@ We take the security and privacy of RingConnWearSync users seriously. This docum
 
 ---
 
-## 🛡️ Supported Versions
+## Supported Versions
 
 We actively provide security patches and stability updates for the following versions:
 
@@ -15,7 +15,7 @@ We actively provide security patches and stability updates for the following ver
 
 ---
 
-## 🔒 Security & Privacy Architecture
+## Security & Privacy Architecture
 
 RingConnWearSync is engineered around a **zero-trust, local-first privacy model**:
 
@@ -35,7 +35,7 @@ RingConnWearSync is engineered around a **zero-trust, local-first privacy model*
 
 ---
 
-## 🚨 Reporting a Vulnerability
+## Reporting a Vulnerability
 
 If you discover a potential security vulnerability or privacy flaw in RingConnWearSync, please report it responsibly:
 

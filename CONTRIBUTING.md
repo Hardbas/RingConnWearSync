@@ -6,7 +6,7 @@ Please review this document to understand our contribution guidelines, clean-roo
 
 ---
 
-## 🏛️ Project Architecture
+## Project Architecture
 
 RingConnWearSync is organized into two Gradle modules:
 
@@ -21,7 +21,7 @@ RingConnWearSync is organized into two Gradle modules:
 
 ---
 
-## ⚖️ Clean-Room & Legal Interoperability Policy (MANDATORY)
+## Clean-Room & Legal Interoperability Policy (MANDATORY)
 
 RingConnWearSync is an independent, community-driven project created under legal interoperability provisions (including **17 U.S.C. § 1201(f)** in the United States and **Directive 2009/24/EC Article 6** in the European Union).
 
@@ -38,7 +38,7 @@ To maintain absolute legal integrity, all contributors must strictly adhere to t
 
 ---
 
-## 🛠️ Development & Testing Workflow
+## Development & Testing Workflow
 
 ### Prerequisites
 - **JDK 21** (Eclipse Temurin or Android Studio bundled JBR recommended)
@@ -64,7 +64,7 @@ When introducing new business logic, data models, or tile layout calculations, c
 
 ---
 
-## 📝 Commit Conventions
+## Commit Conventions
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
@@ -87,11 +87,11 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 ---
 
-## 📦 Cutting a Release
+## Cutting a Release
 
 Releases follow the rules in [RELEASING.md](RELEASING.md): one tag per defensible version, `version.properties` is the single source of truth, and `scripts/check-version-tag.sh` must pass. The Release Gate workflow refuses a tag whose version does not match the one the build stamps into the APKs.
 
-## 🚀 Submitting a Pull Request
+## Submitting a Pull Request
 
 1. Fork the repository and create a descriptive branch from `master` (e.g., `feat/ambient-mode-contrast`).
 2. Implement your changes adhering to Clean-Room guidelines.
