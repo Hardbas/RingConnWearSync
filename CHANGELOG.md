@@ -9,6 +9,17 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.30] - 2026-10-24
+
+### Added
+
+- **In-app sleep diagnostic** on the phone: a "Diagnóstico de sueño" button reads the
+  sleep sessions of the last 36 hours and reports, for each one, its start, end,
+  duration, stage count and whether it falls inside the window the reader uses. It
+  exists because "the watch shows the wrong night" could not be resolved remotely:
+  with no cable and no adb, the app has to be able to say what it sees. The window
+  rule is a pure function with five tests.
+
 ## [1.9.29] - 2026-10-24
 
 ### Fixed
