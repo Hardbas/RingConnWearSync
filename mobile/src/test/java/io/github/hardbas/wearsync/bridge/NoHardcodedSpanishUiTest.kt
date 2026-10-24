@@ -42,10 +42,10 @@ class NoHardcodedSpanishUiTest {
      * The audit lists Spanish in every literal it can see, and exempts only what cannot reach a
      * user.
      *
-     * The previous version did the opposite — it inspected only lines containing a known UI
-     * sink such as `text =` — and that let a whole screen of Spanish through: metric cards pass
-     * their labels as arguments to helpers (`createCard("PUNTAJE DE SUEÑO", ...)`), so no sink
-     * appeared on the line and the audit stayed green while the app was Spanish.
+     * A word list is only a heuristic, and a heuristic always misses the word nobody thought of:
+     * `"Leer Widgets Directos"` and `"Conectado en Vivo"` have no accents and were on no list, so
+     * they shipped in Spanish. The language-agnostic rule below is the real guard; this one stays
+     * because it catches text that reaches users through helpers.
      */
     private fun isExempt(fileName: String, line: String): Boolean {
         val trimmed = line.trimStart()
@@ -98,6 +98,48 @@ class NoHardcodedSpanishUiTest {
             "these literals never reach the language system; move them to res/values " +
                 "(English default) and res/values-es:\n" + found.joinToString("\n"),
             found.isEmpty()
+        )
+    }
+
+    /** Where user-facing text is painted. */
+    private val textSinks = listOf(
+        "text =", "setText(", "setTitle(", "setMessage(", "Toast.makeText(",
+        "setPositiveButton(", "setContentText(")
+
+    /**
+     * Language-agnostic guard: a line that paints text must take it from resources.
+     *
+     * This is the rule that cannot be fooled by vocabulary. Any literal on a text sink that is
+     * not a `getString(...)` call is UI copy, in whatever language it happens to be.
+     */
+    @Test
+    fun `every painted string comes from resources whatever the language`() {
+        val violations = mutableListOf<String>()
+        sources.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .forEach { file ->
+                if (isParserFile(file.name)) return@forEach
+                file.readLines().forEachIndexed { index, line ->
+                    val trimmed = line.trimStart()
+                    if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.contains("Log.")) return@forEachIndexed
+                    if (textSinks.none { line.contains(it) }) return@forEachIndexed
+                    if (line.contains("getString(")) return@forEachIndexed
+                    val literal = Regex("\"([^\"\\\\]|\\\\.){3,}\"").find(line)?.value
+                    // A literal that is only interpolation, digits or a format spec paints a value,
+                    // not copy: `"${vitals.lastHeartRate}"` needs no translation.
+                    val prose = literal?.replace(Regex("\\$\\{[^}]*}"), "")
+                        // `$variable` without braces is interpolation too.
+                        ?.replace(Regex("\\$[A-Za-z_][A-Za-z0-9_]*"), "")
+                        ?.replace(Regex("%%?[-\\d.]*[dfsx]"), "")
+                    if (literal != null && prose != null && Regex("[A-Za-zÁÉÍÓÚÑáéíóúñ]{3,}").containsMatchIn(prose)) {
+                        violations += "${file.name}:${index + 1} $literal"
+                    }
+                }
+            }
+        assertTrue(
+            "paint text with getString(R.string.…) so the system language applies:\n" +
+                violations.joinToString("\n"),
+            violations.isEmpty()
         )
     }
 }

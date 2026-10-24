@@ -154,7 +154,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(logoView)
 
         val titleView = TextView(this).apply {
-            text = "RingConn Wear Sync"
+            text = getString(R.string.app_name)
             textSize = 23f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
@@ -163,7 +163,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(titleView)
 
         val subtitleView = TextView(this).apply {
-            text = "Galaxy Watch 8 Classic • One UI 8 Bridge"
+            text = getString(R.string.phone_subtitle)
             textSize = 13f
             setTextColor(Color.parseColor("#8E95A5"))
             gravity = Gravity.CENTER
@@ -172,7 +172,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         root.addView(subtitleView)
 
         headerBadge = TextView(this).apply {
-            text = "Iniciando Puente..."
+            text = getString(R.string.phone_starting_bridge)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.parseColor("#00E676"))
@@ -317,7 +317,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
 
         val readWidgetsBtn = Button(this).apply {
-            text = "🎯 Leer Widgets Directos (AppWidgetHost)"
+            text = getString(R.string.phone_read_widgets)
             setTextColor(Color.parseColor("#090A0F"))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
@@ -688,7 +688,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
     private fun requestHealthConnectPermissions() {
         scope.launch {
             if (!RingConnTelemetryReader.isHealthConnectAvailable(this@PhoneBridgeMainActivity)) {
-                Toast.makeText(this@PhoneBridgeMainActivity, "Health Connect no disponible en este dispositivo.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_hc_unavailable), Toast.LENGTH_LONG).show()
                 return@launch
             }
             try {
@@ -716,7 +716,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         val widgetLine = if (isWidgetBound) {
             getString(R.string.phone_widgethost_active)
         } else {
-            "• WidgetHost: Toca 'Leer Widgets Directos' para autorizar (1 toque)"
+            getString(R.string.phone_widgets_authorize)
         }
         val accLine = if (isAccEnabled) {
             getString(R.string.phone_accessibility_active)
@@ -770,7 +770,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                     ).show()
                     bindWidgetLauncher.launch(bindIntent)
                 } else {
-                    syncStatusText.text = "⚠️ Abre RingConn 1 vez para inicializar sus widgets"
+                    syncStatusText.text = getString(R.string.phone_open_ringconn_once)
                     syncStatusText.setTextColor(Color.parseColor("#FF9F0A"))
                     Toast.makeText(this@PhoneBridgeMainActivity, getString(R.string.phone_open_official_hint), Toast.LENGTH_LONG).show()
                 }
@@ -919,7 +919,7 @@ class PhoneBridgeMainActivity : ComponentActivity() {
             if (result.first) {
                 syncStatusText.text = getString(R.string.phone_synced_at, timeStr, result.second)
                 syncStatusText.setTextColor(Color.parseColor("#30E565"))
-                headerBadge.text = "Conectado en Vivo"
+                headerBadge.text = getString(R.string.phone_connected_live)
                 headerBadge.setTextColor(Color.parseColor("#00E676"))
             } else {
                 syncStatusText.text = getString(R.string.phone_waiting_watch, result.second)

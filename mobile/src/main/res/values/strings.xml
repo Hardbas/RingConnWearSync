@@ -10,7 +10,7 @@
     <string name="phone_native_extraction">Direct native extraction (100% exact)</string>
     <string name="phone_widgethost_checking">• WidgetHost: active (BIND_APPWIDGET)\n• Accessibility: checking...</string>
     <string name="phone_sync_from_ringconn">⚡ Sync from RingConn (accessibility)</string>
-    <string name="phone_sync_now_watch">⚡ Sync now with Galaxy Watch 8</string>
+    <string name="phone_sync_now_watch">⚡ Sync now with the watch</string>
     <string name="phone_source_loading">Source: querying...</string>
     <string name="phone_calibration_show">⚙️ Calibration / Manual mode (advanced) ▼</string>
     <string name="phone_calibration_hide">⚙️ Hide manual calibration ▲</string>
@@ -46,12 +46,15 @@
     <string name="source_ringconn_direct_short">RingConn direct (100% exact)</string>
     <string name="source_health_connect">Health Connect (synced)</string>
     <string name="source_widgethost_short">RingConn WidgetHost (100% exact)</string>
-    <string name="phone_connected_watch">Connected to the Galaxy Watch 8</string>
-    <string name="phone_searching_watch">Looking for the Galaxy Watch 8...</string>
+    <string name="phone_connected_watch">Connected to the watch</string>
+    <string name="phone_searching_watch">Looking for the watch...</string>
     <string name="phone_sync_note">Synced · HR: %1$d bpm · SpO2: %2$d%% · Ring: %3$d%%</string>
     <string name="phone_connect_hc">Connect to Health Connect (automatic read)</string>
     <string name="phone_sleep_diagnostic">Sleep diagnostic</string>
     <string name="phone_close">Close</string>
+    <string name="phone_read_widgets">🎯 Read widgets directly (AppWidgetHost)</string>
+    <string name="phone_widgets_authorize">"• WidgetHost: tap 'Read widgets directly' to authorise (one tap)"</string>
+    <string name="phone_connected_live">Live connected</string>
     <string name="phone_footer_version">WearSync for RingConn (Unofficial) • v%1$s</string>
     <string name="phone_last_sync_pending">Last sync: pending...</string>
     <string name="phone_live_telemetry">LIVE TELEMETRY</string>
@@ -91,5 +94,9 @@
     <string name="phone_sub_points_goal">Points • Goal: 100</string>
     <string name="phone_sub_relaxed">Pts • Relaxed</string>
     <string name="phone_in_use">In use</string>
-    <string name="phone_channel_desc">Keeps RingConn and the Galaxy Watch 8 in sync in real time</string>
+    <string name="phone_channel_desc">Keeps RingConn and the watch in sync in real time</string>
+    <string name="phone_subtitle">One UI Watch bridge for RingConn</string>
+    <string name="phone_starting_bridge">Starting the bridge...</string>
+    <string name="phone_hc_unavailable">Health Connect is not available on this device.</string>
+    <string name="phone_open_ringconn_once">⚠️ Open RingConn once so it initialises its widgets</string>
 </resources>
