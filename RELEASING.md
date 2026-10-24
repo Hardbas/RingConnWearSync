@@ -127,13 +127,26 @@ password protects the container, not the identity, so the key can be re-wrapped 
 password without changing a single certificate:
 
 ```bash
-# One time, in a directory outside the repository and outside OneDrive.
-keytool -importkeystore     -srckeystore ~/.android/debug.keystore -srcstorepass android     -srcalias androiddebugkey     -destkeystore ~/release.p12 -deststoretype PKCS12 -deststorepass '<a real password>'     -destalias wearsync
+# One time. Asks for the password twice with the terminal echo off, keeps it out of the shell
+# history and out of the process list, proves the identity survived, and writes
+# keystore.properties for you.
+bash scripts/rewrap-release-key.sh
+```
 
-# Prove the identity survived, which is the only thing users can feel:
-KEYSTORE_PASSWORD='<a real password>' KEY_ALIAS=wearsync     bash scripts/check-release-signing-identity.sh ~/release.p12
+It refuses rather than guessing: an existing destination, an existing `keystore.properties`,
+passwords that do not match, or fewer than six characters all stop it with exit 1 and nothing
+written. Underneath it runs:
+
+```bash
+keytool -importkeystore     -srckeystore ~/.android/debug.keystore -srcstorepass android -srcalias androiddebugkey     -destkeystore ~/.android/release.p12 -deststoretype PKCS12 -deststorepass:env RSW_KEYSTORE_PASSWORD     -destalias wearsync
+
+KEYSTORE_PASSWORD=... KEY_ALIAS=wearsync     bash scripts/check-release-signing-identity.sh ~/.android/release.p12
 # ok: ... carries the published release certificate (1ccf5348...)
 ```
+
+The certificate digest is the point of the exercise: if `check-release-signing-identity.sh`
+prints a different one, the re-wrap did something other than copy the key and nothing should
+be published.
 
 Then point the build at it with `keystore.properties` at the repository root. It is gitignored
 and it never leaves this machine:
