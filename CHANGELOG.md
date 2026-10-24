@@ -9,6 +9,18 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.33] - 2026-10-24
+
+### Fixed
+
+- **Nineteen more UI strings were still authored in Spanish.** The i18n audit had
+  reported success because its word list was short and case-sensitive, so the sleep
+  diagnostic's own label, its "Close" button and several notices stayed in Kotlin. The
+  audit now matches case-insensitively, counts any accented character as proof, and
+  inspects only literals that reach a UI sink — which also stops it from flagging
+  `RingConnTelemetryParser`, whose Spanish keywords are patterns for reading the
+  official app's Spanish labels and must stay as they are.
+
 ## [1.9.32] - 2026-10-24
 
 ### Changed
