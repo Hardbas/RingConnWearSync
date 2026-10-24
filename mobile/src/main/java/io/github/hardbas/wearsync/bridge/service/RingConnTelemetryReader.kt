@@ -554,27 +554,24 @@ object RingConnTelemetryReader {
                         val tEnd = if (umbrellaEnd != null && umbrellaEnd > maxStageEnd) umbrellaEnd else maxStageEnd
                         val totalSeconds = Duration.between(tStart, tEnd).seconds.coerceIn(30L, 86400L)
                         val epochCount = ((totalSeconds + 15L) / 30L).toInt().coerceAtLeast(1)
-                        val epochTimeline = IntArray(epochCount) { 0 }
+                        val epochTimeline = SleepStageMerger.merge(
+                            // Specificity decides which segment owns an epoch; arrival order
+                            // cannot change the night.
+                            intervals = validStages.map {
+                                SleepStageMerger.Interval(
+                                    startMs = it.start.toEpochMilli(),
+                                    endMs = it.end.toEpochMilli(),
+                                    stageType = it.stageType,
+                                    lastModifiedMs = it.lastModified.toEpochMilli()
+                                )
+                            },
+                            timelineStartMs = tStart.toEpochMilli(),
+                            epochCount = epochCount
+                        )
 
-                        // Sort by lastModified ascending so newer sync batches overwrite obsolete preliminary fragments,
-                        // then chronologically by start time, and finally longer intervals first.
-                        validStages.toMutableList().apply {
-                            sortWith(
-                                compareBy<RawStageInterval> { it.lastModified }
-                                    .thenBy { it.start }
-                                    .thenByDescending { Duration.between(it.start, it.end).seconds }
-                            )
-                        }.forEach { st ->
-                            val sEpoch = (Duration.between(tStart, st.start).seconds / 30L).toInt().coerceIn(0, epochCount - 1)
-                            val eEpoch = ((Duration.between(tStart, st.end).seconds + 15L) / 30L).toInt().coerceIn(0, epochCount)
-                            for (ep in sEpoch until eEpoch) {
-                                epochTimeline[ep] = st.stageType
-                            }
-                        }
-
-                        deepMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_DEEP } * 30.0 / 60.0).roundToInt().toLong()
-                        remMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_REM } * 30.0 / 60.0).roundToInt().toLong()
-                        lightMins = (epochTimeline.count { it == SleepSessionRecord.STAGE_TYPE_LIGHT } * 30.0 / 60.0).roundToInt().toLong()
+                        deepMins = SleepStageMerger.minutesOf(epochTimeline, SleepSessionRecord.STAGE_TYPE_DEEP)
+                        remMins = SleepStageMerger.minutesOf(epochTimeline, SleepSessionRecord.STAGE_TYPE_REM)
+                        lightMins = SleepStageMerger.minutesOf(epochTimeline, SleepSessionRecord.STAGE_TYPE_LIGHT)
 
                         val totalAsleep = deepMins + remMins + lightMins
 
