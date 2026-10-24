@@ -9,6 +9,17 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.31] - 2026-10-24
+
+### Fixed
+
+- **The phone screen was in Spanish for everyone.** Not a locale problem: the UI was
+  written as 46 Spanish literals inside Kotlin, and text in code has no language, so
+  Android never had anything to translate. All of it now lives in resources with
+  English as the default and Spanish in `values-es`; interpolated strings use
+  positional placeholders. A source audit fails the build while any user-facing
+  literal still carries Spanish, and names every offender.
+
 ## [1.9.30] - 2026-10-24
 
 ### Added
