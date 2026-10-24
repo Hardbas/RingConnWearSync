@@ -34,6 +34,13 @@ jobs:
       - name: Test the version-tag guard
         run: bash scripts/test-check-version-tag.sh
 
+      # The signing guard protects the one irreversible property in this project: the
+      # certificate every published APK already carries. CI cannot exercise the real key
+      # (each runner generates its own throwaway debug keystore), so it exercises the guard
+      # itself against a fixture, which is what proves the guard fails closed.
+      - name: Test the release-signing identity guard
+        run: bash scripts/test-check-release-signing-identity.sh
+
       # A one-line label that does not fit its surface renders as "Rhythm and…",
       # which silently renames the card. Fail the build instead.
       - name: Test and run the watch-string audit

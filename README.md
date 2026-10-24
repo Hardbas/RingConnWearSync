@@ -159,6 +159,10 @@ Both must report this SHA-256 digest:
 1ccf5348ff46a919620d806faa9a5e0e9d857bc74fdb643809ea3108827f1372
 ```
 
+The same value lives in [`signing-identity.properties`](signing-identity.properties),
+and `scripts/check-release-signing-identity.sh` fails a release build whose key
+produces a different one. If the file and this page ever disagree, the file wins.
+
 `apksigner` ships with the Android SDK build tools; on a machine without the SDK
 the same digest can be read from the APK's `META-INF` with `keytool -printcert`.
 Note that release builds are currently signed with the Android debug certificate,
