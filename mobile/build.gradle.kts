@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -10,17 +11,27 @@ val appVersion = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
 
-// Release signing. The key is a file outside the repository (and outside OneDrive) and
-// keystore.properties is its local, never-committed pointer: storeFile, storePassword,
-// keyAlias, keyPassword. When that file is absent the release falls back to the debug key,
-// which is what CI does on purpose: every runner generates its own, publishes nothing, and its
-// APK is a throwaway candidate rather than a release.
+// Release signing. The key is a file outside the repository, and the properties file that points
+// at it is never committed: storeFile, storePassword, keyAlias, keyPassword.
 //
-// A published APK must carry the certificate in signing-identity.properties. That claim is
-// checked by scripts/check-release-signing-identity.sh, not by this build.
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+// Two locations are accepted, in this order:
+//   1. keystore.properties at the repository root
+//   2. ~/.android/wearsync-keystore.properties
+//
+// The second is what scripts/rewrap-release-key.sh writes, and it is the one to prefer: this
+// repository usually lives inside a synced folder, and a password written inside it would be
+// uploaded by the sync client. Git ignores the file; a sync client does not.
+//
+// With neither file present the release falls back to the debug key, which is what CI does on
+// purpose: every runner generates its own, publishes nothing, and its APK is a throwaway
+// candidate rather than a release. A published APK must carry the certificate in
+// signing-identity.properties; scripts/check-release-signing-identity.sh is what checks it.
+val keystorePropertiesFile = sequenceOf(
+    rootProject.file("keystore.properties"),
+    File(System.getProperty("user.home"), ".android/wearsync-keystore.properties")
+).firstOrNull { it.isFile }
 val keystoreProperties = Properties().apply {
-    if (keystorePropertiesFile.isFile) keystorePropertiesFile.inputStream().use { load(it) }
+    keystorePropertiesFile?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -36,7 +47,7 @@ android {
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.isFile) {
+        if (keystorePropertiesFile != null) {
             create("release") {
                 storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
@@ -49,7 +60,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = if (keystorePropertiesFile.isFile) {
+            signingConfig = if (keystorePropertiesFile != null) {
                 signingConfigs.getByName("release")
             } else {
                 logger.warn(
