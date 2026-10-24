@@ -26,6 +26,13 @@ captures
 .opencode/
 *.jks
 *.keystore
+# PKCS12 is the modern keystore container and the one the release key now uses. It was not
+# ignored before this line, so a release.p12 dropped in the repository folder was committable.
+*.p12
+*.pfx
+# The local pointer to the release key: storeFile, password, alias. Never committed; the file
+# itself lives outside the repository and outside OneDrive.
+keystore.properties
 google-services.json
 design/_render/
 __pycache__/

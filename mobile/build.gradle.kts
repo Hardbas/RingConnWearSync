@@ -10,6 +10,19 @@ val appVersion = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
 
+// Release signing. The key is a file outside the repository (and outside OneDrive) and
+// keystore.properties is its local, never-committed pointer: storeFile, storePassword,
+// keyAlias, keyPassword. When that file is absent the release falls back to the debug key,
+// which is what CI does on purpose: every runner generates its own, publishes nothing, and its
+// APK is a throwaway candidate rather than a release.
+//
+// A published APK must carry the certificate in signing-identity.properties. That claim is
+// checked by scripts/check-release-signing-identity.sh, not by this build.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.isFile) keystorePropertiesFile.inputStream().use { load(it) }
+}
+
 android {
     namespace = "io.github.hardbas.wearsync.bridge"
     compileSdk = 35
@@ -22,10 +35,29 @@ android {
         versionName = appVersion.getProperty("versionName")
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.isFile) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keystorePropertiesFile.isFile) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "warning: :mobile release is signed with a throwaway debug key; " +
+                        "keystore.properties was not found, so this APK is a candidate, not a release"
+                )
+                signingConfigs.getByName("debug")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

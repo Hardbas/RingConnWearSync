@@ -124,9 +124,12 @@ digest_of_apk() {
 
 case "$target" in
     *.apk)      actual="$(digest_of_apk "$target")" || exit $? ;;
-    *.jks|*.keystore) actual="$(digest_of_keystore "$target")" || exit $? ;;
+    # .p12/.pfx are PKCS12, which is what keytool -importkeystore writes and therefore what the
+    # re-wrapped release key is. Rejecting them made the guard useless for exactly the file the
+    # release procedure tells you to create.
+    *.jks|*.keystore|*.p12|*.pfx) actual="$(digest_of_keystore "$target")" || exit $? ;;
     *)
-        echo "error: $target is neither a keystore (.jks/.keystore) nor an APK" >&2
+        echo "error: $target is not a keystore (.jks/.keystore/.p12/.pfx) or an APK" >&2
         usage
         exit 2
         ;;
