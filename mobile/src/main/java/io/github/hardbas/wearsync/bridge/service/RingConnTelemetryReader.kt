@@ -1246,25 +1246,29 @@ object RingConnTelemetryReader {
             val mergedActivityInsight = if (isWidgetStepsStaleFromYesterday) cached.activityInsight else widgetVitals.activityInsight.ifBlank { cached.activityInsight }
             val mergedVitalsInsight = widgetVitals.vitalsInsight.ifBlank { cached.vitalsInsight }
 
-            val (mergedDeep, mergedRem, mergedLight, mergedAwake) = when {
-                widgetAsleep >= hcAsleep && widgetAsleep >= cachedAsleep && widgetAsleep > 0 -> {
-                    listOf(widgetVitals.sleepDeepMins, widgetVitals.sleepRemMins, widgetVitals.sleepLightMins, widgetVitals.sleepAwakeMins)
-                }
-                cachedAsleep > hcAsleep && cachedAsleep > widgetAsleep && cachedAsleep > 0 -> {
-                    listOf(cached.sleepDeepMins, cached.sleepRemMins, cached.sleepLightMins, cached.sleepAwakeMins)
-                }
-                hcAsleep > 0 -> {
-                    listOf(hcVitals!!.sleepDeepMins, hcVitals.sleepRemMins, hcVitals.sleepLightMins, hcVitals.sleepAwakeMins)
-                }
-                else -> {
-                    listOf(
-                        hcVitals?.sleepDeepMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepDeepMins > 0) widgetVitals.sleepDeepMins else cached.sleepDeepMins),
-                        hcVitals?.sleepRemMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepRemMins > 0) widgetVitals.sleepRemMins else cached.sleepRemMins),
-                        hcVitals?.sleepLightMins?.takeIf { it > 0 } ?: (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepLightMins > 0) widgetVitals.sleepLightMins else cached.sleepLightMins),
-                        if (hcVitals != null && hcAsleep > 0) hcVitals.sleepAwakeMins else (if (!isWidgetSleepStaleFromYesterday && widgetVitals.sleepAwakeMins > 0) widgetVitals.sleepAwakeMins else cached.sleepAwakeMins)
-                    )
-                }
+            // One source owns the night. Health Connect is the only one with per-stage
+            // records; the cache covers a night it has not received yet. The widget is not
+            // consulted: it carries a score, not stage minutes, and picking whichever source
+            // claimed the most sleep is what kept an inflated cache ahead of a correct record.
+            val hcNight = hcVitals?.let {
+                SleepSourcePolicy.StageMinutes(
+                    deep = it.sleepDeepMins,
+                    rem = it.sleepRemMins,
+                    light = it.sleepLightMins,
+                    awake = it.sleepAwakeMins
+                )
             }
+            val cachedNight = SleepSourcePolicy.StageMinutes(
+                deep = cached.sleepDeepMins,
+                rem = cached.sleepRemMins,
+                light = cached.sleepLightMins,
+                awake = cached.sleepAwakeMins
+            )
+            val night = SleepSourcePolicy.stages(hc = hcNight, cached = cachedNight)
+            val mergedDeep = night.deep
+            val mergedRem = night.rem
+            val mergedLight = night.light
+            val mergedAwake = night.awake
 
             val baseNightHr = if (minHr > 0) minHr else if (finalAvgHr > 0) (finalAvgHr - 8).coerceIn(46, 75) else 56
             val mergedHrDeep = hcVitals?.hrPhaseDeep?.takeIf { it > 0 } ?: (cached.hrPhaseDeep.takeIf { it > 0 } ?: if (finalSleepScore > 0) (baseNightHr + 1) else 0)
