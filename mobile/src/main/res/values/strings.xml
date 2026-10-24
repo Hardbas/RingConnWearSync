@@ -52,6 +52,8 @@
     <string name="phone_connect_hc">Connect to Health Connect (automatic read)</string>
     <string name="phone_sleep_diagnostic">Sleep diagnostic</string>
     <string name="phone_close">Close</string>
+    <string name="phone_copy_diagnostics">Copy diagnostics</string>
+    <string name="phone_diagnostics_copied">Diagnostics copied</string>
     <string name="phone_read_widgets">🎯 Read widgets directly (AppWidgetHost)</string>
     <string name="phone_widgets_authorize">"• WidgetHost: tap 'Read widgets directly' to authorise (one tap)"</string>
     <string name="phone_connected_live">Live connected</string>

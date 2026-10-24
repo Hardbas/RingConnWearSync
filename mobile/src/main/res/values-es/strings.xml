@@ -52,6 +52,8 @@
     <string name="phone_connect_hc">Conectar con Health Connect (Lectura Automática)</string>
     <string name="phone_sleep_diagnostic">Diagnóstico de sueño</string>
     <string name="phone_close">Cerrar</string>
+    <string name="phone_copy_diagnostics">Copiar diagnóstico</string>
+    <string name="phone_diagnostics_copied">Diagnóstico copiado</string>
     <string name="phone_read_widgets">🎯 Leer widgets directos (AppWidgetHost)</string>
     <string name="phone_widgets_authorize">"• WidgetHost: toca 'Leer widgets directos' para autorizar (1 toque)"</string>
     <string name="phone_connected_live">Conectado en vivo</string>
