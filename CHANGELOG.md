@@ -9,6 +9,67 @@ tests must pass and both release APKs must assemble, or the tag does not ship.
 `scripts/audit-watch-strings.py` additionally fails the build when a one-line
 watch label is too long for the space its surface leaves.
 
+## [1.9.39] - 2026-10-24
+
+### Changed
+
+- **The watch APK is 3.69 MB instead of 26.52 MB.** R8 and resource shrinking were off, so the
+  release carried all of Compose, Wear Compose, ProtoLayout, the Tiles runtime and Play Services
+  whether the app called them or not: 25.3 MB of the 26.4 MB was unshrunk DEX. Minification is
+  now on for the watch release. Everything the system instantiates survived — the five tile
+  services, the complication providers, the detail activities and the `WearableListenerService` —
+  and the smaller DEX also means less to load, decompress and optimize on a device with a small
+  battery.
+- **The release key has its own password.** Releases were signed with the Android debug
+  certificate, whose keystore password is the public string `android`: anyone holding a copy of
+  that file could sign an update Android would accept. The key is re-wrapped into PKCS12 under a
+  real password with `scripts/rewrap-release-key.sh`. A keystore password protects the container,
+  never the identity, so the certificate is unchanged — which is why this installs over 1.9.38
+  and keeps your Health Connect grants and tile setup. `signing-identity.properties` and
+  `scripts/check-release-signing-identity.sh` make the published fingerprint checkable by
+  machine, and both modules now sign from a properties file that lives outside any synced folder.
+- **Android Lint runs in CI.** It was disabled in both modules and absent from the workflow. Its
+  first pass found 44 real errors, all fixed in this version.
+
+### Added
+
+- **The sleep diagnostic can leave the phone.** The dialog has a *Copy diagnostics* action that
+  puts the report on the clipboard behind a fixed header: versionName, versionCode, API level and
+  device. Nothing is transmitted — the user pastes it wherever they already talk to the project —
+  and the clip is marked sensitive so the system does not preview the night's stage minutes on a
+  lock screen.
+- Three screenshots in the README, generated from the app on a Galaxy Watch 8.
+- Weekly grouped Dependabot updates for Gradle and GitHub Actions.
+- `signing-identity.properties`, `scripts/check-release-signing-identity.sh` with a sixteen-case
+  regression suite, and `scripts/rewrap-release-key.sh`.
+
+### Fixed
+
+- **The phone had no theme on Android 8 and 9.** The manifest pointed at
+  `Theme.DeviceDefault.DayNight`, which arrived in API 29, under a minSdk of 26. It now goes
+  through a local `AppTheme` that resolves to the day/night variant where it exists and to the
+  closest one that does below that.
+- **`registerForActivityResult` sat on `androidx.fragment` 1.1.0**, which
+  `play-services-basement` drags down from 1.0.0. A `FragmentActivity` below 1.3.0 overrides
+  `onActivityResult` and consumes the result the registry is waiting for. Nothing here extends
+  one, so the fix is a dependency constraint rather than a rewrite.
+- **Fourteen resource strings carried a literal percent sign** ("100% exact", "10–20% goal") with
+  no format arguments anywhere. They are marked `formatted="false"`, which is what tells AAPT
+  the percent is text; escaping it as `%%` would have displayed a doubled percent.
+- **`ComplicationType.GOAL_PROGRESS` needs API 33** while the watch app supports API 30, and the
+  README claims Watch 4 and Watch 5 support — those run API 30 and 31, where the branch would
+  have failed on a field that does not exist. It is behind an explicit version gate now;
+  behaviour on API 33 and later is unchanged.
+- **The low-battery alert was posted without `POST_NOTIFICATIONS`**, which Android 13 and later
+  drop silently. The permission is declared and the notify call logs why it cannot post. The
+  vibration runs before that check on purpose, so the alert still reaches the wrist.
+- **The bridge asked for `INTERNET`, `ACCESS_NETWORK_STATE` and `CHANGE_NETWORK_STATE`** while
+  neither module contains a network call. The first and last are gone; `ACCESS_NETWORK_STATE`
+  survives only because `androidx.work:work-runtime` declares it, and no work request here sets a
+  network constraint. A unit test fails the build if any of the three reappears.
+- An unanchored SpO2 pattern that no reader used was removed, so the next person to touch oxygen
+  saturation does not build on it.
+
 ## [1.9.38] - 2026-10-24
 
 ### Fixed
