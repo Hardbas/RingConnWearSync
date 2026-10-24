@@ -88,4 +88,52 @@ class SyncBatteryPolicyTest {
             SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS <= SyncBatteryPolicy.HEARTBEAT_INTERVAL_MS
         )
     }
+
+    @Test
+    fun overnightHoursUseTheSlowPollInsteadOfTheDayOne() {
+        // The ring consolidates sleep; it does not produce readings overnight that a
+        // five-minute poll could catch. Polling that fast while the phone is asleep on a
+        // bedside table buys nothing and costs wake locks.
+        for (hour in listOf(23, 0, 2, 5)) {
+            assertEquals(
+                "hour $hour is overnight and must use the night poll",
+                SyncBatteryPolicy.IN_SERVICE_POLL_NIGHT_INTERVAL_MS,
+                SyncBatteryPolicy.pollIntervalMs(hour)
+            )
+            assertTrue("hour $hour must be inside the night window", SyncBatteryPolicy.isNightWindow(hour))
+        }
+    }
+
+    @Test
+    fun daytimeKeepsTheFastPoll() {
+        for (hour in listOf(6, 9, 13, 18, 22)) {
+            assertEquals(
+                "hour $hour is daytime and must keep the fast poll",
+                SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS,
+                SyncBatteryPolicy.pollIntervalMs(hour)
+            )
+            assertFalse("hour $hour must be outside the night window", SyncBatteryPolicy.isNightWindow(hour))
+        }
+    }
+
+    @Test
+    fun theWholeNightCostsAtMostThreePolls() {
+        val nightMillis = (SyncBatteryPolicy.NIGHT_WINDOW_HOURS * 60 * 60 * 1000L)
+        val polls = nightMillis / SyncBatteryPolicy.IN_SERVICE_POLL_NIGHT_INTERVAL_MS
+        assertTrue("a night of polling must cost 2 to 3 wake cycles, got $polls", polls in 2..3)
+    }
+
+    @Test
+    fun nightPollIsStrictlySlowerThanTheDayPoll() {
+        assertTrue(
+            "the night interval exists to spend less, so it must be longer",
+            SyncBatteryPolicy.IN_SERVICE_POLL_NIGHT_INTERVAL_MS > SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS
+        )
+    }
+
+    @Test
+    fun invalidHoursFallBackToTheDayPoll() {
+        assertEquals(SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS, SyncBatteryPolicy.pollIntervalMs(-1))
+        assertEquals(SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS, SyncBatteryPolicy.pollIntervalMs(24))
+    }
 }

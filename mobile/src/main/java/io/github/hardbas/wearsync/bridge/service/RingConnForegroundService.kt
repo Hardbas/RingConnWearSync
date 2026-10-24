@@ -122,8 +122,11 @@ class RingConnForegroundService : Service() {
             while (isActive) {
                 triggerSync(force = false)
                 // The widget this reads refreshes every 15-30 min, so polling faster than 5 min
-                // only holds wake locks without producing fresher data.
-                delay(SyncBatteryPolicy.IN_SERVICE_POLL_INTERVAL_MS)
+                // only holds wake locks without producing fresher data. Overnight the ring
+                // consolidates sleep instead of producing readings, so the poll backs off to the
+                // night interval: three wake cycles for the whole night instead of ninety.
+                val hourOfDay = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                delay(SyncBatteryPolicy.pollIntervalMs(hourOfDay))
             }
         }
     }

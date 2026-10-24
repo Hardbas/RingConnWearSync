@@ -39,8 +39,39 @@ internal object SyncBatteryPolicy {
      */
     const val IN_SERVICE_POLL_INTERVAL_MS = 5 * 60 * 1000L
 
+    /**
+     * In-service poll interval while the wearer is expected to be asleep.
+     *
+     * Sleep is consolidated by the ring and read once the night ends; a five-minute poll between
+     * 23:00 and 06:00 cannot observe anything new, it only holds a wake lock on a phone that is
+     * otherwise idle. At 150 minutes the whole night costs three wake cycles.
+     */
+    const val IN_SERVICE_POLL_NIGHT_INTERVAL_MS = 150 * 60 * 1000L
+
+    /** First hour (inclusive) of the quiet window, which wraps past midnight. */
+    const val NIGHT_WINDOW_START_HOUR = 23
+
+    /** First hour (exclusive) after the quiet window. */
+    const val NIGHT_WINDOW_END_HOUR = 6
+
+    /** Hours covered by the quiet window, crossing midnight. */
+    const val NIGHT_WINDOW_HOURS = (24 - NIGHT_WINDOW_START_HOUR) + NIGHT_WINDOW_END_HOUR
+
     fun watchdogIntervalMs(hourOfDay: Int): Long =
         if (isMorningWindow(hourOfDay)) WATCHDOG_MORNING_INTERVAL_MS else WATCHDOG_INTERVAL_MS
+
+    /**
+     * Poll interval for the given hour: the quiet interval overnight, the day interval otherwise.
+     * An hour outside 0..23 is a programming error, not a night, so it falls back to the day one.
+     */
+    fun pollIntervalMs(hourOfDay: Int): Long =
+        if (isNightWindow(hourOfDay)) IN_SERVICE_POLL_NIGHT_INTERVAL_MS else IN_SERVICE_POLL_INTERVAL_MS
+
+    /** True between [NIGHT_WINDOW_START_HOUR] and [NIGHT_WINDOW_END_HOUR], wrapping midnight. */
+    fun isNightWindow(hourOfDay: Int): Boolean {
+        if (hourOfDay !in 0..23) return false
+        return hourOfDay >= NIGHT_WINDOW_START_HOUR || hourOfDay < NIGHT_WINDOW_END_HOUR
+    }
 
     fun isMorningWindow(hourOfDay: Int): Boolean =
         hourOfDay in MORNING_WINDOW_START_HOUR until MORNING_WINDOW_END_HOUR
