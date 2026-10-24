@@ -18,8 +18,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.ComponentActivity
+import android.app.AlertDialog
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import io.github.hardbas.wearsync.bridge.service.SleepDiagnostics
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import com.google.android.gms.wearable.Wearable
 import io.github.hardbas.wearsync.bridge.data.RingConnVitals
 import io.github.hardbas.wearsync.bridge.service.RingConnAccessibilityService
@@ -391,6 +401,27 @@ class PhoneBridgeMainActivity : ComponentActivity() {
         }
         syncCard.addView(syncBtn)
 
+        // Answers one question with data instead of theory: is the night excluded by the
+        // "ended after today's midnight" rule, or is Health Connect not returning it at all.
+        val diagnosticsBtn = Button(this).apply {
+            text = "🩺 Diagnóstico de sueño"
+            setTextColor(Color.WHITE)
+            textSize = 12.5f
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.parseColor("#1E2430"), Color.parseColor("#3A4453"))
+            ).apply {
+                cornerRadius = dp(20).toFloat()
+            }
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setOnClickListener { showSleepDiagnostics() }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(8) }
+        }
+        syncCard.addView(diagnosticsBtn)
+
         syncStatusText = TextView(this).apply {
             text = "Última sincronización: Pendiente..."
             textSize = 12.5f
@@ -738,6 +769,71 @@ class PhoneBridgeMainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun showSleepDiagnostics() {
+        scope.launch {
+            val report = try {
+                collectSleepDiagnostics()
+            } catch (e: Exception) {
+                "Error leyendo Health Connect: ${e.message}"
+            }
+            val textView = TextView(this@PhoneBridgeMainActivity).apply {
+                text = report
+                textSize = 11f
+                setTextIsSelectable(true)
+                setTextColor(Color.WHITE)
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+            }
+            AlertDialog.Builder(this@PhoneBridgeMainActivity)
+                .setTitle("Diagnóstico de sueño")
+                .setView(ScrollView(this@PhoneBridgeMainActivity).apply { addView(textView) })
+                .setPositiveButton("Cerrar", null)
+                .show()
+        }
+    }
+
+    /**
+     * Reads sleep sessions from the last 36 hours and reports whether each one is inside the
+     * window the reader uses. It does not re-run the stage merge on purpose: this probe must
+     * answer "is the night visible at all", and duplicating the merge could disagree with the
+     * real path and mislead.
+     */
+    private suspend fun collectSleepDiagnostics(): String {
+        val now = Instant.now()
+        val todayStart = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
+        val windowStart = now.minus(36, ChronoUnit.HOURS)
+
+        val client = HealthConnectClient.getOrCreate(this)
+        val granted = client.permissionController.getGrantedPermissions()
+        if (!granted.contains(HealthPermission.getReadPermission(SleepSessionRecord::class))) {
+            return "Sin permiso de lectura de sueño en Health Connect.\n" +
+                "Concedelo desde la tarjeta de permisos y volvé a intentar."
+        }
+
+        val response = client.readRecords(
+            ReadRecordsRequest(
+                recordType = SleepSessionRecord::class,
+                timeRangeFilter = TimeRangeFilter.between(windowStart, now)
+            )
+        )
+        val sessions = response.records.map {
+            SleepDiagnostics.Session(
+                startMs = it.startTime.toEpochMilli(),
+                endMs = it.endTime.toEpochMilli(),
+                stageCount = it.stages.size
+            )
+        }
+
+        return SleepDiagnostics.format(
+            SleepDiagnostics.Report(
+                nowMs = now.toEpochMilli(),
+                todayStartMs = todayStart.toEpochMilli(),
+                sessions = sessions,
+                chosenStages = "no recalculado por la sonda",
+                chosenSource = "ver veredicto por sesión"
+            )
+        )
     }
 
     private fun scrapeFromRingConnApp() {
