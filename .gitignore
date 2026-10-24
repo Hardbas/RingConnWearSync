@@ -10,11 +10,17 @@
 *.aab
 captures
 .cxx
-# Binary image assets are never committed: extracted or derived images of
-# unclear provenance are redistributed as original vector drawables instead.
-# See the Legal & Trademark Notice in README.md.
+# Binary image assets are not committed: extracted or derived images of unclear
+# provenance are redistributed as original vector drawables instead. See the
+# Legal & Trademark Notice in README.md.
+#
+# docs/screenshots/ is the one exception, and only because of what it contains:
+# screenshots of this app's own screens, captured by the maintainer on real
+# hardware. They carry no Samsung Health or RingConn artwork, only this
+# project's own UI and its own drawables. Anything else stays out.
 *.png
 *.webp
+!docs/screenshots/*.png
 *.jpg
 *.jpeg
 .opencode/
